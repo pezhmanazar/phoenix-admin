@@ -1,33 +1,28 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
 
-/* --- Reset و استایل پایه پنل ادمین --- */
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+  html,
+  body {
+    @apply bg-black text-white antialiased;
+    direction: rtl;
+  }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #020617; /* پس‌زمینه تیره پنل */
-  color: #e5e7eb;            /* متن روشن */
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-}
+  body {
+    @apply min-h-screen;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    @apply text-orange-400 hover:text-orange-300;
+  }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+  input,
+  select,
+  textarea,
+  button {
+    @apply font-sans;
+  }
 }
