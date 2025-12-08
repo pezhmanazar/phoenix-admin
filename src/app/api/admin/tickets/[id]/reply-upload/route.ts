@@ -1,16 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
+
     const token = (await cookies()).get("admin_token")?.value;
     if (!token) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     const base =
@@ -27,19 +32,26 @@ export async function POST(
       outForm.append(k, v as any);
     }
 
-    const res = await fetch(`${base}/api/admin/tickets/${params.id}/reply-upload`, {
-      method: "POST",
-      headers: {
-        "x-admin-token": token, // محتوا را خود fetch بر اساس boundary ست می‌کند
-      },
-      body: outForm,
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${base}/api/admin/tickets/${id}/reply-upload`,
+      {
+        method: "POST",
+        headers: {
+          // محتوا را خود fetch بر اساس boundary ست می‌کند
+          "x-admin-token": token,
+        },
+        body: outForm,
+        cache: "no-store",
+      }
+    );
 
     const data = await res.json().catch(() => ({}));
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
     console.error("proxy reply-upload error:", e);
-    return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "internal_error" },
+      { status: 500 }
+    );
   }
 }
