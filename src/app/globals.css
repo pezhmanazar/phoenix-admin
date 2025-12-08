@@ -1,26 +1,29 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* ---- Phoenix Admin global styles ---- */
+/* --- تنظیمات کلی سایت --- */
 
 :root {
   color-scheme: dark;
 }
 
-html,
-body {
-  padding: 0;
-  margin: 0;
-  background-color: #000000;
-  color: #ffffff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+html {
+  direction: rtl;
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+  color: #fff;
 }
 
 a {
