@@ -17,14 +17,12 @@ type AdminMe = {
 async function fetchMe(): Promise<AdminMe | null> {
   try {
     const token = (await cookies()).get("admin_token")?.value || "";
-
     const base =
       (process.env.NEXT_PUBLIC_BACKEND_URL &&
         process.env.NEXT_PUBLIC_BACKEND_URL.trim()) ||
       (process.env.BACKEND_URL && process.env.BACKEND_URL.trim()) ||
       "http://127.0.0.1:4000";
 
-    // هدر فقط وقتی توکن داریم
     const headers: Record<string, string> = {};
     if (token.trim()) headers["x-admin-token"] = token.trim();
 
@@ -59,8 +57,10 @@ function roleBadge(role?: string) {
       : role === "manager"
       ? "bg-sky-700/30 text-sky-300 border-sky-700/50"
       : "bg-purple-700/30 text-purple-300 border-purple-700/50";
+
   const label =
     role === "owner" ? "Owner" : role === "manager" ? "Manager" : "Agent";
+
   return (
     <span className={`text-xs px-2 py-1 rounded-full border ${style}`}>
       {label}
@@ -77,12 +77,13 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="flex justify-between items-center p-4 border-b border-[#333] bg-[#0b0b0b]">
+      <header className="flex justify-between items-center px-6 py-3 border-b border-[#333] bg-[#0b0b0b]">
         <Link
           href="/admin/tickets"
-          className="font-bold text-lg hover:text-orange-400"
+          className="inline-flex items-center gap-2 rounded-full border border-[#333] bg-[#050505] px-4 py-1.5 text-xs sm:text-sm font-semibold text-white/90 hover:text-orange-400 hover:border-orange-500 transition-colors"
         >
-          🎛️ پنل مدیریت ققنوس
+          <span aria-hidden>🎛️</span>
+          <span>پنل مدیریت ققنوس</span>
         </Link>
 
         <div className="flex items-center gap-3">
@@ -96,19 +97,19 @@ export default async function AdminLayout({
                 {roleBadge(me.role)}
               </div>
 
-              {/* ✅ لینک پروفایل */}
+              {/* لینک پروفایل */}
               <Link
                 href="/admin/profile"
-                className="px-3 py-2 bg-[#222] hover:bg-[#333] rounded-lg text-white"
+                className="px-3 py-2 bg-[#222] hover:bg-[#333] rounded-lg text-xs sm:text-sm"
               >
                 پروفایل
               </Link>
 
-              {/* ✅ فقط برای Owner: فقط «مدیریت ادمین‌ها» (بدون دکمه افزودن) */}
+              {/* فقط برای Owner: مدیریت ادمین‌ها */}
               {me?.role === "owner" ? (
                 <Link
                   href="/admin/admins"
-                  className="px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg text-white"
+                  className="px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg text-xs sm:text-sm"
                 >
                   مدیریت ادمین‌ها
                 </Link>
@@ -116,7 +117,7 @@ export default async function AdminLayout({
 
               <LogoutButton />
             </>
-          ) : null /* وقتی لاگین نیست، چیزی نمایش نده */}
+          ) : null}
         </div>
       </header>
 

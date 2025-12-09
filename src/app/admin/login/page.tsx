@@ -1,7 +1,7 @@
 //src\app\admin\login\page.tsx
 
+// src/app/admin/login/page.tsx
 "use client";
-
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, FormEvent } from "react";
 
@@ -34,8 +34,8 @@ export default function AdminLoginPage() {
     if (busy) return;
 
     setErr(null);
-
     const body = { email: email.trim(), password };
+
     if (!body.email || !body.password) {
       setErr("ایمیل و رمز را کامل وارد کنید.");
       return;
@@ -74,14 +74,13 @@ export default function AdminLoginPage() {
         flexDirection: "column",
       }}
     >
-      {/* فقط بدنه؛ هدر محلی حذف شد تا با هدر اصلی تداخل نداشته باشد */}
       <main
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "32px 16px",
+          padding: "48px 16px",
         }}
       >
         <form
@@ -108,12 +107,13 @@ export default function AdminLoginPage() {
           >
             ورود مدیر پشتیبانی
           </h1>
+
           <p
             style={{
               fontSize: "12px",
               textAlign: "center",
               color: "#9ca3af",
-              marginBottom: "25px",
+              marginBottom: "18px",
             }}
           >
             برای دسترسی به تیکت‌ها و مدیریت کاربران وارد شوید.
@@ -234,12 +234,15 @@ export default function AdminLoginPage() {
               fontSize: "11px",
               textAlign: "center",
               color: "#6b7280",
-              marginTop: "10px",
-              lineHeight: 1.6,
+              marginTop: "12px",
+              lineHeight: 1.7,
+              maxWidth: "360px",
+              marginInline: "auto",
             }}
           >
-            این پنل فقط برای تیم پشتیبانی ققنوس است. 
-            در صورت نیاز به دسترسی جدید،با مدیر ارشد تماس بگیرید.
+            این پنل فقط برای تیم پشتیبانی ققنوس است.
+            <br />
+            در صورت نیاز به دسترسی جدید، با مدیر ارشد تماس بگیرید.
           </p>
         </form>
       </main>
