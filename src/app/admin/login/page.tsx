@@ -113,7 +113,7 @@ export default function AdminLoginPage() {
               fontSize: "12px",
               textAlign: "center",
               color: "#9ca3af",
-              marginBottom: "18px",
+              marginBottom: "25px",
             }}
           >
             برای دسترسی به تیکت‌ها و مدیریت کاربران وارد شوید.
@@ -238,8 +238,8 @@ export default function AdminLoginPage() {
               lineHeight: 1.6,
             }}
           >
-            این پنل فقط برای تیم پشتیبانی ققنوس است. در صورت نیاز به دسترسی جدید،
-            با مدیر ارشد تماس بگیرید.
+            این پنل فقط برای تیم پشتیبانی ققنوس است. 
+            در صورت نیاز به دسترسی جدید،با مدیر ارشد تماس بگیرید.
           </p>
         </form>
       </main>
