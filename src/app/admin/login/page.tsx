@@ -1,3 +1,5 @@
+//src\app\admin\login\page.tsx
+
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -72,33 +74,7 @@ export default function AdminLoginPage() {
         flexDirection: "column",
       }}
     >
-      {/* هدر بالا */}
-      <header
-        style={{
-          padding: "12px 24px",
-          borderBottom: "1px solid #333",
-          backgroundColor: "#0b0b0b",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: "14px",
-        }}
-      >
-        <a
-          href="/admin/tickets"
-          style={{
-            fontWeight: 700,
-            fontSize: "15px",
-            textDecoration: "none",
-            color: "#fff",
-          }}
-        >
-          🎛️ پنل مدیریت ققنوس
-        </a>
-        <span style={{ opacity: 0.7, fontSize: "12px" }}>ورود مدیر پشتیبانی</span>
-      </header>
-
-      {/* بدنه: فرم کاملاً وسط و محدود */}
+      {/* فقط بدنه؛ هدر محلی حذف شد تا با هدر اصلی تداخل نداشته باشد */}
       <main
         style={{
           flex: 1,
