@@ -13,7 +13,7 @@ type AdminMe = {
   role: "owner" | "manager" | "agent";
 };
 
-// دریافت اطلاعات ادمین از کوکی و بک‌اند
+// ✅ دریافت اطلاعات ادمین از کوکی و بررسی در بک‌اند
 async function fetchMe(): Promise<AdminMe | null> {
   try {
     const token = (await cookies()).get("admin_token")?.value || "";
@@ -26,11 +26,13 @@ async function fetchMe(): Promise<AdminMe | null> {
     const headers: Record<string, string> = {};
     if (token.trim()) headers["x-admin-token"] = token.trim();
 
+    // تلاش اول: /api/admin/verify
     let r = await fetch(`${base}/api/admin/verify`, {
       headers,
       cache: "no-store",
     });
 
+    // فالبک به /api/admin/me
     if (r.status === 404) {
       r = await fetch(`${base}/api/admin/me`, {
         headers,
@@ -76,11 +78,31 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* هدر با ارتفاع بیشتر و پیل درشت‌تر */}
-      <header className="flex justify-between items-center px-8 py-5 border-b border-[#333] bg-[#050505]">
+      {/* 🔹 هدر با ارتفاع بیشتر */}
+      <header
+        className="flex justify-between items-center border-b border-[#333] bg-[#0b0b0b]"
+        style={{
+          padding: "14px 28px", // فاصله‌ی عمودی و افقی بیشتر نسبت به قبل
+        }}
+      >
+        {/* 🔹 «پیل» بزرگ و وسط‌نشین، با استایل کاملاً کنترل‌شده */}
         <Link
           href="/admin/tickets"
-          className="inline-flex items-center gap-2 rounded-full border border-[#444] bg-[#111] px-6 py-2.5 text-sm sm:text-base font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] hover:text-orange-400 hover:border-orange-500 hover:bg-[#181818] transition-colors"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            borderRadius: 9999,
+            border: "1px solid #444",
+            backgroundColor: "#111",
+            padding: "8px 18px", // این ارتفاع واقعی و فاصله‌ی عمودی اطراف متن
+            fontSize: 14,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.9)",
+            lineHeight: 1.2,
+            textDecoration: "none",
+            cursor: "pointer",
+          }}
         >
           <span aria-hidden>🎛️</span>
           <span>پنل مدیریت ققنوس</span>
@@ -89,7 +111,7 @@ export default async function AdminLayout({
         <div className="flex items-center gap-3">
           {me ? (
             <>
-              {/* نام و نقش */}
+              {/* نمایش نام و نقش */}
               <div className="flex items-center gap-2">
                 <span className="opacity-80 text-sm">
                   {me.name || me.email}
@@ -97,7 +119,7 @@ export default async function AdminLayout({
                 {roleBadge(me.role)}
               </div>
 
-              {/* پروفایل */}
+              {/* لینک پروفایل */}
               <Link
                 href="/admin/profile"
                 className="px-3 py-2 bg-[#222] hover:bg-[#333] rounded-lg text-xs sm:text-sm"
@@ -105,8 +127,8 @@ export default async function AdminLayout({
                 پروفایل
               </Link>
 
-              {/* فقط برای Owner */}
-              {me.role === "owner" ? (
+              {/* فقط برای Owner: مدیریت ادمین‌ها */}
+              {me?.role === "owner" ? (
                 <Link
                   href="/admin/admins"
                   className="px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg text-xs sm:text-sm"
@@ -115,7 +137,6 @@ export default async function AdminLayout({
                 </Link>
               ) : null}
 
-              
               <LogoutButton />
             </>
           ) : null}
