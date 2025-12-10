@@ -1,5 +1,5 @@
+// src/app/admin/tickets/[id]/TicketFlags.client.tsx
 "use client";
-
 import React from "react";
 import { useRouter } from "next/navigation";
 
@@ -53,17 +53,50 @@ export default function TicketFlags({
     }
   };
 
+  const wrapStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  };
+
+  const baseBtn: React.CSSProperties = {
+    padding: "6px 12px",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: "solid",
+    fontSize: 12,
+    cursor: "pointer",
+    backgroundColor: "#111",
+    borderColor: "#333",
+    color: "#fff",
+    opacity: busy ? 0.7 : 1,
+  };
+
+  const pinnedStyle: React.CSSProperties = pinned
+    ? {
+        backgroundColor: "#ea580c",
+        borderColor: "#ea580c",
+        color: "#fff",
+      }
+    : {};
+
+  const dangerBtn: React.CSSProperties = {
+    backgroundColor: "#dc2626",
+    borderColor: "#dc2626",
+    color: "#fff",
+  };
+
   return (
-    <div className="flex items-center gap-2">
+    <div style={wrapStyle}>
       <button
         onClick={togglePinned}
         disabled={busy !== null}
-        className={`px-3 py-1 rounded-lg border ${
-          pinned
-            ? "bg-orange-600 text-white border-orange-600"
-            : "bg-[#111] border-[#333] text-white"
-        } disabled:opacity-60`}
         title={pinned ? "برداشتن سنجاق" : "سنجاق‌کردن"}
+        style={{
+          ...baseBtn,
+          ...pinnedStyle,
+          opacity: busy !== null ? 0.5 : baseBtn.opacity,
+        }}
       >
         ★ {pinned ? "سنجاق‌شده" : "سنجاق کن"}
       </button>
@@ -72,8 +105,12 @@ export default function TicketFlags({
         <button
           onClick={markRead}
           disabled={busy !== null}
-          className="px-3 py-1 rounded-lg border bg-red-600 text-white border-red-600 disabled:opacity-60"
           title="علامت به‌عنوان خوانده‌شده"
+          style={{
+            ...baseBtn,
+            ...dangerBtn,
+            opacity: busy !== null ? 0.5 : baseBtn.opacity,
+          }}
         >
           علامت خوانده‌شده
         </button>

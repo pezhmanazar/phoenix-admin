@@ -1,24 +1,24 @@
+// src/app/admin/tickets/[id]/ReplyBar.client.tsx
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-
-// ⚠️ این کامپوننت همان قبلی است + قابلیت ضبط ویس.
-// همچنان به API داخلی Next می‌فرستیم تا توکن HttpOnly سمت سرور خوانده شود.
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export default function ReplyBar({ ticketId }: { ticketId?: string }) {
-  // اگر ticketId از پرنت نیاد، از URL بخون (fallback)
   const id =
     ticketId ||
     (typeof window !== "undefined"
       ? (window.location.pathname.split("/").pop() || "").trim()
       : "");
 
-  // متن/فایل
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // --- ضبط ویس ---
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -31,7 +31,11 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   const [recordMime, setRecordMime] = useState<string>("");
 
   useEffect(() => {
-    setRecordingSupported(typeof window !== "undefined" && !!window.MediaRecorder);
+    setRecordingSupported(
+      typeof window !== "undefined" &&
+        // @ts-ignore
+        !!window.MediaRecorder
+    );
     return () => {
       cleanupRecording();
     };
@@ -42,8 +46,12 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     stopTimer();
     setSeconds(0);
     // @ts-ignore
-    timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    timerRef.current = window.setInterval(
+      () => setSeconds((s) => s + 1),
+      1000
+    );
   };
+
   const stopTimer = () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -69,7 +77,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     const s = total % 60;
     const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
     return `${pad(m)}:${pad(s)}`;
-    };
+  };
 
   const onPickFile = useCallback(() => {
     fileInputRef.current?.click();
@@ -84,7 +92,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     setText("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    // پاک‌سازی ویس ضبط‌شده
     if (recordBlobUrl) URL.revokeObjectURL(recordBlobUrl);
     setRecordBlobUrl(null);
     setRecordMime("");
@@ -92,14 +99,12 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     cleanupRecording();
   };
 
-  // ----- کنترل‌های ضبط -----
   const startRecording = async () => {
     if (!recordingSupported || isRecording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
-      // سعی در انتخاب بهترین mime
       let mimeType = "";
       if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
         mimeType = "audio/webm;codecs=opus";
@@ -109,15 +114,16 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         mimeType = "audio/ogg;codecs=opus";
       } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
         mimeType = "audio/ogg";
-      } else {
-        mimeType = ""; // بذار خود مرورگر انتخاب کنه
       }
 
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const rec = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
       recorderRef.current = rec;
       setRecordMime(mimeType || rec.mimeType || "audio/webm");
-
       chunksRef.current = [];
+
       rec.ondataavailable = (ev: BlobEvent) => {
         if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
       };
@@ -125,14 +131,15 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         stopTimer();
         setIsRecording(false);
         setIsPaused(false);
-        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        const blob = new Blob(chunksRef.current, {
+          type: rec.mimeType || "audio/webm",
+        });
         const url = URL.createObjectURL(blob);
-        // اگر قبلاً فایل انتخاب شده بود، پاکش کن (اولویت با ویس ضبطی)
         setFile(null);
         setRecordBlobUrl(url);
       };
 
-      rec.start(200); // هر 200ms یک chunk
+      rec.start(200);
       setIsRecording(true);
       setIsPaused(false);
       startTimer();
@@ -150,6 +157,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       stopTimer();
     }
   };
+
   const resumeRecording = () => {
     if (!recorderRef.current) return;
     if (recorderRef.current.state === "paused") {
@@ -158,6 +166,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       startTimer();
     }
   };
+
   const stopRecording = () => {
     if (!recorderRef.current) return;
     try {
@@ -166,8 +175,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
     mediaStreamRef.current = null;
   };
+
   const cancelRecording = () => {
-    // لغو و دور ریختن
     cleanupRecording();
     if (recordBlobUrl) URL.revokeObjectURL(recordBlobUrl);
     setRecordBlobUrl(null);
@@ -177,11 +186,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   const onSend = async () => {
     if (!id) return;
-
-    // اولویت‌ها:
-    // 1) اگر ویس ضبط‌شده داریم → همون رو بفرست
-    // 2) اگر فایل انتخاب شده داریم → همون رو بفرست
-    // 3) اگر فقط متن داریم → متنی بفرست
 
     const hasRecorded = !!recordBlobUrl;
     const onlyText = !!text.trim() && !file && !hasRecorded;
@@ -194,20 +198,15 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
     try {
       setSending(true);
-
       if (hasRecorded) {
-        // تبدیل Blob URL به File
         const blob = await fetch(recordBlobUrl as string).then((r) => r.blob());
         const mime = blob.type || recordMime || "audio/webm";
         const ext = mime.includes("ogg") ? "ogg" : "webm";
         const recordedFile = new File([blob], `voice.${ext}`, { type: mime });
-
         const fd = new FormData();
         fd.append("file", recordedFile);
         if (text.trim()) fd.append("text", text.trim());
-        // مدت زمان ضبط‌شده
         fd.append("durationSec", String(seconds || 0));
-
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
@@ -229,7 +228,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           throw new Error(json?.error || "ارسال فایل ناموفق بود");
         }
       } else {
-        // فقط متن
         const res = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -240,7 +238,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           throw new Error(json?.error || "ارسال پیام ناموفق بود");
         }
       }
-
       clearForm();
       if (typeof window !== "undefined") window.location.reload();
     } catch (e: any) {
@@ -250,135 +247,262 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     }
   };
 
-  return (
-    <div className="mt-6 border border-[#333] rounded-xl p-3 bg-[#0a0a0a]">
-      <div className="text-sm text-white/80 mb-2">ارسال پاسخ</div>
+  // ---- styles ----
+  const container: React.CSSProperties = {
+    marginTop: 24,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#333",
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#0a0a0a",
+  };
 
-      {/* ورودی متن */}
+  const label: React.CSSProperties = {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 8,
+  };
+
+  const textarea: React.CSSProperties = {
+    width: "100%",
+    backgroundColor: "#000",
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#333",
+    borderRadius: 10,
+    padding: 8,
+    color: "#fff",
+    fontSize: 13,
+    minHeight: 90,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const sectionBox: React.CSSProperties = {
+    marginTop: 12,
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#333",
+    backgroundColor: "#0b0b0b",
+  };
+
+  const row: React.CSSProperties = {
+    marginTop: 8,
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  };
+
+  const smallText: React.CSSProperties = {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+  };
+
+  const timerText: React.CSSProperties = {
+    marginLeft: "auto",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    fontVariantNumeric: "tabular-nums",
+  };
+
+  const baseBtn: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 12,
+    color: "#fff",
+  };
+
+  const outlineBtn: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#333",
+    backgroundColor: "#111",
+    color: "rgba(255,255,255,0.8)",
+    cursor: "pointer",
+    fontSize: 12,
+  };
+
+  const primarySendBtn: React.CSSProperties = {
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "none",
+    backgroundColor: "#059669",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 13,
+  };
+
+  return (
+    <div style={container}>
+      <div style={label}>ارسال پاسخ</div>
+
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="متن پاسخ…"
-        className="w-full bg-black border border-[#333] rounded-lg p-2 text-sm text-white min-h-[90px] outline-none"
+        style={textarea}
       />
 
       {/* ضبط ویس */}
-      <div className="mt-3 p-2 rounded-lg border border-[#333] bg-[#0b0b0b]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-white/70">ضبط ویس</span>
-          <span className="ml-auto text-xs text-white/60 tabular-nums">{formatTime(seconds)}</span>
+      <div style={sectionBox}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ ...smallText, color: "rgba(255,255,255,0.7)" }}>
+            ضبط ویس
+          </span>
+          <span style={timerText}>{formatTime(seconds)}</span>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div style={row}>
           <button
             type="button"
             onClick={startRecording}
             disabled={!recordingSupported || isRecording || sending}
-            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50"
+            style={{
+              ...baseBtn,
+              backgroundColor: "#e11d48",
+              opacity:
+                !recordingSupported || isRecording || sending ? 0.5 : 1,
+            }}
           >
             شروع ضبط
           </button>
-
           <button
             type="button"
             onClick={pauseRecording}
             disabled={!isRecording || isPaused || sending}
-            className="px-3 py-1.5 rounded-lg bg-[#222] hover:bg-[#333] disabled:opacity-50"
+            style={{
+              ...baseBtn,
+              backgroundColor: "#222",
+              opacity: !isRecording || isPaused || sending ? 0.5 : 1,
+            }}
           >
             مکث
           </button>
-
           <button
             type="button"
             onClick={resumeRecording}
             disabled={!isRecording || !isPaused || sending}
-            className="px-3 py-1.5 rounded-lg bg-[#222] hover:bg-[#333] disabled:opacity-50"
+            style={{
+              ...baseBtn,
+              backgroundColor: "#222",
+              opacity: !isRecording || !isPaused || sending ? 0.5 : 1,
+            }}
           >
             ادامه
           </button>
-
           <button
             type="button"
             onClick={stopRecording}
             disabled={!isRecording || sending}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
+            style={{
+              ...baseBtn,
+              backgroundColor: "#059669",
+              opacity: !isRecording || sending ? 0.5 : 1,
+            }}
           >
             پایان ضبط
           </button>
-
           <button
             type="button"
             onClick={cancelRecording}
             disabled={(!isRecording && !recordBlobUrl) || sending}
-            className="px-3 py-1.5 rounded-lg bg-[#111] border border-[#333] text-white/80 hover:bg-[#151515] disabled:opacity-50"
+            style={{
+              ...outlineBtn,
+              opacity:
+                (!isRecording && !recordBlobUrl) || sending ? 0.5 : 1,
+            }}
           >
             لغو ضبط
           </button>
-
           {!recordingSupported && (
-            <span className="text-[11px] text-amber-400">
-              مرورگر از MediaRecorder پشتیبانی نمی‌کند؛ فایل صوتی را آپلود کنید.
+            <span
+              style={{
+                fontSize: 11,
+                color: "#fbbf24",
+              }}
+            >
+              مرورگر از MediaRecorder پشتیبانی نمی‌کند؛ فایل صوتی را آپلود
+              کنید.
             </span>
           )}
         </div>
 
-        {/* پیش‌نمایش ویس ضبط‌شده */}
         {recordBlobUrl ? (
-          <div className="mt-3">
-            <audio controls src={recordBlobUrl} className="w-full" />
+          <div style={{ marginTop: 8 }}>
+            <audio controls src={recordBlobUrl} style={{ width: "100%" }} />
           </div>
         ) : null}
       </div>
 
       {/* انتخاب فایل */}
-      <div className="flex items-center gap-2 mt-3">
+      <div style={row}>
         <input
           ref={fileInputRef}
           type="file"
           onChange={onFileChange}
           hidden
-          // accept="image/*,audio/*,.pdf,.doc,.docx,.zip"
         />
         <button
           type="button"
           onClick={onPickFile}
-          className="px-3 py-1.5 rounded-lg bg-[#111] border border-[#333] text-white/90 hover:bg-[#151515]"
+          style={outlineBtn}
         >
           انتخاب فایل / ویس / عکس
         </button>
         {file ? (
-          <span className="text-xs text-white/70">
+          <span style={smallText}>
             انتخاب شده: <b>{file.name}</b>
           </span>
         ) : (
-          <span className="text-xs text-white/40">فایلی انتخاب نشده</span>
+          <span
+            style={{ ...smallText, color: "rgba(255,255,255,0.4)" }}
+          >
+            فایلی انتخاب نشده
+          </span>
         )}
       </div>
 
       {/* دکمه ارسال */}
-      <div className="mt-3 flex items-center gap-2">
+      <div style={{ ...row, marginTop: 12 }}>
         <button
           type="button"
           onClick={onSend}
           disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
-          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
+          style={{
+            ...primarySendBtn,
+            opacity:
+              sending || (!text.trim() && !file && !recordBlobUrl) ? 0.6 : 1,
+          }}
         >
           {sending ? "در حال ارسال…" : "ارسال"}
         </button>
-        {(file || recordBlobUrl) ? (
+        {file || recordBlobUrl ? (
           <button
             type="button"
             onClick={clearForm}
             disabled={sending}
-            className="px-3 py-2 rounded-lg bg-[#111] border border-[#333] text-white/80 hover:bg-[#151515]"
+            style={{
+              ...outlineBtn,
+              opacity: sending ? 0.6 : 1,
+            }}
           >
             پاک‌سازی
           </button>
         ) : null}
-      </div>
-
-      <div className="mt-2 text-[11px] text-white/40">
-       
       </div>
     </div>
   );

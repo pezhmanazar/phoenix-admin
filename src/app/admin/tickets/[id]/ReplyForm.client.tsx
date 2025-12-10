@@ -1,3 +1,4 @@
+// src/app/admin/tickets/[id]/ReplyForm.client.tsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -6,14 +7,18 @@ export default function ReplyForm({ id }: { id: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
 
-  // ضبط ساده‌ی صدا در مرورگر (اختیاری)
   const [recSupported, setRecSupported] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const [recording, setRecording] = useState(false);
 
   useEffect(() => {
-    setRecSupported(typeof window !== "undefined" && !!navigator.mediaDevices && !!window.MediaRecorder);
+    setRecSupported(
+      typeof window !== "undefined" &&
+        !!navigator.mediaDevices &&
+        // @ts-ignore
+        !!window.MediaRecorder
+    );
   }, []);
 
   async function startRecording() {
@@ -25,9 +30,10 @@ export default function ReplyForm({ id }: { id: string }) {
       mr.ondataavailable = (e) => e.data && chunksRef.current.push(e.data);
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const f = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
-        setFile(f); // فایل ضبط‌شده آماده آپلود
-        // استریم را ببند
+        const f = new File([blob], `voice-${Date.now()}.webm`, {
+          type: "audio/webm",
+        });
+        setFile(f);
         stream.getTracks().forEach((t) => t.stop());
       };
       mr.start();
@@ -36,6 +42,7 @@ export default function ReplyForm({ id }: { id: string }) {
       alert("دسترسی میکروفن رد شد یا پشتیبانی نمی‌شود.");
     }
   }
+
   function stopRecording() {
     mediaRecorderRef.current?.stop();
     setRecording(false);
@@ -45,13 +52,10 @@ export default function ReplyForm({ id }: { id: string }) {
     if (sending) return;
     try {
       setSending(true);
-
       if (file) {
-        // حالت فایل/ویس/عکس
         const form = new FormData();
         form.append("file", file);
         if (text.trim()) form.append("text", text.trim());
-        // اگر مدت زمان ویس را دارید (در موبایل/وب) می‌توانید durationSec هم اضافه کنید
 
         const r = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
@@ -60,13 +64,10 @@ export default function ReplyForm({ id }: { id: string }) {
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j?.ok) throw new Error(j?.error || "upload_failed");
 
-        // ریست
         setText("");
         setFile(null);
-        // رویداد برای رفرش صفحه/لیست پیام‌ها (ساده)
         document.dispatchEvent(new CustomEvent("ticket-updated"));
       } else {
-        // حالت فقط متن
         const r = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -74,7 +75,6 @@ export default function ReplyForm({ id }: { id: string }) {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || !j?.ok) throw new Error(j?.error || "send_failed");
-
         setText("");
         document.dispatchEvent(new CustomEvent("ticket-updated"));
       }
@@ -85,46 +85,114 @@ export default function ReplyForm({ id }: { id: string }) {
     }
   }
 
-  return (
-    <div className="mt-6 border border-[#222] rounded-xl p-3 bg-[#0b0b0b]">
-      <div className="text-sm font-bold mb-2">ارسال پاسخ</div>
+  const containerStyle: React.CSSProperties = {
+    marginTop: 24,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#222",
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#0b0b0b",
+  };
 
+  const titleStyle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 700,
+    marginBottom: 8,
+  };
+
+  const textareaStyle: React.CSSProperties = {
+    width: "100%",
+    backgroundColor: "#000",
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#333",
+    borderRadius: 10,
+    padding: 8,
+    color: "#fff",
+    minHeight: 80,
+    fontSize: 13,
+    boxSizing: "border-box",
+    outline: "none",
+  };
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    flexWrap: "wrap",
+  };
+
+  const primaryBtn: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: "none",
+    backgroundColor: "#059669",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 13,
+  };
+
+  const secondaryBtn: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "none",
+    backgroundColor: "#1f2933",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 12,
+  };
+
+  const infoText: React.CSSProperties = {
+    fontSize: 11,
+    opacity: 0.6,
+  };
+
+  return (
+    <div style={containerStyle}>
+      <div style={titleStyle}>ارسال پاسخ</div>
       <textarea
-        className="w-full bg-black border border-[#333] rounded-lg p-2 text-white min-h-[80px]"
+        style={textareaStyle}
         placeholder="متن پاسخ… (اختیاری وقتی فایل می‌فرستید)"
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
+      <div style={rowStyle}>
         <input
           type="file"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           accept="audio/*,image/*,.pdf,.zip,.rar,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
-          className="text-xs"
+          style={{ fontSize: 11 }}
         />
         {file ? (
-          <span className="text-xs text-emerald-400">فایل انتخاب شد: {file.name}</span>
+          <span style={{ fontSize: 11, color: "#34d399" }}>
+            فایل انتخاب شد: {file.name}
+          </span>
         ) : (
-          <span className="text-xs opacity-60">می‌توانید فایل/عکس/ویس ضمیمه کنید</span>
+          <span style={infoText}>می‌توانید فایل/عکس/ویس ضمیمه کنید</span>
         )}
-
         {recSupported && (
           <button
             type="button"
             onClick={recording ? stopRecording : startRecording}
-            className={`px-2 py-1 rounded ${recording ? "bg-red-600" : "bg-blue-600"} text-white text-xs`}
+            style={{
+              ...secondaryBtn,
+              backgroundColor: recording ? "#dc2626" : "#2563eb",
+            }}
           >
             {recording ? "توقف ضبط" : "ضبط ویس"}
           </button>
         )}
       </div>
-
-      <div className="mt-3 flex items-center gap-2">
+      <div style={{ ...rowStyle, marginTop: 12 }}>
         <button
           onClick={submit}
           disabled={sending || (!file && !text.trim())}
-          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg disabled:opacity-50"
+          style={{
+            ...primaryBtn,
+            opacity: sending || (!file && !text.trim()) ? 0.6 : 1,
+          }}
         >
           {sending ? "در حال ارسال…" : "ارسال"}
         </button>
@@ -132,7 +200,7 @@ export default function ReplyForm({ id }: { id: string }) {
           <button
             type="button"
             onClick={() => setFile(null)}
-            className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white"
+            style={secondaryBtn}
           >
             حذف فایل
           </button>
