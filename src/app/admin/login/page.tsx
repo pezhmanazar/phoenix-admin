@@ -1,5 +1,3 @@
-//src\app\admin\login\page.tsx
-
 // src/app/admin/login/page.tsx
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,10 +30,9 @@ export default function AdminLoginPage() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
-
     setErr(null);
-    const body = { email: email.trim(), password };
 
+    const body = { email: email.trim(), password };
     if (!body.email || !body.password) {
       setErr("ایمیل و رمز را کامل وارد کنید.");
       return;
@@ -50,13 +47,26 @@ export default function AdminLoginPage() {
       });
 
       const json = await res.json().catch(() => null);
+
       if (!json?.ok) {
         setErr(json?.error || "login_failed");
         return;
       }
 
-      router.replace(redirectTo);
-      router.refresh();
+      const to = redirectTo || "/admin/tickets";
+
+      // اول تلاش با روتر خود Next
+      try {
+        router.replace(to);
+        router.refresh();
+      } catch {
+        // اگر به هر دلیلی fail شد، میریم سراغ full reload
+      }
+
+      // فول ریلود برای اطمینان (و حل مشکل موندن روی صفحه لاگین)
+      if (typeof window !== "undefined") {
+        window.location.href = to;
+      }
     } catch {
       setErr("internal_error");
     } finally {
@@ -107,7 +117,6 @@ export default function AdminLoginPage() {
           >
             ورود مدیر پشتیبانی
           </h1>
-
           <p
             style={{
               fontSize: "12px",
