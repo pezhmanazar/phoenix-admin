@@ -16,11 +16,33 @@ export default function VoicePlayer({ src }: { src: string }) {
   };
 
   return (
-    <div className="flex items-center gap-2 bg-white/10 rounded-xl p-2 w-full">
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        backgroundColor: "rgba(255,255,255,0.08)",
+        borderRadius: 12,
+        padding: "6px 8px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       <button
+        type="button"
         onClick={toggleRate}
-        className="text-xs font-bold bg-black/30 px-2 py-1 rounded-md border border-white/20 hover:bg-black/50 transition"
         title="تغییر سرعت پخش"
+        style={{
+          fontSize: "11px",
+          fontWeight: 700,
+          padding: "4px 8px",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.3)",
+          backgroundColor: "rgba(0,0,0,0.45)",
+          color: "#fff",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
       >
         ×{rate}
       </button>
@@ -29,9 +51,14 @@ export default function VoicePlayer({ src }: { src: string }) {
         ref={audioRef}
         controls
         src={src}
-        className="flex-1"
         onPlay={() => {
-          if (audioRef.current) audioRef.current.playbackRate = rate;
+          if (audioRef.current) {
+            audioRef.current.playbackRate = rate;
+          }
+        }}
+        style={{
+          flex: 1,
+          outline: "none",
         }}
       />
     </div>
