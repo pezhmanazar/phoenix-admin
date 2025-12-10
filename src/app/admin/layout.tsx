@@ -51,19 +51,20 @@ async function fetchMe(): Promise<AdminMe | null> {
 
 function roleBadge(role?: string) {
   if (!role) return null;
-
   const style =
     role === "owner"
-      ? "bg-emerald-700/30 text-emerald-300 border-emerald-700/50"
+      ? "bg-emerald-700/25 text-emerald-200 border-emerald-600/60"
       : role === "manager"
-      ? "bg-sky-700/30 text-sky-300 border-sky-700/50"
-      : "bg-purple-700/30 text-purple-300 border-purple-700/50";
+      ? "bg-sky-700/25 text-sky-200 border-sky-600/60"
+      : "bg-purple-700/25 text-purple-200 border-purple-600/60";
 
   const label =
     role === "owner" ? "Owner" : role === "manager" ? "Manager" : "Agent";
 
   return (
-    <span className={`text-xs px-2 py-1 rounded-full border ${style}`}>
+    <span
+      className={`px-2 py-0.5 rounded-full border text-[11px] sm:text-xs ${style}`}
+    >
       {label}
     </span>
   );
@@ -78,72 +79,71 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* 🔹 هدر با ارتفاع بیشتر */}
-      <header
-        className="flex justify-between items-center border-b border-[#333] bg-[#0b0b0b]"
-        style={{
-          padding: "14px 28px", // فاصله‌ی عمودی و افقی بیشتر نسبت به قبل
-        }}
-      >
-        {/* 🔹 «پیل» بزرگ و وسط‌نشین، با استایل کاملاً کنترل‌شده */}
-        <Link
-          href="/admin/tickets"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            borderRadius: 9999,
-            border: "1px solid #444",
-            backgroundColor: "#111",
-            padding: "8px 18px", // این ارتفاع واقعی و فاصله‌ی عمودی اطراف متن
-            fontSize: 14,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.9)",
-            lineHeight: 1.2,
-            textDecoration: "none",
-            cursor: "pointer",
-          }}
-        >
-          <span aria-hidden>🎛️</span>
-          <span>پنل مدیریت ققنوس</span>
-        </Link>
+      {/* 🔹 هدر تمیز مثل صفحه لاگین + کانتینر وسط‌چین */}
+      <header className="border-b border-[#333] bg-[#050505]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4 gap-4">
+          {/* برند پنل مدیریت */}
+          <Link
+            href="/admin/tickets"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              borderRadius: 9999,
+              border: "1px solid #444",
+              backgroundColor: "#111",
+              padding: "8px 18px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.9)",
+              lineHeight: 1.2,
+              textDecoration: "none",
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden>🎛️</span>
+            <span>پنل مدیریت ققنوس</span>
+          </Link>
 
-        <div className="flex items-center gap-3">
           {me ? (
-            <>
-              {/* نمایش نام و نقش */}
-              <div className="flex items-center gap-2">
-                <span className="opacity-80 text-sm">
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* نام و نقش */}
+              <div className="flex flex-col items-end leading-tight text-xs sm:text-sm">
+                <span className="font-semibold truncate max-w-[180px] sm:max-w-xs">
                   {me.name || me.email}
                 </span>
-                {roleBadge(me.role)}
+                <div className="mt-1">{roleBadge(me.role)}</div>
               </div>
 
-              {/* لینک پروفایل */}
-              <Link
-                href="/admin/profile"
-                className="px-3 py-2 bg-[#222] hover:bg-[#333] rounded-lg text-xs sm:text-sm"
-              >
-                پروفایل
-              </Link>
-
-              {/* فقط برای Owner: مدیریت ادمین‌ها */}
-              {me?.role === "owner" ? (
+              {/* دکمه‌ها */}
+              <div className="flex items-center gap-2">
                 <Link
-                  href="/admin/admins"
-                  className="px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg text-xs sm:text-sm"
+                  href="/admin/profile"
+                  className="px-3 py-1.5 bg-[#202020] hover:bg-[#333] rounded-lg text-xs sm:text-sm"
                 >
-                  مدیریت ادمین‌ها
+                  پروفایل
                 </Link>
-              ) : null}
 
-              <LogoutButton />
-            </>
+                {me.role === "owner" && (
+                  <Link
+                    href="/admin/admins"
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 rounded-lg text-xs sm:text-sm"
+                  >
+                    مدیریت ادمین‌ها
+                  </Link>
+                )}
+
+                <LogoutButton />
+              </div>
+            </div>
           ) : null}
         </div>
       </header>
 
-      <main className="flex-1 p-6">{children}</main>
+      {/* 🔹 بدنه: محدود به max-width مثل لاگین، نه فول‌اسکرین شلخته */}
+      <main className="flex-1">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6">{children}</div>
+      </main>
     </div>
   );
 }
