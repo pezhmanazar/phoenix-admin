@@ -1,3 +1,4 @@
+// src/app/admin/tickets/page.tsx
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -65,6 +66,64 @@ function extractLastSender(t: any): "user" | "admin" | null {
     if (s === "user" || s === "admin") return s as "user" | "admin";
   }
   return null;
+}
+
+// ---------- چیپ‌ها با استایل inline مثل لاگین ----------
+function StatusChip({ status }: { status: Ticket["status"] }) {
+  let bg = "#1e293b";
+  let color = "#bfdbfe";
+  let label = "باز";
+  if (status === "pending") {
+    bg = "#422006";
+    color = "#facc15";
+    label = "در انتظار";
+  }
+  if (status === "closed") {
+    bg = "#022c22";
+    color = "#bbf7d0";
+    label = "بسته";
+  }
+  return (
+    <span
+      style={{
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: "11px",
+        fontWeight: 700,
+        backgroundColor: bg,
+        color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function TypeChip({ type }: { type: Ticket["type"] }) {
+  let bg = "#0f172a";
+  let color = "#7dd3fc";
+  let label = "پشتیبانی فنی";
+  if (type === "therapy") {
+    bg = "#1e1b4b";
+    color = "#e9d5ff";
+    label = "ارتباط با درمانگر";
+  }
+  return (
+    <span
+      style={{
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: "11px",
+        fontWeight: 700,
+        backgroundColor: bg,
+        color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 export default function TicketsPage() {
@@ -160,82 +219,122 @@ export default function TicketsPage() {
     }
   }
 
-  const statusChip = (s: Ticket["status"]) => {
-    const map = {
-      open: { bg: "bg-blue-900/40", text: "text-blue-300", label: "باز" },
-      pending: {
-        bg: "bg-yellow-900/40",
-        text: "text-yellow-300",
-        label: "در انتظار",
-      },
-      closed: {
-        bg: "bg-green-900/40",
-        text: "text-green-300",
-        label: "بسته",
-      },
-    } as const;
-    const c = map[s];
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-bold ${c.bg} ${c.text}`}
-      >
-        {c.label}
-      </span>
-    );
-  };
-
-  const typeChip = (t: Ticket["type"]) => {
-    const map = {
-      tech: {
-        bg: "bg-sky-900/40",
-        text: "text-sky-300",
-        label: "پشتیبانی فنی",
-      },
-      therapy: {
-        bg: "bg-purple-900/40",
-        text: "text-purple-300",
-        label: "ارتباط با درمانگر",
-      },
-    } as const;
-    const c = map[t];
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-bold ${c.bg} ${c.text}`}
-      >
-        {c.label}
-      </span>
-    );
-  };
-
+  // ---------- UI شبیه لاگین: container وسط صفحه با کارت ----------
   return (
-    // 🔹 همون شِل کلی شبیه صفحه لاگین: پس‌زمینه گرادیانی + سنتر کارت
-    <div className="min-h-[calc(100vh-72px)] px-4 md:px-6 py-6 flex items-center justify-center bg-[radial-gradient(circle_at_top,_#111827,_#020617)]">
-      {/* کارت اصلی محتوا (همون چیزی که قبلاً داشتی) */}
-      <div className="w-full max-w-6xl text-white space-y-4">
-        {/* عنوان و خلاصه */}
-        <div className="flex items-center justify-between gap-3">
+    <div
+      style={{
+        minHeight: "calc(100vh - 64px)", // زیر هدر layout
+        backgroundColor: "#000",
+        color: "#fff",
+        display: "flex",
+        justifyContent: "center",
+        padding: "32px 16px",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1080px",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* هدر صفحه */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            alignItems: "center",
+            marginBottom: "12px",
+          }}
+        >
           <div>
-            <h1 className="text-2xl font-bold">🎫 لیست تیکت‌ها</h1>
-            <p className="mt-1 text-sm text-white/60">
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: 800,
+                marginBottom: "4px",
+              }}
+            >
+              🎫 لیست تیکت‌ها
+            </h1>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#9ca3af",
+              }}
+            >
               اینجا تمام تیکت‌های کاربران را می‌بینی و می‌توانی آن‌ها را مدیریت کنی.
             </p>
           </div>
-          <span className="rounded-full border border-[#333] bg-[#0b0b0b] px-3 py-1 text-xs text-white/70">
+          <span
+            style={{
+              borderRadius: 999,
+              border: "1px solid #333",
+              backgroundColor: "#0b0b0b",
+              padding: "4px 10px",
+              fontSize: "11px",
+              color: "#e5e7eb",
+              whiteSpace: "nowrap",
+            }}
+          >
             مجموع تیکت‌ها:{" "}
-            <span className="font-semibold text-orange-400">{tickets.length}</span>
+            <span style={{ color: "#fb923c", fontWeight: 700 }}>
+              {tickets.length}
+            </span>
           </span>
         </div>
 
         {/* کارت فیلتر + لیست */}
-        <div className="rounded-2xl border border-[#222] bg-[#050505]/95 backdrop-blur-md p-4 md:p-5 shadow-[0_18px_45px_rgba(0,0,0,0.7)] space-y-4">
+        <div
+          style={{
+            width: "100%",
+            padding: "20px 20px 16px",
+            borderRadius: "18px",
+            border: "1px solid #222",
+            backgroundColor: "#050505",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.65)",
+            boxSizing: "border-box",
+          }}
+        >
           {/* فیلترها */}
-          <div className="grid gap-3 md:grid-cols-4 md:items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm opacity-80">وضعیت</label>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "10px",
+            }}
+          >
+            {/* وضعیت */}
+            <div style={{ minWidth: "150px", flex: "1 1 120px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                وضعیت
+              </label>
               <select
-                className="bg-black/80 border border-[#333] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
+                onChange={(e) =>
+                  setStatus(e.target.value as "" | "open" | "pending" | "closed" | "unread")
+                }
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
               >
                 <option value="">همه</option>
                 <option value="open">باز</option>
@@ -245,12 +344,32 @@ export default function TicketsPage() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm opacity-80">نوع</label>
+            {/* نوع */}
+            <div style={{ minWidth: "150px", flex: "1 1 120px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                نوع
+              </label>
               <select
-                className="bg-black/80 border border-[#333] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
                 value={type}
-                onChange={(e) => setType(e.target.value as any)}
+                onChange={(e) => setType(e.target.value as "" | "tech" | "therapy")}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
               >
                 <option value="">همه</option>
                 <option value="tech">پشتیبانی فنی</option>
@@ -258,25 +377,69 @@ export default function TicketsPage() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="text-sm opacity-80">جستجو</label>
+            {/* جستجو */}
+            <div style={{ flex: "2 1 200px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                جستجو
+              </label>
               <input
-                className="w-full bg-black/80 border border-[#333] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
-                placeholder="نام کاربر، توضیح یا راه ارتباط…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
+                placeholder="نام کاربر، توضیح یا راه ارتباط…"
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
               />
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="text-xs text-white/50">
+          {/* ردیف زیر فیلتر: توضیح + دکمه‌ها */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "11px",
+                color: "#9ca3af",
+              }}
+            >
               ردیف‌های سنجاق‌شده همیشه بالاتر از بقیه نمایش داده می‌شوند.
-            </div>
-            <div className="flex gap-2">
+            </span>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={fetchTickets}
-                className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-sm font-semibold"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "9px",
+                  border: "none",
+                  backgroundColor: "#ea580c",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
                 اعمال فیلتر
               </button>
@@ -286,121 +449,228 @@ export default function TicketsPage() {
                   setType("");
                   setQ("");
                 }}
-                className="px-4 py-2 rounded-lg bg-[#222] hover:bg-[#333] text-sm"
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "9px",
+                  border: "1px solid #333",
+                  backgroundColor: "#111827",
+                  color: "#e5e7eb",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
               >
                 پاک‌سازی
               </button>
             </div>
           </div>
 
-          <div className="h-px bg-gradient-to-l from-transparent via-[#333] to-transparent" />
+          {/* خط جداکننده */}
+          <div
+            style={{
+              height: "1px",
+              width: "100%",
+              background:
+                "linear-gradient(90deg, transparent, #374151, transparent)",
+              marginBottom: "10px",
+            }}
+          />
 
           {/* محتوا */}
           {loading ? (
-            <p className="p-4 text-sm text-white/70">⏳ در حال بارگذاری...</p>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#e5e7eb",
+                textAlign: "center",
+                padding: "10px 0",
+              }}
+            >
+              ⏳ در حال بارگذاری...
+            </p>
           ) : tickets.length === 0 ? (
-            <div className="p-6 rounded-xl border border-dashed border-[#333] bg-black/40 text-sm text-white/70 text-center">
+            <div
+              style={{
+                padding: "20px 12px",
+                borderRadius: "12px",
+                border: "1px dashed #374151",
+                backgroundColor: "#020617",
+                fontSize: "12px",
+                color: "#e5e7eb",
+                textAlign: "center",
+              }}
+            >
               هیچ تیکتی پیدا نشد.
             </div>
           ) : (
-            <div className="overflow-auto rounded-xl border border-[#222] bg-black/40">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-[#101010] text-xs text-white/70">
-                    <th className="border-b border-[#222] px-3 py-2 text-center">
-                      کاربر
-                    </th>
-                    <th className="border-b border-[#222] px-3 py-2 text-center">
-                      نوع
-                    </th>
-                    <th className="border-b border-[#222] px-3 py-2 text-center">
-                      وضعیت
-                    </th>
-                    <th className="border-b border-[#222] px-3 py-2 text-center">
-                      آخرین فعالیت
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedTickets.map((t) => {
-                    const nameToShow =
-                      t.userName || t.displayName || t.title || "—";
-                    const lastAt = t.lastAt || t.createdAt;
-                    const isUnread = !!t.unread;
-                    return (
-                      <tr
-                        key={t.id}
-                        className={`transition-colors ${
-                          isUnread ? "bg-[#111]" : "bg-transparent"
-                        } hover:bg-[#181818]`}
+            <div
+              style={{
+                borderRadius: "12px",
+                border: "1px solid #1f2933",
+                backgroundColor: "#020617",
+                maxHeight: "520px",
+                overflowY: "auto",
+              }}
+            >
+              {/* هدر لیست */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "3fr 1.5fr 1.5fr 2fr",
+                  gap: "8px",
+                  padding: "10px 12px",
+                  borderBottom: "1px solid #111827",
+                  fontSize: "11px",
+                  color: "#9ca3af",
+                }}
+              >
+                <div style={{ textAlign: "center" }}>کاربر</div>
+                <div style={{ textAlign: "center" }}>نوع</div>
+                <div style={{ textAlign: "center" }}>وضعیت</div>
+                <div style={{ textAlign: "center" }}>آخرین فعالیت</div>
+              </div>
+
+              {/* ردیف‌ها */}
+              {pagedTickets.map((t) => {
+                const nameToShow =
+                  t.userName || t.displayName || t.title || "—";
+                const lastAt = t.lastAt || t.createdAt;
+                const isUnread = !!t.unread;
+
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "3fr 1.5fr 1.5fr 2fr",
+                      gap: "8px",
+                      padding: "9px 12px",
+                      borderBottom: "1px solid #111827",
+                      backgroundColor: isUnread ? "#020617" : "transparent",
+                      alignItems: "center",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {/* کاربر */}
+                    <div style={{ textAlign: "center" }}>
+                      <Link
+                        href={`/admin/tickets/${t.id}`}
+                        onClick={() => markReadOptimistic(t.id)}
+                        style={{
+                          color: "#fb923c",
+                          textDecoration: "none",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          fontWeight: isUnread ? 700 : 500,
+                        }}
                       >
-                        <td className="border-t border-[#222] px-3 py-2 text-center">
-                          <Link
-                            href={`/admin/tickets/${t.id}`}
-                            className="text-orange-400 hover:text-orange-300 hover:underline inline-flex items-center justify-center gap-1"
-                            onClick={() => markReadOptimistic(t.id)}
+                        {t.pinned ? (
+                          <span
+                            title="سنجاق‌شده"
+                            style={{ color: "#facc15", fontSize: "11px" }}
                           >
-                            {t.pinned ? (
-                              <span
-                                className="text-yellow-400 text-xs"
-                                title="سنجاق‌شده"
-                              >
-                                ★
-                              </span>
-                            ) : null}
-                            <span className={isUnread ? "font-semibold" : ""}>
-                              {nameToShow}
-                            </span>
-                            {isUnread ? (
-                              <span
-                                className="inline-block w-2 h-2 rounded-full bg-red-500"
-                                title="خوانده‌نشده"
-                              />
-                            ) : null}
-                          </Link>
-                        </td>
-                        <td className="border-t border-[#222] px-3 py-2 text-center">
-                          {typeChip(t.type)}
-                        </td>
-                        <td className="border-t border-[#222] px-3 py-2 text-center">
-                          {statusChip(t.status)}
-                        </td>
-                        <td className="border-t border-[#222] px-3 py-2 text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="opacity-80">
-                              {new Date(lastAt).toLocaleString("fa-IR")}
-                            </span>
-                            <span className="opacity-60 text-xs">
-                              {relativeDate(lastAt)}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            ★
+                          </span>
+                        ) : null}
+                        <span>{nameToShow}</span>
+                        {isUnread && (
+                          <span
+                            title="خوانده‌نشده"
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "999px",
+                              backgroundColor: "#ef4444",
+                              display: "inline-block",
+                            }}
+                          />
+                        )}
+                      </Link>
+                    </div>
+
+                    {/* نوع */}
+                    <div style={{ textAlign: "center" }}>
+                      <TypeChip type={t.type} />
+                    </div>
+
+                    {/* وضعیت */}
+                    <div style={{ textAlign: "center" }}>
+                      <StatusChip status={t.status} />
+                    </div>
+
+                    {/* آخرین فعالیت */}
+                    <div
+                      style={{
+                        textAlign: "center",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
+                      <span style={{ opacity: 0.85 }}>
+                        {new Date(lastAt).toLocaleString("fa-IR")}
+                      </span>
+                      <span
+                        style={{
+                          opacity: 0.6,
+                          fontSize: "11px",
+                        }}
+                      >
+                        {relativeDate(lastAt)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* صفحه‌بندی */}
         {tickets.length > 0 && (
-          <div className="mt-1 flex items-center justify-center gap-2 text-sm">
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "12px",
+            }}
+          >
             <button
-              className="px-3 py-1 rounded-lg bg-[#222] hover:bg-[#333] disabled:opacity-40 disabled:hover:bg-[#222]"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: page === 1 ? "#111827" : "#1f2937",
+                color: "#e5e7eb",
+                cursor: page === 1 ? "default" : "pointer",
+                opacity: page === 1 ? 0.4 : 1,
+              }}
             >
               قبلی
             </button>
-            <span className="px-2 text-white/70">
+            <span style={{ color: "#9ca3af" }}>
               صفحه {page} از {totalPages}
             </span>
             <button
-              className="px-3 py-1 rounded-lg bg-[#222] hover:bg-[#333] disabled:opacity-40 disabled:hover:bg-[#222]"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor:
+                  page === totalPages ? "#111827" : "#1f2937",
+                color: "#e5e7eb",
+                cursor: page === totalPages ? "default" : "pointer",
+                opacity: page === totalPages ? 0.4 : 1,
+              }}
             >
               بعدی
             </button>
