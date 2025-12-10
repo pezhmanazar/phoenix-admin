@@ -22,7 +22,6 @@ export default function AdminNewPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState<"owner" | "manager" | "agent">("agent");
   const [password, setPassword] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -50,7 +49,7 @@ export default function AdminNewPage() {
           name: name.trim() || undefined,
           role,
           password: trimmedPassword,
-          apiKey: apiKey.trim() || undefined,
+          // ❌ apiKey حذف شد
         }),
       });
 
@@ -228,7 +227,7 @@ export default function AdminNewPage() {
           </div>
 
           {/* رمز عبور */}
-          <div style={{ marginBottom: "10px", textAlign: "right" }}>
+          <div style={{ marginBottom: "6px", textAlign: "right" }}>
             <label
               htmlFor="new-admin-password"
               style={{
@@ -262,51 +261,6 @@ export default function AdminNewPage() {
             />
           </div>
 
-          {/* API Key */}
-          <div style={{ marginBottom: "6px", textAlign: "right" }}>
-            <label
-              htmlFor="new-admin-apikey"
-              style={{
-                display: "block",
-                fontSize: "13px",
-                marginBottom: "6px",
-                opacity: 0.85,
-              }}
-            >
-              API Key (اختیاری)
-            </label>
-            <input
-              id="new-admin-apikey"
-              type="text"
-              placeholder="phx_admin_XXXX"
-              dir="ltr"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "9px 11px",
-                borderRadius: "8px",
-                border: "1px solid #333",
-                backgroundColor: "#000",
-                color: "#fff",
-                fontSize: "13px",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-            <p
-              style={{
-                marginTop: "4px",
-                fontSize: "11px",
-                color: "#6b7280",
-                lineHeight: 1.5,
-              }}
-            >
-              اگر خالی بگذاری، فقط ورود با ایمیل و رمز فعال خواهد بود. اگر مقدار
-              بدهی، می‌تواند از طریق API Key هم لاگین کند.
-            </p>
-          </div>
-
           {/* پیام خطا */}
           {err && (
             <div
@@ -314,7 +268,8 @@ export default function AdminNewPage() {
                 color: "#f87171",
                 fontSize: "12px",
                 textAlign: "center",
-                marginBottom: "10px",
+                marginTop: "6px",
+                marginBottom: "6px",
               }}
             >
               {mapErrorMessage(err)}
@@ -324,7 +279,7 @@ export default function AdminNewPage() {
           {/* دکمه‌ها */}
           <div
             style={{
-              marginTop: "8px",
+              marginTop: "10px",
               display: "flex",
               justifyContent: "space-between",
               gap: "8px",
