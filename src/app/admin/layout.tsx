@@ -32,7 +32,7 @@ async function fetchMe(): Promise<AdminMe | null> {
       cache: "no-store",
     });
 
-    // اگر مسیر وجود نداشت یا 404 بود، فالبک به /api/admin/me
+    // فالبک به /api/admin/me
     if (r.status === 404) {
       r = await fetch(`${base}/api/admin/me`, {
         headers,
@@ -51,6 +51,7 @@ async function fetchMe(): Promise<AdminMe | null> {
 
 function roleBadge(role?: string) {
   if (!role) return null;
+
   const style =
     role === "owner"
       ? "bg-emerald-700/30 text-emerald-300 border-emerald-700/50"
@@ -77,10 +78,12 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
-      <header className="flex justify-between items-center px-6 py-3 border-b border-[#333] bg-[#0b0b0b]">
+      {/* 🔹 هدر با ارتفاع و فاصله‌ی عمودی بیشتر */}
+      <header className="flex justify-between items-center px-6 py-4 border-b border-[#333] bg-[#0b0b0b]">
+        {/* 🔹 «پیل» بزرگ‌تر و نفس‌کش‌تر برای عنوان پنل */}
         <Link
           href="/admin/tickets"
-          className="inline-flex items-center gap-2 rounded-full border border-[#333] bg-[#050505] px-4 py-1.5 text-xs sm:text-sm font-semibold text-white/90 hover:text-orange-400 hover:border-orange-500 transition-colors"
+          className="inline-flex items-center gap-2 rounded-full border border-[#444] bg-[#111] px-5 py-2 text-sm sm:text-base font-semibold text-white/90 hover:text-orange-400 hover:border-orange-500 hover:bg-[#181818] transition-colors"
         >
           <span aria-hidden>🎛️</span>
           <span>پنل مدیریت ققنوس</span>
