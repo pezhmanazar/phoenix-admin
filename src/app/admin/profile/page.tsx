@@ -1,7 +1,7 @@
 // src/app/admin/profile/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 
 export default function AdminProfilePage() {
   const [name, setName] = useState("");
@@ -9,13 +9,14 @@ export default function AdminProfilePage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
+
     setMsg(null);
 
     try {
       setBusy(true);
-
       const res = await fetch("/api/admin/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -24,7 +25,6 @@ export default function AdminProfilePage() {
           password: password || undefined,
         }),
       });
-
       const json = await res.json();
 
       if (!json.ok) {
@@ -42,66 +42,173 @@ export default function AdminProfilePage() {
   }
 
   return (
-    // 🔹 شِل مثل صفحه تیکت‌ها: فقط کانتینر وسط، بدون min-h-screen جدا
-    <div className="w-full max-w-3xl mx-auto py-6 px-4 md:px-6 text-white space-y-4">
-      {/* هدر صفحه مثل تیکت‌ها */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">ویرایش پروفایل</h1>
-        <p className="text-sm text-white/60">
-          می‌توانی نام نمایش و رمز عبور پنل ادمین را از اینجا تغییر بدهی.
-        </p>
-      </div>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#000",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "48px 16px",
+        }}
+      >
+        <form
+          onSubmit={onSubmit}
+          autoComplete="on"
+          style={{
+            width: "100%",
+            maxWidth: "420px",
+            padding: "24px 24px 20px",
+            borderRadius: "18px",
+            border: "1px solid #333",
+            backgroundColor: "#0b0b0b",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            boxSizing: "border-box",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: 800,
+              textAlign: "center",
+              marginBottom: "6px",
+            }}
+          >
+            ویرایش پروفایل ادمین
+          </h1>
 
-      {/* کارت فرم، شبیه کارت فیلتر/لیست تیکت‌ها */}
-      <div className="rounded-2xl border border-[#222] bg-[#050505]/95 backdrop-blur-md p-4 md:p-5 shadow-[0_18px_45px_rgba(0,0,0,0.7)] space-y-4">
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm opacity-80">نام جدید (اختیاری)</label>
+          <p
+            style={{
+              fontSize: "12px",
+              textAlign: "center",
+              color: "#9ca3af",
+              marginBottom: "18px",
+            }}
+          >
+            می‌توانی نام نمایش و رمز عبور ورود به پنل ادمین را از اینجا تغییر بدهی.
+          </p>
+
+          {/* نام جدید */}
+          <div style={{ marginBottom: "12px", textAlign: "right" }}>
+            <label
+              htmlFor="admin-name"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              نام جدید (اختیاری)
+            </label>
             <input
-              className="w-full bg-black/80 border border-[#333] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
-              placeholder="نام جدید…"
+              id="admin-name"
+              type="text"
+              placeholder="نام نمایشی جدید…"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm opacity-80">رمز جدید (اختیاری)</label>
+          {/* رمز جدید */}
+          <div style={{ marginBottom: "12px", textAlign: "right" }}>
+            <label
+              htmlFor="admin-password"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              رمز جدید (اختیاری)
+            </label>
             <input
+              id="admin-password"
               type="password"
-              className="w-full bg-black/80 border border-[#333] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
-              placeholder="رمز جدید…"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
-            <p className="text-[11px] text-white/40 mt-1">
-              اگر فیلدی را خالی بگذاری، همان مورد بدون تغییر می‌ماند.
+            <p
+              style={{
+                fontSize: "11px",
+                color: "#6b7280",
+                marginTop: "6px",
+                lineHeight: 1.6,
+              }}
+            >
+              اگر هر کدام از این فیلدها را خالی بگذاری، همان مقدار قبلی حفظ می‌شود.
             </p>
           </div>
 
+          {/* پیام وضعیت */}
           {msg && (
             <div
-              className={`text-sm text-center px-3 py-2 rounded-lg ${
-                msg.includes("✔")
-                  ? "bg-green-900/30 text-green-300 border border-green-700/40"
-                  : "bg-red-900/30 text-red-300 border border-red-700/40"
-              }`}
+              style={{
+                fontSize: "12px",
+                textAlign: "center",
+                marginBottom: "10px",
+                color: msg.startsWith("✔") ? "#4ade80" : "#f87171",
+              }}
             >
               {msg}
             </div>
           )}
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={busy}
-              className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-60 text-sm font-semibold"
-            >
-              {busy ? "در حال ذخیره…" : "ذخیره تغییرات"}
-            </button>
-          </div>
+          {/* دکمه ذخیره */}
+          <button
+            type="submit"
+            disabled={busy}
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              borderRadius: "9px",
+              border: "none",
+              backgroundColor: busy ? "#9a3412" : "#ea580c",
+              color: "#fff",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: busy ? "default" : "pointer",
+              opacity: busy ? 0.7 : 1,
+              transition: "background-color 0.15s ease",
+              marginTop: "4px",
+            }}
+          >
+            {busy ? "در حال ذخیره…" : "ذخیره تغییرات"}
+          </button>
         </form>
-      </div>
+      </main>
     </div>
   );
 }
