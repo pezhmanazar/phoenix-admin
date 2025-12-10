@@ -1,9 +1,23 @@
+// src/app/admin/admins/new/page.tsx
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+function mapErrorMessage(code: string): string {
+  switch (code) {
+    case "create_failed":
+      return "ثبت ادمین جدید با مشکل مواجه شد.";
+    case "internal_error":
+      return "اشکال داخلی سرور؛ کمی بعد دوباره امتحان کنید.";
+    default:
+      return code;
+  }
+}
+
 export default function AdminNewPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<"owner" | "manager" | "agent">("agent");
@@ -12,31 +26,41 @@ export default function AdminNewPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
+
     setErr(null);
-    if (!email.trim() || !password.trim()) {
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setErr("ایمیل و رمز الزامی است.");
       return;
     }
+
     try {
       setBusy(true);
       const r = await fetch("/api/admin/admins", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email.trim(),
+          email: trimmedEmail,
           name: name.trim() || undefined,
           role,
-          password,
+          password: trimmedPassword,
           apiKey: apiKey.trim() || undefined,
         }),
       });
-      const j = await r.json();
+
+      const j = await r.json().catch(() => null);
+
       if (!j?.ok) {
         setErr(j?.error || "create_failed");
         return;
       }
+
       router.replace("/admin/admins");
     } catch (e: any) {
       setErr(e?.message || "internal_error");
@@ -46,66 +70,304 @@ export default function AdminNewPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto text-white">
-      <h1 className="text-2xl font-bold mb-4">افزودن ادمین جدید</h1>
-      <form onSubmit={onSubmit} className="space-y-3 p-4 rounded-xl border border-[#333] bg-[#0b0b0b]">
-        <input
-          className="w-full bg-black border border-[#333] rounded px-3 py-2"
-          placeholder="email@example.com"
-          dir="ltr"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="w-full bg-black border border-[#333] rounded px-3 py-2"
-          placeholder="نام (اختیاری)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <select
-          className="w-full bg-black border border-[#333] rounded px-3 py-2"
-          value={role}
-          onChange={(e) => setRole(e.target.value as any)}
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#000",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "48px 16px",
+        }}
+      >
+        <form
+          onSubmit={onSubmit}
+          autoComplete="on"
+          style={{
+            width: "100%",
+            maxWidth: "480px",
+            padding: "24px 24px 20px",
+            borderRadius: "18px",
+            border: "1px solid #333",
+            backgroundColor: "#0b0b0b",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            boxSizing: "border-box",
+          }}
         >
-          <option value="agent">agent</option>
-          <option value="manager">manager</option>
-          <option value="owner">owner</option>
-        </select>
-        <input
-          className="w-full bg-black border border-[#333] rounded px-3 py-2"
-          placeholder="رمز عبور"
-          type="password"
-          dir="ltr"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <input
-          className="w-full bg-black border border-[#333] rounded px-3 py-2"
-          placeholder="API Key (اختیاری)"
-          dir="ltr"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-        />
-
-        {err ? <div className="text-red-400 text-sm">{err}</div> : null}
-
-        <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={busy}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded disabled:opacity-60"
+          {/* عنوان */}
+          <h1
+            style={{
+              fontSize: "20px",
+              fontWeight: 800,
+              textAlign: "center",
+              marginBottom: "6px",
+            }}
           >
-            {busy ? "در حال ذخیره…" : "ذخیره"}
-          </button>
-          <button
-            type="button"
-            onClick={() => history.back()}
-            className="px-4 py-2 bg-[#222] hover:bg-[#333] rounded"
+            افزودن ادمین جدید
+          </h1>
+          <p
+            style={{
+              fontSize: "12px",
+              textAlign: "center",
+              color: "#9ca3af",
+              marginBottom: "18px",
+            }}
           >
-            انصراف
-          </button>
-        </div>
-      </form>
+            ادمین جدید را با نقش و اطلاعات مناسب اضافه کن.
+          </p>
+
+          {/* ایمیل */}
+          <div style={{ marginBottom: "10px", textAlign: "right" }}>
+            <label
+              htmlFor="new-admin-email"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              ایمیل (الزامی)
+            </label>
+            <input
+              id="new-admin-email"
+              type="email"
+              placeholder="email@example.com"
+              dir="ltr"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* نام */}
+          <div style={{ marginBottom: "10px", textAlign: "right" }}>
+            <label
+              htmlFor="new-admin-name"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              نام (اختیاری)
+            </label>
+            <input
+              id="new-admin-name"
+              type="text"
+              placeholder="نام ادمین…"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* نقش */}
+          <div style={{ marginBottom: "10px", textAlign: "right" }}>
+            <label
+              htmlFor="new-admin-role"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              نقش
+            </label>
+            <select
+              id="new-admin-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as any)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            >
+              <option value="agent">agent (پاسخ‌گو)</option>
+              <option value="manager">manager (مدیر)</option>
+              <option value="owner">owner (مالک)</option>
+            </select>
+          </div>
+
+          {/* رمز عبور */}
+          <div style={{ marginBottom: "10px", textAlign: "right" }}>
+            <label
+              htmlFor="new-admin-password"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              رمز عبور (الزامی)
+            </label>
+            <input
+              id="new-admin-password"
+              type="password"
+              placeholder="••••••••"
+              dir="ltr"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* API Key */}
+          <div style={{ marginBottom: "6px", textAlign: "right" }}>
+            <label
+              htmlFor="new-admin-apikey"
+              style={{
+                display: "block",
+                fontSize: "13px",
+                marginBottom: "6px",
+                opacity: 0.85,
+              }}
+            >
+              API Key (اختیاری)
+            </label>
+            <input
+              id="new-admin-apikey"
+              type="text"
+              placeholder="phx_admin_XXXX"
+              dir="ltr"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 11px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: "#000",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <p
+              style={{
+                marginTop: "4px",
+                fontSize: "11px",
+                color: "#6b7280",
+                lineHeight: 1.5,
+              }}
+            >
+              اگر خالی بگذاری، فقط ورود با ایمیل و رمز فعال خواهد بود. اگر مقدار
+              بدهی، می‌تواند از طریق API Key هم لاگین کند.
+            </p>
+          </div>
+
+          {/* پیام خطا */}
+          {err && (
+            <div
+              style={{
+                color: "#f87171",
+                fontSize: "12px",
+                textAlign: "center",
+                marginBottom: "10px",
+              }}
+            >
+              {mapErrorMessage(err)}
+            </div>
+          )}
+
+          {/* دکمه‌ها */}
+          <div
+            style={{
+              marginTop: "8px",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "8px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => router.back()}
+              style={{
+                flex: 1,
+                padding: "9px 12px",
+                borderRadius: "9px",
+                border: "1px solid #374151",
+                backgroundColor: "#111827",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                cursor: "pointer",
+              }}
+            >
+              انصراف
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                flex: 1,
+                padding: "9px 12px",
+                borderRadius: "9px",
+                border: "none",
+                backgroundColor: busy ? "#047857" : "#10b981",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: busy ? "default" : "pointer",
+                opacity: busy ? 0.8 : 1,
+                transition: "background-color 0.15s ease",
+              }}
+            >
+              {busy ? "در حال ذخیره…" : "ذخیره ادمین"}
+            </button>
+          </div>
+        </form>
+      </main>
     </div>
   );
 }
