@@ -1,17 +1,27 @@
 // src/app/admin/admins/new/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 function mapErrorMessage(code: string): string {
   switch (code) {
     case "create_failed":
       return "ثبت ادمین جدید با مشکل مواجه شد.";
+    case "admin_exists":
+    case "email_in_use":
+      return "این ایمیل قبلاً به‌عنوان ادمین ثبت شده است.";
+    case "weak_password":
+      return "رمز عبور خیلی ضعیف است؛ حداقل ۶ کاراکتر و ترجیحاً ترکیب عدد و حروف انتخاب کن.";
+    case "unauthorized":
+      return "دسترسی شما برای افزودن ادمین جدید مجاز نیست.";
+    case "validation_error":
+      return "اطلاعات وارد شده معتبر نیست؛ ایمیل و رمز را دوباره بررسی کن.";
     case "internal_error":
       return "اشکال داخلی سرور؛ کمی بعد دوباره امتحان کنید.";
     default:
-      return code;
+      // اگر کد خطای ناشناخته بود، خود کد را هم نشان بده
+      return `خطا: ${code}`;
   }
 }
 
@@ -25,7 +35,7 @@ export default function AdminNewPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
 
@@ -34,14 +44,24 @@ export default function AdminNewPage() {
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
 
+    // ولیدیشن سمت فرانت
     if (!trimmedEmail || !trimmedPassword) {
       setErr("ایمیل و رمز الزامی است.");
+      return;
+    }
+    if (!trimmedEmail.includes("@")) {
+      setErr("ایمیل معتبر وارد کن.");
+      return;
+    }
+    if (trimmedPassword.length < 6) {
+      setErr("رمز عبور حداقل باید ۶ کاراکتر باشد.");
       return;
     }
 
     try {
       setBusy(true);
-      const r = await fetch("/api/admin/admins", {
+
+      const res = await fetch("/api/admin/admins", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -49,19 +69,23 @@ export default function AdminNewPage() {
           name: name.trim() || undefined,
           role,
           password: trimmedPassword,
-          // ❌ apiKey حذف شد
         }),
       });
 
-      const j = await r.json().catch(() => null);
+      const j = await res.json().catch(() => null as any);
 
       if (!j?.ok) {
-        setErr(j?.error || "create_failed");
+        // لاگ برای دیباگ توی کنسول
+        console.error("Create admin failed:", { status: res.status, body: j });
+        const code = j?.error || (res.ok ? "create_failed" : `http_${res.status}`);
+        setErr(code);
         return;
       }
 
+      // موفق
       router.replace("/admin/admins");
     } catch (e: any) {
+      console.error("Create admin exception:", e);
       setErr(e?.message || "internal_error");
     } finally {
       setBusy(false);
@@ -227,7 +251,7 @@ export default function AdminNewPage() {
           </div>
 
           {/* رمز عبور */}
-          <div style={{ marginBottom: "6px", textAlign: "right" }}>
+          <div style={{ marginBottom: "10px", textAlign: "right" }}>
             <label
               htmlFor="new-admin-password"
               style={{
@@ -268,8 +292,8 @@ export default function AdminNewPage() {
                 color: "#f87171",
                 fontSize: "12px",
                 textAlign: "center",
-                marginTop: "6px",
-                marginBottom: "6px",
+                marginTop: "4px",
+                marginBottom: "10px",
               }}
             >
               {mapErrorMessage(err)}
@@ -279,7 +303,7 @@ export default function AdminNewPage() {
           {/* دکمه‌ها */}
           <div
             style={{
-              marginTop: "10px",
+              marginTop: "8px",
               display: "flex",
               justifyContent: "space-between",
               gap: "8px",
