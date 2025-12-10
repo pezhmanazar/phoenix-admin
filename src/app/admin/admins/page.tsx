@@ -1,8 +1,9 @@
 // src/app/admin/admins/page.tsx
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import ResetPasswordButton from "./ResetPasswordButton.client"; // ✅ اضافه شد
+import ResetPasswordButton from "./ResetPasswordButton.client";
 
 type Admin = {
   id: string;
@@ -21,6 +22,7 @@ export default function AdminsPage() {
   async function load() {
     try {
       setLoading(true);
+      setErr(null);
       const r = await fetch("/api/admin/admins", { cache: "no-store" });
       const j = await r.json();
       if (!j?.ok) throw new Error(j?.error || "load_failed");
@@ -62,75 +64,279 @@ export default function AdminsPage() {
   }
 
   return (
-    <div className="text-white">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">مدیریت ادمین‌ها</h1>
-        <Link
-          href="/admin/admins/new"
-          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white"
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#000",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <main
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "48px 16px",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "900px",
+            padding: "24px 24px 20px",
+            borderRadius: "18px",
+            border: "1px solid #333",
+            backgroundColor: "#0b0b0b",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            boxSizing: "border-box",
+          }}
         >
-          افزودن ادمین جدید
-        </Link>
-      </div>
+          {/* هدر + دکمه افزودن */}
+          <div
+            style={{
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <h1
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  marginBottom: "4px",
+                }}
+              >
+                مدیریت ادمین‌ها
+              </h1>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#9ca3af",
+                }}
+              >
+                در این بخش می‌توانی اعضای تیم پشتیبانی را ببینی، نقش‌شان را
+                عوض کنی و در صورت نیاز حذف کنی.
+              </p>
+            </div>
+            <Link
+              href="/admin/admins/new"
+              style={{
+                padding: "8px 14px",
+                borderRadius: "999px",
+                backgroundColor: "#059669",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              + افزودن ادمین جدید
+            </Link>
+          </div>
 
-      {loading ? (
-        <div className="p-4">⏳ در حال بارگذاری...</div>
-      ) : err ? (
-        <div className="p-4 text-red-400">خطا: {err}</div>
-      ) : items.length === 0 ? (
-        <div className="p-4 border border-[#333] rounded-xl bg-[#0b0b0b]">
-          ادمینی ثبت نشده است.
-        </div>
-      ) : (
-        <div className="overflow-auto">
-          <table className="w-full border-collapse border border-[#333]">
-            <thead>
-              <tr className="bg-[#111]">
-                <th className="border border-[#333] p-2 text-center">ایمیل</th>
-                <th className="border border-[#333] p-2 text-center">نام</th>
-                <th className="border border-[#333] p-2 text-center">نقش</th>
-                <th className="border border-[#333] p-2 text-center">اقدامات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((a) => (
-                <tr key={a.id} className="hover:bg-[#151515]">
-                  <td className="border border-[#333] p-2 text-center">{a.email}</td>
-                  <td className="border border-[#333] p-2 text-center">
-                    {a.name || "—"}
-                  </td>
-                  <td className="border border-[#333] p-2 text-center">
-                    <select
-                      className="bg-black border border-[#333] rounded px-2 py-1"
-                      value={a.role}
-                      onChange={(e) =>
-                        onChangeRole(a.id, e.target.value as Admin["role"])
-                      }
-                      disabled={a.role === "owner"} // مالک را قفل می‌گذاریم
+          {/* وضعیت لود / خطا / لیست */}
+          {loading ? (
+            <div
+              style={{
+                padding: "12px",
+                fontSize: "13px",
+              }}
+            >
+              ⏳ در حال بارگذاری...
+            </div>
+          ) : err ? (
+            <div
+              style={{
+                padding: "12px",
+                fontSize: "13px",
+                color: "#f87171",
+              }}
+            >
+              خطا: {err}
+            </div>
+          ) : items.length === 0 ? (
+            <div
+              style={{
+                padding: "14px",
+                borderRadius: "10px",
+                border: "1px dashed #333",
+                backgroundColor: "#020617",
+                fontSize: "13px",
+                textAlign: "center",
+                color: "#e5e7eb",
+              }}
+            >
+              ادمینی ثبت نشده است.
+            </div>
+          ) : (
+            <div
+              style={{
+                overflowX: "auto",
+                borderRadius: "12px",
+                border: "1px solid #222",
+                backgroundColor: "#020617",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "13px",
+                  textAlign: "center",
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      backgroundColor: "#111827",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    <th
+                      style={{
+                        padding: "8px",
+                        borderBottom: "1px solid #222",
+                      }}
                     >
-                      <option value="owner">owner</option>
-                      <option value="manager">manager</option>
-                      <option value="agent">agent</option>
-                    </select>
-                  </td>
-                  <td className="border border-[#333] p-2 text-center flex items-center justify-center gap-2">
-                    {/* ✅ دکمه ریست پسورد */}
-                    <ResetPasswordButton adminId={a.id} />
-
-                    <button
-                      onClick={() => onDelete(a.id)}
-                      disabled={a.role === "owner"} // مالک حذف نشود
-                      className="px-3 py-1 bg-red-600 hover:bg-red-500 rounded disabled:opacity-50"
+                      ایمیل
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px",
+                        borderBottom: "1px solid #222",
+                      }}
                     >
-                      حذف
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      نام
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px",
+                        borderBottom: "1px solid #222",
+                      }}
+                    >
+                      نقش
+                    </th>
+                    <th
+                      style={{
+                        padding: "8px",
+                        borderBottom: "1px solid #222",
+                      }}
+                    >
+                      اقدامات
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((a) => {
+                    const isOwner = a.role === "owner";
+                    return (
+                      <tr
+                        key={a.id}
+                        style={{
+                          backgroundColor: "#020617",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "8px",
+                            borderTop: "1px solid #111827",
+                            wordBreak: "break-all",
+                            direction: "ltr",
+                            textAlign: "left",
+                            fontSize: "12px",
+                          }}
+                        >
+                          {a.email}
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px",
+                            borderTop: "1px solid #111827",
+                          }}
+                        >
+                          {a.name || "—"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px",
+                            borderTop: "1px solid #111827",
+                          }}
+                        >
+                          <select
+                            value={a.role}
+                            disabled={isOwner}
+                            onChange={(e) =>
+                              onChangeRole(a.id, e.target.value as Admin["role"])
+                            }
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "999px",
+                              border: "1px solid #374151",
+                              backgroundColor: isOwner ? "#111827" : "#000",
+                              color: "#e5e7eb",
+                              fontSize: "12px",
+                              cursor: isOwner ? "not-allowed" : "pointer",
+                              outline: "none",
+                            }}
+                          >
+                            <option value="owner">owner</option>
+                            <option value="manager">manager</option>
+                            <option value="agent">agent</option>
+                          </select>
+                        </td>
+                        <td
+                          style={{
+                            padding: "8px",
+                            borderTop: "1px solid #111827",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "8px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {/* دکمه ریست پسورد */}
+                            <ResetPasswordButton adminId={a.id} />
+                            <button
+                              onClick={() => onDelete(a.id)}
+                              disabled={isOwner}
+                              style={{
+                                padding: "5px 10px",
+                                borderRadius: "8px",
+                                border: "none",
+                                backgroundColor: isOwner
+                                  ? "#4b5563"
+                                  : "#dc2626",
+                                color: "#fff",
+                                fontSize: "12px",
+                                cursor: isOwner ? "not-allowed" : "pointer",
+                                opacity: isOwner ? 0.6 : 1,
+                              }}
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </main>
     </div>
   );
 }
