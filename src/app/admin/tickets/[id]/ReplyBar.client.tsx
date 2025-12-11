@@ -1,3 +1,4 @@
+// src/app/admin/tickets/[id]/ReplyBar.client.tsx
 "use client";
 
 import React, {
@@ -186,7 +187,9 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   // --- کلیک روی آیکن میکروفن: شروع/توقف ---
   const onMicClick = () => {
     if (!recordingSupported) {
-      alert("مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی آپلود کنید.");
+      alert(
+        "مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی را به‌صورت فایل آپلود کنید."
+      );
       return;
     }
     if (isRecording) {
@@ -262,7 +265,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     }
   };
 
-  // ---------- استایل‌ها (فوتر خیلی جمع‌وجور) ----------
+  // ---------- استایل‌ها (فوتر جمع‌وجور) ----------
   const container: React.CSSProperties = {
     borderTop: "1px solid #27272a",
     padding: "8px 10px 10px",
@@ -325,7 +328,15 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     <div style={container}>
       {/* ردیف اصلی: سنجاق + متن + میکروفن + ارسال */}
       <div style={mainRow}>
-        {/* سنجاق */}
+        {/* input واقعی فایل – مخفی */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={onFileChange}
+          style={{ display: "none" }}
+        />
+
+        {/* سنجاق (سمت چپ) */}
         <button
           type="button"
           onClick={onPickFile}
@@ -336,17 +347,17 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           📎
         </button>
 
-        {/* متن پاسخ */}
+        {/* متن پاسخ – ۲–۳ خطه و auto-resize */}
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="نوشتن پاسخ…"
           style={textareaStyle}
-          rows={1}
+          rows={2}
         />
 
-        {/* میکروفن */}
+        {/* میکروفن (راست) */}
         <button
           type="button"
           onClick={onMicClick}
@@ -362,12 +373,12 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
               ? "پایان ضبط"
               : "شروع ضبط ویس"
           }
-          disabled={sending || !recordingSupported}
+          disabled={sending} // دیگه recordingSupported اینجا disable نمی‌کند که alert کار کند
         >
           🎤
         </button>
 
-        {/* ارسال */}
+        {/* ارسال (راست) */}
         <button
           type="button"
           onClick={onSend}
@@ -379,7 +390,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         </button>
       </div>
 
-      {/* ردیف اطلاعات پایین: تایمر، نام فایل، و پیش‌نمایش ویس ضبط‌شده */}
+      {/* ردیف پایینی: تایمر، نام فایل، پاک‌سازی، پیش‌نمایش ویس */}
       <div style={infoRow}>
         {isRecording ? (
           <span style={{ color: "#f97373" }}>
@@ -391,7 +402,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
         {file ? (
           <span>
-            فایل انتخاب شده: <strong>{file.name}</strong>
+            فایل انتخاب‌شده: <strong>{file.name}</strong>
           </span>
         ) : null}
 
