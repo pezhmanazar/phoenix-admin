@@ -214,7 +214,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
     try {
       setSending(true);
-
       if (hasRecorded) {
         const blob = await fetch(recordBlobUrl as string).then((r) => r.blob());
         const mime = blob.type || recordMime || "audio/webm";
@@ -265,7 +264,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     }
   };
 
-  // ---------- استایل‌ها (فوتر جمع‌وجور) ----------
+  // ---------- استایل‌ها (فوتر جمع‌وجور و مرتب) ----------
   const container: React.CSSProperties = {
     borderTop: "1px solid #27272a",
     padding: "8px 10px 10px",
@@ -274,13 +273,14 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   const mainRow: React.CSSProperties = {
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center", // همه وسط عمودی
     gap: 8,
   };
 
+  // آیکن‌ها کمی بزرگ‌تر تا هم‌قد با حباب
   const iconBtn: React.CSSProperties = {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: "999px",
     border: "1px solid #3f3f46",
     backgroundColor: "#09090b",
@@ -289,7 +289,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    fontSize: 16,
+    fontSize: 18,
   };
 
   const sendBtn: React.CSSProperties = {
@@ -297,7 +297,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     background:
       "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
     border: "none",
-    fontSize: 15,
+    fontSize: 16,
   };
 
   const textareaStyle: React.CSSProperties = {
@@ -306,15 +306,16 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     backgroundColor: "#000",
     borderRadius: 999,
     border: "1px solid #3f3f46",
-    padding: "6px 12px",
+    padding: "8px 14px",           // padding متقارن بالا و پایین
+    minHeight: 40,                 // هم‌قد آیکن‌ها
     color: "#f9fafb",
     fontSize: 13,
-    lineHeight: 1.4,
+    lineHeight: 1.5,
     maxHeight: 120,
     outline: "none",
     boxSizing: "border-box",
-    direction: "rtl",       // 👈 این خط
-    textAlign: "right",     // 👈 و این خط
+    direction: "rtl",
+    textAlign: "right",
   };
 
   const infoRow: React.CSSProperties = {
@@ -328,7 +329,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   return (
     <div style={container}>
-      {/* ردیف اصلی: سنجاق + متن + میکروفن + ارسال */}
+      {/* ردیف اصلی: سنجاق (چپ) + متن + میکروفن + ارسال (راست) */}
       <div style={mainRow}>
         {/* input واقعی فایل – مخفی */}
         <input
@@ -338,7 +339,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           style={{ display: "none" }}
         />
 
-        {/* سنجاق (سمت چپ) */}
+        {/* سنجاق */}
         <button
           type="button"
           onClick={onPickFile}
@@ -349,17 +350,17 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           📎
         </button>
 
-        {/* متن پاسخ – ۲–۳ خطه و auto-resize */}
+        {/* متن پاسخ – auto-resize */}
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="نوشتن پاسخ…"
           style={textareaStyle}
-          rows={2}
+          rows={1}
         />
 
-        {/* میکروفن (راست) */}
+        {/* میکروفن */}
         <button
           type="button"
           onClick={onMicClick}
@@ -375,12 +376,12 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
               ? "پایان ضبط"
               : "شروع ضبط ویس"
           }
-          disabled={sending} // دیگه recordingSupported اینجا disable نمی‌کند که alert کار کند
+          disabled={sending}
         >
           🎤
         </button>
 
-        {/* ارسال (راست) */}
+        {/* ارسال – فلش به سمت چپ */}
         <button
           type="button"
           onClick={onSend}
@@ -388,7 +389,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
           title="ارسال"
         >
-          ➤
+          ◀
         </button>
       </div>
 
