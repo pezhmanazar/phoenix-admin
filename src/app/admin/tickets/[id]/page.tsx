@@ -161,9 +161,11 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
 
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  // این base فقط داخل سرور استفاده می‌شود
+  const internalBase =
+    process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
 
-  const res = await fetch(`${base}/api/admin/tickets/${id}`, {
+  const res = await fetch(`${internalBase}/api/admin/tickets/${id}`, {
     headers: { "x-admin-token": token },
     cache: "no-store",
   });
@@ -187,7 +189,8 @@ async function togglePinAction(formData: FormData) {
   const to = String(formData.get("to") || "");
   const token = (await cookies()).get("admin_token")?.value || "";
   if (!id || !token) return;
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  const base =
+    process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
   await fetch(`${base}/api/admin/tickets/${id}`, {
     method: "PATCH",
     headers: {
@@ -211,7 +214,8 @@ async function cycleStatusAction(formData: FormData) {
       : current === "pending"
       ? "closed"
       : "open";
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  const base =
+    process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
   await fetch(`${base}/api/admin/tickets/${id}`, {
     method: "PATCH",
     headers: {
@@ -234,8 +238,9 @@ export default async function TicketDetailPage({
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
-  const backendBase =
-    process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  // 🔹 این base برای مرورگر است (نمایش عکس/ویس)، نه 127.0.0.1
+  const backendMediaBase =
+    process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE?.trim() || "";
 
   const u = ticket.user || null;
 
@@ -547,7 +552,7 @@ export default async function TicketDetailPage({
               <MessagesList
                 messages={ticket.messages}
                 userName={userName}
-                backendBase={backendBase}
+                backendBase={backendMediaBase}
               />
             </div>
 

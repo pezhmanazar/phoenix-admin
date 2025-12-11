@@ -20,7 +20,7 @@ export type Message = {
 type Props = {
   messages: Message[];
   userName: string;
-  backendBase: string;
+  backendBase: string; // می‌تواند خالی باشد یا مثل https://qoqnoos.app
 };
 
 export default function MessagesList({
@@ -30,7 +30,7 @@ export default function MessagesList({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // همیشه روی آخرین پیام اسکرول شو
+  // همیشه روی آخرین پیام بمان
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -57,35 +57,26 @@ export default function MessagesList({
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          // ----- ساختن URL کامل فایل -----
           const rel = (m.fileUrl || "").toString();
           let fullUrl: string | null = null;
-          if (rel.startsWith("http://") || rel.startsWith("https://")) {
+
+          if (!rel) {
+            fullUrl = null;
+          } else if (rel.startsWith("http://") || rel.startsWith("https://")) {
+            // بک‌اند خودش آدرس کامل داده
             fullUrl = rel;
-          } else if (rel.startsWith("/")) {
+          } else if (backendBase && rel.startsWith("/")) {
+            // اگر base مشخص شده (مثلاً https://qoqnoos.app)
             fullUrl = `${backendBase}${rel}`;
+          } else if (rel.startsWith("/")) {
+            // بدون base: از همان دامین پنل استفاده کن
+            fullUrl = rel;
+          } else {
+            // مسیر نسبی بدون اسلش
+            fullUrl = `/${rel}`;
           }
 
-          // ----- تشخیص نوع مدیا از type + mime -----
-          const rawMime = (m.mime || "").toLowerCase();
-          let detectedType: Message["type"] = m.type || "text";
-
-          if (rawMime && m.fileUrl) {
-            if (rawMime.startsWith("image/")) {
-              detectedType = "image";
-            } else if (rawMime.startsWith("audio/")) {
-              detectedType = "voice";
-            } else if (!m.type) {
-              detectedType = "file";
-            }
-          }
-
-          // اگر بک‌اند type را "file" زده ولی mime تصویر/صوت است، اصلاحش کن
-          if (m.type === "file" && rawMime) {
-            if (rawMime.startsWith("image/")) detectedType = "image";
-            if (rawMime.startsWith("audio/")) detectedType = "voice";
-          }
-
+          const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
           const bubbleStyle: React.CSSProperties = {
@@ -126,50 +117,34 @@ export default function MessagesList({
                 ) : null}
               </div>
 
-              {/* متن پیام */}
               {m.text ? (
                 <div
                   style={{
                     whiteSpace: "pre-wrap",
                     marginBottom:
-                      detectedType === "text" || !fullUrl ? 0 : 6,
+                      type === "text" || !fullUrl ? 0 : 6,
                   }}
                 >
                   {m.text}
                 </div>
               ) : null}
 
-              {/* تصویر */}
-              {detectedType === "image" && fullUrl ? (
-                <a
-                  href={fullUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ display: "inline-block", marginTop: m.text ? 4 : 0 }}
-                >
-                  <img
-                    src={fullUrl}
-                    alt="image"
-                    style={{
-                      maxHeight: "280px",
-                      maxWidth: "100%",
-                      borderRadius: "10px",
-                      border: "1px solid #374151",
-                      display: "block",
-                    }}
-                  />
-                </a>
-              ) : null}
-
-              {/* ویس */}
-              {detectedType === "voice" && fullUrl ? (
+              {type === "image" && fullUrl ? (
+                <img
+                  src={fullUrl}
+                  alt="image"
+                  style={{
+                    maxHeight: "280px",
+                    borderRadius: "10px",
+                    border: "1px solid #374151",
+                    marginTop: m.text ? 6 : 0,
+                  }}
+                />
+              ) : type === "voice" && fullUrl ? (
                 <div style={{ marginTop: 4 }}>
                   <VoicePlayer src={fullUrl} />
                 </div>
-              ) : null}
-
-              {/* فایل معمولی */}
-              {detectedType === "file" && fullUrl ? (
+              ) : type === "file" && fullUrl ? (
                 <a
                   href={fullUrl}
                   target="_blank"
