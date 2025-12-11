@@ -313,6 +313,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     maxHeight: 120,
     outline: "none",
     boxSizing: "border-box",
+    direction: "rtl",       // 👈 این خط
+    textAlign: "right",     // 👈 و این خط
   };
 
   const infoRow: React.CSSProperties = {
