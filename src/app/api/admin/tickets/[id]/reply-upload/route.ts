@@ -22,22 +22,23 @@ export async function POST(
       (process.env.BACKEND_URL && process.env.BACKEND_URL.trim()) ||
       "http://127.0.0.1:4000";
 
-    // فرم کلاینت را بخوان
+    // ۱) فرم از کلاینت
     const inForm = await req.formData();
 
-    // یک FormData جدید بساز تا بدون set کردن دستی content-type فوروارد شود
+    // ۲) کپی‌کردن فرم برای فوروارد (بدون دست‌کاری header)
     const outForm = new FormData();
     for (const [k, v] of inForm.entries()) {
-      // v می‌تواند string یا File باشد – مستقیم append کن
+      // v می‌تونه string یا File/Blob باشه
       outForm.append(k, v as any);
     }
 
-    const res = await fetch(
+    // ۳) ارسال به بک‌اند
+    const backendRes = await fetch(
       `${base}/api/admin/tickets/${id}/reply-upload`,
       {
         method: "POST",
         headers: {
-          // محتوا را خود fetch بر اساس boundary ست می‌کند
+          // ❗ نوع محتوا رو خود fetch برای FormData ست می‌کند
           "x-admin-token": token,
         },
         body: outForm,
@@ -45,8 +46,35 @@ export async function POST(
       }
     );
 
-    const data = await res.json().catch(() => ({}));
-    return NextResponse.json(data, { status: res.status });
+    // ۴) تلاش برای خواندن JSON؛ اگر نشد، متن خام را داریم
+    const rawText = await backendRes.text();
+    let data: any = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      data = null;
+    }
+
+    // ۵) اگر بک‌اند خطا داد یا data.ok === false بود
+    if (!backendRes.ok || (data && data.ok === false)) {
+      const errMsg =
+        (data && data.error) ||
+        rawText || // ممکن است HTML باشد؛ برای دیباگ مفید است
+        `HTTP_${backendRes.status}`;
+
+      return NextResponse.json(
+        { ok: false, error: errMsg },
+        { status: backendRes.status || 500 }
+      );
+    }
+
+    // ۶) موفق
+    if (data) {
+      return NextResponse.json(data, { status: backendRes.status || 200 });
+    }
+
+    // اگر بک‌اند بدنه‌ای نداد ولی status اوکی بود
+    return NextResponse.json({ ok: true }, { status: backendRes.status || 200 });
   } catch (e) {
     console.error("proxy reply-upload error:", e);
     return NextResponse.json(
