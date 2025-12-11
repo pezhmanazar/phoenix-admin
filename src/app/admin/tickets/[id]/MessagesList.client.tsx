@@ -1,4 +1,3 @@
-// src/app/admin/tickets/[id]/MessagesList.client.tsx
 "use client";
 
 import React, { useEffect, useRef } from "react";
@@ -23,26 +22,6 @@ type Props = {
   backendBase: string;
 };
 
-/* تشخیص نوع پیام بر اساس mime / url */
-function detectType(
-  mime?: string | null,
-  url?: string | null
-): Message["type"] {
-  const m = (mime || "").toLowerCase();
-  if (m.startsWith("image/")) return "image";
-  if (m.startsWith("audio/")) return "voice";
-  if (m && !m.startsWith("text/")) return "file";
-
-  const u = (url || "").toLowerCase();
-  if (u.endsWith(".png") || u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".webp"))
-    return "image";
-  if (u.endsWith(".mp3") || u.endsWith(".wav") || u.endsWith(".m4a") || u.endsWith(".ogg"))
-    return "voice";
-  if (u) return "file";
-
-  return "text";
-}
-
 export default function MessagesList({
   messages,
   userName,
@@ -50,26 +29,23 @@ export default function MessagesList({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // همیشه روی آخرین پیام برو
+  // همیشه روی آخرین پیام بمان (اول لود + بعد از اضافه شدن پیام جدید)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages?.length]);
+  }, [messages]);
 
   return (
     <div
       ref={scrollRef}
       style={{
-        flex: 1,
-        minHeight: "260px",       // 👈 ناحیهٔ چت کم‌ارتفاع نشود
-        maxHeight: "100%",
+        height: "100%",
         overflowY: "auto",
         paddingRight: "4px",
         display: "flex",
         flexDirection: "column",
         gap: "8px",
-        marginBottom: "8px",
       }}
     >
       {messages && messages.length ? (
@@ -79,10 +55,7 @@ export default function MessagesList({
           const rel = (m.fileUrl || "").toString();
           const hasFile = rel && rel.startsWith("/");
           const fullUrl = hasFile ? `${backendBase}${rel}` : null;
-
-          const type: Message["type"] =
-            m.type || detectType(m.mime, m.fileUrl);
-
+          const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
           const bubbleStyle: React.CSSProperties = {
@@ -111,14 +84,17 @@ export default function MessagesList({
                 {when ? (
                   <span style={{ marginInline: 6, opacity: 0.7 }}>
                     •{" "}
-                    {new Date(when).toLocaleString("fa-IR-u-ca-persian", {
-                      year: "2-digit",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
+                    {new Date(when).toLocaleString(
+                      "fa-IR-u-ca-persian",
+                      {
+                        year: "2-digit",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      }
+                    )}
                   </span>
                 ) : null}
               </div>

@@ -280,16 +280,17 @@ export default async function TicketDetailPage({
         style={{
           flex: 1,
           display: "flex",
-          alignItems: "center",
+          alignItems: "stretch",
           justifyContent: "center",
-          padding: "40px 16px",
+          padding: "24px 16px",
         }}
       >
-        {/* کارت اصلی */}
+        {/* کارت اصلی با ارتفاع ثابت در صفحه */}
         <div
           style={{
             width: "100%",
-            maxWidth: "760px",
+            maxWidth: "900px",
+            margin: "0 auto",
             padding: "20px 22px 18px",
             borderRadius: "18px",
             border: "1px solid #333",
@@ -298,228 +299,235 @@ export default async function TicketDetailPage({
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
-            // 👇 maxHeight رو حذف کردیم که کارت مجبور نباشه تو 80vh جا بشه
-            // و ریپلای‌بار از کادر نزنه بیرون
+            height: "calc(100vh - 80px)",
           }}
         >
-          {/* ردیف بالا: فلش برگشت + تاریخ ایجاد */}
+          {/* هدر بالای کارت (ثابت) */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
               marginBottom: "10px",
-            }}
-          >
-            <Link
-              href="/admin/tickets"
-              aria-label="بازگشت به لیست تیکت‌ها"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 36,
-                height: 36,
-                borderRadius: "999px",
-                border: "1px solid rgba(148,163,184,0.6)",
-                background:
-                  "radial-gradient(circle at 30% 30%, #0f172a, #020617)",
-                color: "rgba(248,250,252,0.9)",
-              }}
-            >
-              {/* 👈 فلش به عقب (همون جهتی که گفتی) */}
-              <ArrowLeftIcon
-                className="w-5 h-5"
-                style={{ transform: "scaleX(-1)" }}
-              />
-            </Link>
-
-            <div
-              style={{
-                fontSize: "11px",
-                color: "rgba(249,250,251,0.7)",
-                textAlign: "left",
-              }}
-            >
-              ایجاد: {formatJalaliWithTime(ticket.createdAt)}
-            </div>
-          </div>
-
-          {/* نام کاربر + سنجاق + وضعیت */}
-          <div
-            style={{
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "8px",
+              flexDirection: "column",
+              gap: 8,
             }}
           >
+            {/* ردیف بالا: فلش برگشت + تاریخ ایجاد */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
-                fontSize: "18px",
-                fontWeight: 800,
+                justifyContent: "space-between",
               }}
             >
-              <span>{userName}</span>
-              <form action={togglePinAction}>
-                <input type="hidden" name="id" value={ticket.id} />
-                <input
-                  type="hidden"
-                  name="to"
-                  value={(!ticket.pinned).toString()}
-                />
-                <button
-                  type="submit"
-                  title={
-                    ticket.pinned ? "برداشتن سنجاق" : "سنجاق‌کردن این تیکت"
-                  }
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    margin: 0,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  {ticket.pinned ? (
-                    <StarIcon className="w-5 h-5 text-yellow-400" />
-                  ) : (
-                    <StarOutline className="w-5 h-5 text-gray-400" />
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
+              <Link
+                href="/admin/tickets"
+                aria-label="بازگشت به لیست تیکت‌ها"
                 style={{
-                  fontSize: "11px",
-                  padding: "4px 8px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 36,
+                  height: 36,
                   borderRadius: "999px",
-                  border: "1px solid rgba(55,65,81,0.8)",
-                  backgroundColor:
-                    ticket.type === "tech" ? "#0f172a" : "#1f2937",
-                  color:
-                    ticket.type === "tech"
-                      ? "rgba(96,165,250,0.9)"
-                      : "rgba(196,181,253,0.9)",
+                  border: "1px solid rgba(148,163,184,0.6)",
+                  background:
+                    "radial-gradient(circle at 30% 30%, #0f172a, #020617)",
+                  color: "rgba(248,250,252,0.9)",
                 }}
               >
-                {ticket.type === "tech"
-                  ? "پشتیبانی فنی"
-                  : "ارتباط با درمانگر"}
-              </span>
-              <form action={cycleStatusAction}>
-                <input type="hidden" name="id" value={ticket.id} />
-                <input type="hidden" name="current" value={ticket.status} />
-                <button
-                  type="submit"
-                  title={
-                    ticket.status === "open"
-                      ? "باز (کلیک برای در انتظار)"
-                      : ticket.status === "pending"
-                      ? "در انتظار (کلیک برای بسته)"
-                      : "بسته (کلیک برای باز)"
-                  }
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    margin: 0,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  {statusIcon}
-                </button>
-              </form>
-            </div>
-          </div>
+                <ArrowLeftIcon className="w-5 h-5" />
+              </Link>
 
-          {/* نوار اطلاعات کاربر – ثابت بالا */}
-          <div
-            style={{
-              marginBottom: "10px",
-              borderRadius: "999px",
-              padding: "8px 16px",
-              background:
-                "linear-gradient(90deg, #020617, #020617 10%, #020b3a 60%, #020617 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              columnGap: 16,
-              fontSize: "12px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                color: "rgba(248,250,252,0.9)",
-              }}
-            >
-              <span>جنسیت: {gender}</span>
-              <span>تاریخ تولد: {birthDateLabel}</span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span style={{ whiteSpace: "nowrap" }}>
-                شماره تماس: <strong>{phone}</strong>
-              </span>
-              <span
+              <div
                 style={{
-                  padding: "2px 10px",
-                  borderRadius: "999px",
-                  border: "1px solid rgba(148,163,184,0.5)",
-                  backgroundColor: planBg,
-                  color: planColor,
-                  fontSize: "10px",
+                  fontSize: "11px",
+                  color: "rgba(249,250,251,0.7)",
+                  textAlign: "left",
+                }}
+              >
+                ایجاد: {formatJalaliWithTime(ticket.createdAt)}
+              </div>
+            </div>
+
+            {/* نام کاربر + سنجاق + وضعیت */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: "18px",
                   fontWeight: 800,
                 }}
               >
-                {planInfo.chipText}
-              </span>
-              <span
+                <span>{userName}</span>
+                <form action={togglePinAction}>
+                  <input type="hidden" name="id" value={ticket.id} />
+                  <input
+                    type="hidden"
+                    name="to"
+                    value={(!ticket.pinned).toString()}
+                  />
+                  <button
+                    type="submit"
+                    title={
+                      ticket.pinned
+                        ? "برداشتن سنجاق"
+                        : "سنجاق‌کردن این تیکت"
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {ticket.pinned ? (
+                      <StarIcon className="w-5 h-5 text-yellow-400" />
+                    ) : (
+                      <StarOutline className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              <div
                 style={{
-                  fontSize: "11px",
-                  color: "rgba(209,213,219,0.9)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
                 }}
               >
-                {planInfo.description}
-              </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(55,65,81,0.8)",
+                    backgroundColor:
+                      ticket.type === "tech" ? "#0f172a" : "#1f2937",
+                    color:
+                      ticket.type === "tech"
+                        ? "rgba(96,165,250,0.9)"
+                        : "rgba(196,181,253,0.9)",
+                  }}
+                >
+                  {ticket.type === "tech"
+                    ? "پشتیبانی فنی"
+                    : "ارتباط با درمانگر"}
+                </span>
+                <form action={cycleStatusAction}>
+                  <input type="hidden" name="id" value={ticket.id} />
+                  <input
+                    type="hidden"
+                    name="current"
+                    value={ticket.status}
+                  />
+                  <button
+                    type="submit"
+                    title={
+                      ticket.status === "open"
+                        ? "باز (کلیک برای در انتظار)"
+                        : ticket.status === "pending"
+                        ? "در انتظار (کلیک برای بسته)"
+                        : "بسته (کلیک برای باز)"
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {statusIcon}
+                  </button>
+                </form>
+              </div>
             </div>
+
+            {/* ردیف اطلاعات کاربر – نوار آبی */}
+            <div
+              style={{
+                borderRadius: "999px",
+                padding: "8px 16px",
+                background:
+                  "linear-gradient(90deg, #020617, #020617 10%, #020b3a 60%, #020617 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                columnGap: 16,
+                fontSize: "12px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  color: "rgba(248,250,252,0.9)",
+                }}
+              >
+                <span>جنسیت: {gender}</span>
+                <span>تاریخ تولد: {birthDateLabel}</span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <span style={{ whiteSpace: "nowrap" }}>
+                  شماره تماس: <strong>{phone}</strong>
+                </span>
+                <span
+                  style={{
+                    padding: "2px 10px",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(148,163,184,0.5)",
+                    backgroundColor: planBg,
+                    color: planColor,
+                    fontSize: "10px",
+                    fontWeight: 800,
+                  }}
+                >
+                  {planInfo.chipText}
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: "rgba(209,213,219,0.9)",
+                  }}
+                >
+                  {planInfo.description}
+                </span>
+              </div>
+            </div>
+
+            {/* خط جداکننده زیر هدر */}
+            <div
+              style={{
+                height: 1,
+                background:
+                  "linear-gradient(to left, transparent, #374151, transparent)",
+              }}
+            />
           </div>
 
-          {/* خط جداکننده */}
-          <div
-            style={{
-              height: 1,
-              background:
-                "linear-gradient(to left, transparent, #374151, transparent)",
-              marginBottom: "10px",
-            }}
-          />
-
-          {/* بدنه: لیست پیام‌ها + نوار پاسخ */}
+          {/* بدنه کارت: پیام‌ها (اسکرول) + نوار پاسخ ثابت پایین */}
           <div
             style={{
               flex: 1,
@@ -528,12 +536,28 @@ export default async function TicketDetailPage({
               flexDirection: "column",
             }}
           >
-            <MessagesList
-              messages={ticket.messages}
-              userName={userName}
-              backendBase={backendBase}
-            />
-            <div style={{ paddingTop: 8 }}>
+            {/* لیست پیام‌ها – فقط این بخش اسکرول می‌خورد */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                marginBottom: 8,
+              }}
+            >
+              <MessagesList
+                messages={ticket.messages}
+                userName={userName}
+                backendBase={backendBase}
+              />
+            </div>
+
+            {/* ReplyBar – همیشه پایین کارت */}
+            <div
+              style={{
+                borderTop: "1px solid #1f2933",
+                paddingTop: 8,
+              }}
+            >
               <ReplyBar />
             </div>
           </div>
