@@ -298,7 +298,8 @@ export default async function TicketDetailPage({
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
-            maxHeight: "80vh",
+            // 👇 maxHeight رو حذف کردیم که کارت مجبور نباشه تو 80vh جا بشه
+            // و ریپلای‌بار از کادر نزنه بیرون
           }}
         >
           {/* ردیف بالا: فلش برگشت + تاریخ ایجاد */}
