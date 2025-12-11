@@ -1,3 +1,28 @@
+/* ==== Anjoman font family ==== */
+@font-face {
+  font-family: "Anjoman";
+  src: url("/fonts/anjoman/Anjoman-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anjoman";
+  src: url("/fonts/anjoman/Anjoman-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Anjoman";
+  src: url("/fonts/anjoman/Anjoman-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Tailwind layers */
 @tailwind base;
 @tailwind components;
@@ -24,6 +49,7 @@ body {
   padding: 0;
   background-color: #000;
   color: #fff;
+  font-family: "Anjoman", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a {
