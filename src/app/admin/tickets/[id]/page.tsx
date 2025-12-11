@@ -155,6 +155,12 @@ function planLabel(u?: TicketUser | null): {
   };
 }
 
+// نرمال‌سازی base URL برای مدیا (حذف اسلش‌های اضافه انتهای رشته)
+function normalizeBase(url?: string | null): string {
+  if (!url) return "";
+  return url.trim().replace(/\/+$/, "");
+}
+
 /* ===== API: گرفتن تیکت ===== */
 
 async function fetchTicket(id: string): Promise<Ticket | null> {
@@ -238,9 +244,13 @@ export default async function TicketDetailPage({
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
-  // 🔹 این base برای مرورگر است (نمایش عکس/ویس)، نه 127.0.0.1
+  // 🔹 base مخصوص مدیاست (برای نمایش عکس/ویس در مرورگر)
+  // اولویت: NEXT_PUBLIC_UPLOAD_BASE → NEXT_PUBLIC_BACKEND_MEDIA_BASE → BACKEND_PUBLIC_URL
   const backendMediaBase =
-    process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE?.trim() || "";
+    normalizeBase(process.env.NEXT_PUBLIC_UPLOAD_BASE) ||
+    normalizeBase(process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE) ||
+    normalizeBase(process.env.BACKEND_PUBLIC_URL) ||
+    "";
 
   const u = ticket.user || null;
 
