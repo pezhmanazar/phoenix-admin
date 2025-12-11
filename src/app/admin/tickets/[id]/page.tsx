@@ -1,5 +1,4 @@
 // src/app/admin/tickets/[id]/page.tsx
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import ReplyBar from "./ReplyBar.client";
 import { cookies } from "next/headers";
@@ -8,12 +7,12 @@ import {
   CheckCircleIcon,
   ClockIcon,
   LockClosedIcon,
-  ArrowLeftIcon,
   StarIcon,
 } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
 import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
+import TicketHeader from "./TicketHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -61,21 +60,7 @@ type Ticket = {
 
 /* ===== توابع کمکی ===== */
 
-function formatJalali(input?: string | null) {
-  if (!input) return "نامشخص";
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return "نامشخص";
-  try {
-    return d.toLocaleDateString("fa-IR-u-ca-persian", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return "نامشخص";
-  }
-}
-
+// تاریخ شمسی ساده – الان فقط برای createdAt استفاده می‌کنیم
 function formatJalaliWithTime(input?: string | null) {
   if (!input) return "—";
   const d = new Date(input);
@@ -94,13 +79,7 @@ function formatJalaliWithTime(input?: string | null) {
   }
 }
 
-function genderLabel(g?: TicketUser["gender"]) {
-  if (g === "male") return "مرد";
-  if (g === "female") return "زن";
-  if (g === "other") return "سایر";
-  return "نامشخص";
-}
-
+// برچسب پلن
 function planLabel(u?: TicketUser | null): {
   chipText: string;
   chipKind: "free" | "pro" | "expired";
@@ -156,10 +135,27 @@ function planLabel(u?: TicketUser | null): {
   };
 }
 
-// نرمال‌سازی base URL برای مدیا (حذف اسلش‌های اضافه انتهای رشته)
+// نرمال‌سازی base URL برای مدیا (حذف / های انتهایی)
 function normalizeBase(url?: string | null): string {
   if (!url) return "";
   return url.trim().replace(/\/+$/, "");
+}
+
+// برچسب سن (XX ساله / سن نامشخص)
+function calcAgeLabel(birthDate?: string | null): string {
+  if (!birthDate) return "سن نامشخص";
+  const d = new Date(birthDate);
+  if (Number.isNaN(d.getTime())) return "سن نامشخص";
+
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const mDiff = now.getMonth() - d.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && now.getDate() < d.getDate())) {
+    age--;
+  }
+  if (age < 0 || age > 120) return "سن نامشخص";
+
+  return `${age.toLocaleString("fa-IR")} ساله`;
 }
 
 /* ===== API: گرفتن تیکت ===== */
@@ -168,7 +164,6 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
 
-  // این base فقط داخل سرور استفاده می‌شود
   const internalBase =
     process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
 
@@ -245,8 +240,7 @@ export default async function TicketDetailPage({
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
-  // 🔹 base مخصوص مدیاست (برای نمایش عکس/ویس در مرورگر)
-  // اولویت: NEXT_PUBLIC_UPLOAD_BASE → NEXT_PUBLIC_BACKEND_MEDIA_BASE → BACKEND_PUBLIC_URL
+  // base مخصوص مدیا برای مرورگر
   const backendMediaBase =
     normalizeBase(process.env.NEXT_PUBLIC_UPLOAD_BASE) ||
     normalizeBase(process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE) ||
@@ -259,28 +253,17 @@ export default async function TicketDetailPage({
   const phone =
     u?.phone || ticket.contact || ticket.openedById || "نامشخص";
 
-  const gender = genderLabel(u?.gender ?? undefined);
-  const birthDateLabel = formatJalali(u?.birthDate ?? null);
   const planInfo = planLabel(u);
+  const ageLabel = calcAgeLabel(u?.birthDate ?? null);
 
   const statusIcon =
     ticket.status === "open" ? (
-      <CheckCircleIcon className="w-5 h-5 text-green-400" />
+      <CheckCircleIcon className="w-4 h-4 text-green-400" />
     ) : ticket.status === "pending" ? (
-      <ClockIcon className="w-5 h-5 text-yellow-400" />
+      <ClockIcon className="w-4 h-4 text-yellow-400" />
     ) : (
-      <LockClosedIcon className="w-5 h-5 text-gray-400" />
+      <LockClosedIcon className="w-4 h-4 text-gray-400" />
     );
-
-  let planBg = "#111827";
-  let planColor = "#E5E7EB";
-  if (planInfo.chipKind === "pro") {
-    planBg = "#064E3B";
-    planColor = "#4ADE80";
-  } else if (planInfo.chipKind === "expired") {
-    planBg = "#7F1D1D";
-    planColor = "#FCA5A5";
-  }
 
   return (
     <div
@@ -320,72 +303,42 @@ export default async function TicketDetailPage({
         >
           {/* 🔄 رفرش مخفی هر ۱۰ ثانیه */}
           <TicketAutoRefresh intervalMs={10000} />
-          
-          {/* هدر بالای کارت (ثابت) */}
-          <div
-            style={{
-              marginBottom: "10px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            {/* ردیف بالا: فلش برگشت + تاریخ ایجاد */}
+
+          {/* هدر جدید کامپکت */}
+          <div style={{ marginBottom: 10 }}>
+            <TicketHeader
+              userName={userName}
+              phone={phone}
+              ageLabel={ageLabel}
+              gender={u?.gender ?? null}
+              planChipText={planInfo.chipText}
+              planDescription={planInfo.description}
+              ticketType={ticket.type}
+            />
+
+            {/* ردیف دوم کوچک: پین + وضعیت + تاریخ ایجاد */}
             <div
               style={{
+                marginTop: 6,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                fontSize: 10,
+                color: "rgba(209,213,219,0.85)",
               }}
             >
-              <Link
-                href="/admin/tickets"
-                aria-label="بازگشت به لیست تیکت‌ها"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 36,
-                  height: 36,
-                  borderRadius: "999px",
-                  border: "1px solid rgba(148,163,184,0.6)",
-                  background:
-                    "radial-gradient(circle at 30% 30%, #0f172a, #020617)",
-                  color: "rgba(248,250,252,0.9)",
-                }}
-              >
-                <ArrowLeftIcon className="w-5 h-5" />
-              </Link>
-
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: "rgba(249,250,251,0.7)",
-                  textAlign: "left",
-                }}
-              >
+              <div>
                 ایجاد: {formatJalaliWithTime(ticket.createdAt)}
               </div>
-            </div>
 
-            {/* نام کاربر + سنجاق + وضعیت */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  fontSize: "18px",
-                  fontWeight: 800,
                 }}
               >
-                <span>{userName}</span>
+                {/* سنجاق */}
                 <form action={togglePinAction}>
                   <input type="hidden" name="id" value={ticket.id} />
                   <input
@@ -411,39 +364,14 @@ export default async function TicketDetailPage({
                     }}
                   >
                     {ticket.pinned ? (
-                      <StarIcon className="w-5 h-5 text-yellow-400" />
+                      <StarIcon className="w-4 h-4 text-yellow-400" />
                     ) : (
-                      <StarOutline className="w-5 h-5 text-gray-400" />
+                      <StarOutline className="w-4 h-4 text-gray-400" />
                     )}
                   </button>
                 </form>
-              </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    padding: "4px 8px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(55,65,81,0.8)",
-                    backgroundColor:
-                      ticket.type === "tech" ? "#0f172a" : "#1f2937",
-                    color:
-                      ticket.type === "tech"
-                        ? "rgba(96,165,250,0.9)"
-                        : "rgba(196,181,253,0.9)",
-                  }}
-                >
-                  {ticket.type === "tech"
-                    ? "پشتیبانی فنی"
-                    : "ارتباط با درمانگر"}
-                </span>
+                {/* وضعیت */}
                 <form action={cycleStatusAction}>
                   <input type="hidden" name="id" value={ticket.id} />
                   <input
@@ -476,69 +404,10 @@ export default async function TicketDetailPage({
               </div>
             </div>
 
-            {/* ردیف اطلاعات کاربر – نوار آبی */}
-            <div
-              style={{
-                borderRadius: "999px",
-                padding: "8px 16px",
-                background:
-                  "linear-gradient(90deg, #020617, #020617 10%, #020b3a 60%, #020617 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                columnGap: 16,
-                fontSize: "12px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  color: "rgba(248,250,252,0.9)",
-                }}
-              >
-                <span>جنسیت: {gender}</span>
-                <span>تاریخ تولد: {birthDateLabel}</span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <span style={{ whiteSpace: "nowrap" }}>
-                  شماره تماس: <strong>{phone}</strong>
-                </span>
-                <span
-                  style={{
-                    padding: "2px 10px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(148,163,184,0.5)",
-                    backgroundColor: planBg,
-                    color: planColor,
-                    fontSize: "10px",
-                    fontWeight: 800,
-                  }}
-                >
-                  {planInfo.chipText}
-                </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "rgba(209,213,219,0.9)",
-                  }}
-                >
-                  {planInfo.description}
-                </span>
-              </div>
-            </div>
-
             {/* خط جداکننده زیر هدر */}
             <div
               style={{
+                marginTop: 6,
                 height: 1,
                 background:
                   "linear-gradient(to left, transparent, #374151, transparent)",
