@@ -13,6 +13,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
 import MessagesList from "./MessagesList.client";
+import TicketAutoRefresh from "./TicketAutoRefresh.client";
 
 export const dynamic = "force-dynamic";
 
@@ -317,6 +318,9 @@ export default async function TicketDetailPage({
             height: "calc(100vh - 80px)",
           }}
         >
+          {/* 🔄 رفرش مخفی هر ۱۰ ثانیه */}
+          <TicketAutoRefresh intervalMs={10000} />
+          
           {/* هدر بالای کارت (ثابت) */}
           <div
             style={{

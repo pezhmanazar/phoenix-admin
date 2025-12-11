@@ -7,8 +7,11 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ReplyBar({ ticketId }: { ticketId?: string }) {
+  const router = useRouter();
+
   // --- ticket id ---
   const id =
     ticketId ||
@@ -147,6 +150,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       rec.ondataavailable = (ev: BlobEvent) => {
         if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
       };
+
       rec.onstop = () => {
         stopTimer();
         setIsRecording(false);
@@ -214,15 +218,18 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
     try {
       setSending(true);
+
       if (hasRecorded) {
         const blob = await fetch(recordBlobUrl as string).then((r) => r.blob());
         const mime = blob.type || recordMime || "audio/webm";
         const ext = mime.includes("ogg") ? "ogg" : "webm";
         const recordedFile = new File([blob], `voice.${ext}`, { type: mime });
+
         const fd = new FormData();
         fd.append("file", recordedFile);
         if (text.trim()) fd.append("text", text.trim());
         fd.append("durationSec", String(seconds || 0));
+
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
@@ -235,6 +242,9 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         const fd = new FormData();
         fd.append("file", file as File);
         if (text.trim()) fd.append("text", text.trim());
+        // 👈 برای همه‌ی فایل‌ها durationSec را صفر بفرست
+        fd.append("durationSec", "0");
+
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
@@ -256,7 +266,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       }
 
       clearForm();
-      if (typeof window !== "undefined") window.location.reload();
+      // ✅ رفرش نرم صفحه تیکت (هماهنگ با TicketAutoRefresh)
+      router.refresh();
     } catch (e: any) {
       alert(e?.message || "خطا در ارسال پیام");
     } finally {
@@ -273,11 +284,10 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   const mainRow: React.CSSProperties = {
     display: "flex",
-    alignItems: "center", // همه وسط عمودی
+    alignItems: "center",
     gap: 8,
   };
 
-  // آیکن‌ها کمی بزرگ‌تر تا هم‌قد با حباب
   const iconBtn: React.CSSProperties = {
     width: 40,
     height: 40,
@@ -306,8 +316,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     backgroundColor: "#000",
     borderRadius: 999,
     border: "1px solid #3f3f46",
-    padding: "8px 14px",           // padding متقارن بالا و پایین
-    minHeight: 40,                 // هم‌قد آیکن‌ها
+    padding: "8px 14px",
+    minHeight: 40,
     color: "#f9fafb",
     fontSize: 13,
     lineHeight: 1.5,
@@ -350,7 +360,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           📎
         </button>
 
-        {/* متن پاسخ – auto-resize */}
+        {/* متن پاسخ */}
         <textarea
           ref={textareaRef}
           value={text}
