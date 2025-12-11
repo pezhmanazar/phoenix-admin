@@ -18,23 +18,23 @@ export type Message = {
 
 type Props = {
   messages: Message[];
-  backendBase: string;
   userName: string;
+  backendBase: string;
 };
 
-export default function MessagesList({ messages, backendBase, userName }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+export default function MessagesList({ messages, userName, backendBase }: Props) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // 🔻 هر بار تعداد پیام‌ها عوض شد، برو ته لیست
+  // اسکرول خودکار به آخرین پیام هنگام باز شدن و بعد از هر تغییر طول
   useEffect(() => {
-    const el = containerRef.current;
+    const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages.length]);
 
   return (
     <div
-      ref={containerRef}
+      ref={scrollRef}
       style={{
         maxHeight: "60vh",
         overflowY: "auto",
@@ -45,15 +45,18 @@ export default function MessagesList({ messages, backendBase, userName }: Props)
         marginBottom: "12px",
       }}
     >
-      {messages.length ? (
+      {messages?.length ? (
         messages.map((m) => {
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts;
           const type = m.type || "text";
+
           const rel = (m.fileUrl || "").toString();
           const hasFile = rel && rel.startsWith("/");
           const fullUrl = hasFile ? `${backendBase}${rel}` : null;
+
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
+
           const bubbleStyle: React.CSSProperties = {
             maxWidth: "85%",
             padding: "10px 12px",
@@ -64,6 +67,7 @@ export default function MessagesList({ messages, backendBase, userName }: Props)
             alignSelf: mine ? "flex-start" : "flex-end",
             fontSize: "13px",
           };
+
           const metaStyle: React.CSSProperties = {
             fontSize: "11px",
             marginBottom: 4,
@@ -71,26 +75,33 @@ export default function MessagesList({ messages, backendBase, userName }: Props)
               ? "rgba(255,255,255,0.85)"
               : "rgba(249,250,251,0.7)",
           };
+
           return (
             <div key={m.id} style={bubbleStyle}>
               <div style={metaStyle}>
                 {senderLabel}
                 {when ? (
                   <span style={{ marginInline: 6, opacity: 0.7 }}>
-                    • {new Date(when).toLocaleString("fa-IR")}
+                    •{" "}
+                    {new Date(when).toLocaleString(
+                      "fa-IR-u-ca-persian"
+                    )}
                   </span>
                 ) : null}
               </div>
+
               {m.text ? (
                 <div
                   style={{
                     whiteSpace: "pre-wrap",
-                    marginBottom: type === "text" || !fullUrl ? 0 : 6,
+                    marginBottom:
+                      type === "text" || !fullUrl ? 0 : 6,
                   }}
                 >
                   {m.text}
                 </div>
               ) : null}
+
               {type === "image" && fullUrl ? (
                 <img
                   src={fullUrl}
