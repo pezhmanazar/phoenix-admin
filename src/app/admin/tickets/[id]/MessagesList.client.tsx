@@ -22,39 +22,43 @@ type Props = {
   backendBase: string;
 };
 
-export default function MessagesList({ messages, userName, backendBase }: Props) {
+export default function MessagesList({
+  messages,
+  userName,
+  backendBase,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // اسکرول خودکار به آخرین پیام هنگام باز شدن و بعد از هر تغییر طول
+  // 🔽 همیشه روی آخرین پیام بمان (اول لود + بعد از ارسال پیام جدید)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+  }, [messages?.length]);
 
   return (
     <div
       ref={scrollRef}
       style={{
-        maxHeight: "60vh",
+        flex: 1,
+        minHeight: 0,
+        maxHeight: "100%",
         overflowY: "auto",
         paddingRight: "4px",
         display: "flex",
         flexDirection: "column",
         gap: "8px",
-        marginBottom: "12px",
+        marginBottom: "8px",
       }}
     >
-      {messages?.length ? (
+      {messages && messages.length ? (
         messages.map((m) => {
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts;
-          const type = m.type || "text";
-
           const rel = (m.fileUrl || "").toString();
           const hasFile = rel && rel.startsWith("/");
           const fullUrl = hasFile ? `${backendBase}${rel}` : null;
-
+          const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
           const bubbleStyle: React.CSSProperties = {
@@ -83,9 +87,14 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
                 {when ? (
                   <span style={{ marginInline: 6, opacity: 0.7 }}>
                     •{" "}
-                    {new Date(when).toLocaleString(
-                      "fa-IR-u-ca-persian"
-                    )}
+                    {new Date(when).toLocaleString("fa-IR-u-ca-persian", {
+                      year: "2-digit",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })}
                   </span>
                 ) : null}
               </div>
@@ -121,6 +130,7 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
                 <a
                   href={fullUrl}
                   target="_blank"
+                  rel="noreferrer"
                   style={{
                     display: "inline-block",
                     marginTop: 4,
