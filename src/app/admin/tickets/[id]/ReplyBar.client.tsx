@@ -234,7 +234,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   // --- ارسال ---
   const onSend = async () => {
     if (!id) return;
-
     const hasRecorded = !!recordBlobUrl;
     const onlyText = !!text.trim() && !file && !hasRecorded;
     const hasFile = !!file;
@@ -262,37 +261,58 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           method: "POST",
           body: fd,
         });
-        await ensureOk(res);
+
+        const json = await res.json().catch(() => ({} as any));
+
+        if (!res.ok || !json?.ok) {
+          throw new Error(
+            json?.error ||
+              (res.status === 413
+                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
+                : "ارسال ویس ناموفق بود")
+          );
+        }
       } else if (hasFile) {
         const fd = new FormData();
         fd.append("file", file as File);
         if (text.trim()) fd.append("text", text.trim());
-        // برای فایل معمولی durationSec نمی‌فرستیم
 
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
         });
-        await ensureOk(res);
+
+        const json = await res.json().catch(() => ({} as any));
+
+        if (!res.ok || !json?.ok) {
+          throw new Error(
+            json?.error ||
+              (res.status === 413
+                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
+                : "ارسال فایل ناموفق بود")
+          );
+        }
       } else {
         const res = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: text.trim() }),
         });
-        await ensureOk(res);
+        const json = await res.json().catch(() => ({} as any));
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.error || "ارسال پیام ناموفق بود");
+        }
       }
 
       clearForm();
-      router.refresh();
+      if (typeof window !== "undefined") window.location.reload();
     } catch (e: any) {
-      console.error("[ReplyBar] send error:", e);
       alert(e?.message || "خطا در ارسال پیام");
     } finally {
       setSending(false);
     }
   };
-
+  
   // ---------- استایل‌ها ----------
   const container: React.CSSProperties = {
     borderTop: "1px solid #27272a",
