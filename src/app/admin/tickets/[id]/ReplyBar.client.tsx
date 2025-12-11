@@ -52,12 +52,11 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // هر بار متن عوض شد، ارتفاع تکست‌اِریا را تنظیم کن
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const max = 120; // حداکثر ارتفاع
+    const max = 120;
     el.style.height = Math.min(el.scrollHeight, max) + "px";
   }, [text]);
 
@@ -203,6 +202,35 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     }
   };
 
+  // --- کمک‌کننده برای هندل ارور fetch ---
+  const ensureOk = async (res: Response) => {
+    let bodyText = "";
+    try {
+      bodyText = await res.text();
+    } catch {
+      bodyText = "";
+    }
+
+    // اگر JSON بود، سعی کن پارس کنی
+    let json: any = null;
+    try {
+      json = bodyText ? JSON.parse(bodyText) : null;
+    } catch {
+      json = null;
+    }
+
+    if (!res.ok || (json && json.ok === false)) {
+      const msg =
+        (json && json.error) ||
+        bodyText ||
+        `HTTP ${res.status} ${res.statusText || ""}`.trim();
+      throw new Error(msg);
+    }
+
+    // اگر اوکی بود ولی JSON قابل‌پارس بود، برش گردون
+    return json ?? bodyText;
+  };
+
   // --- ارسال ---
   const onSend = async () => {
     if (!id) return;
@@ -234,48 +262,38 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           method: "POST",
           body: fd,
         });
-        const json = await res.json().catch(() => ({} as any));
-        if (!res.ok || !json?.ok) {
-          throw new Error(json?.error || "ارسال ویس ناموفق بود");
-        }
+        await ensureOk(res);
       } else if (hasFile) {
         const fd = new FormData();
         fd.append("file", file as File);
         if (text.trim()) fd.append("text", text.trim());
-        // 👈 برای همه‌ی فایل‌ها durationSec را صفر بفرست
-        fd.append("durationSec", "0");
+        // برای فایل معمولی durationSec نمی‌فرستیم
 
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
         });
-        const json = await res.json().catch(() => ({} as any));
-        if (!res.ok || !json?.ok) {
-          throw new Error(json?.error || "ارسال فایل ناموفق بود");
-        }
+        await ensureOk(res);
       } else {
         const res = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: text.trim() }),
         });
-        const json = await res.json().catch(() => ({} as any));
-        if (!res.ok || !json?.ok) {
-          throw new Error(json?.error || "ارسال پیام ناموفق بود");
-        }
+        await ensureOk(res);
       }
 
       clearForm();
-      // ✅ رفرش نرم صفحه تیکت (هماهنگ با TicketAutoRefresh)
       router.refresh();
     } catch (e: any) {
+      console.error("[ReplyBar] send error:", e);
       alert(e?.message || "خطا در ارسال پیام");
     } finally {
       setSending(false);
     }
   };
 
-  // ---------- استایل‌ها (فوتر جمع‌وجور و مرتب) ----------
+  // ---------- استایل‌ها ----------
   const container: React.CSSProperties = {
     borderTop: "1px solid #27272a",
     padding: "8px 10px 10px",
@@ -339,9 +357,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   return (
     <div style={container}>
-      {/* ردیف اصلی: سنجاق (چپ) + متن + میکروفن + ارسال (راست) */}
       <div style={mainRow}>
-        {/* input واقعی فایل – مخفی */}
         <input
           ref={fileInputRef}
           type="file"
@@ -349,7 +365,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           style={{ display: "none" }}
         />
 
-        {/* سنجاق */}
         <button
           type="button"
           onClick={onPickFile}
@@ -360,7 +375,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           📎
         </button>
 
-        {/* متن پاسخ */}
         <textarea
           ref={textareaRef}
           value={text}
@@ -370,7 +384,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           rows={1}
         />
 
-        {/* میکروفن */}
         <button
           type="button"
           onClick={onMicClick}
@@ -391,7 +404,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           🎤
         </button>
 
-        {/* ارسال – فلش به سمت چپ */}
         <button
           type="button"
           onClick={onSend}
@@ -403,7 +415,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         </button>
       </div>
 
-      {/* ردیف پایینی: تایمر، نام فایل، پاک‌سازی، پیش‌نمایش ویس */}
       <div style={infoRow}>
         {isRecording ? (
           <span style={{ color: "#f97373" }}>
