@@ -13,9 +13,10 @@ import {
 } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
 import VoicePlayer from "./VoicePlayer.client";
-
+import MessagesList from "./MessagesList.client";
 export const dynamic = "force-dynamic";
 
+/* ========= انواع ========= */
 type Message = {
   id: string;
   ticketId: string;
@@ -27,6 +28,17 @@ type Message = {
   fileUrl?: string | null;
   mime?: string | null;
   durationSec?: number | null;
+};
+
+// اطلاعات کاربر که (ترجیحاً) بک‌اند همراه تیکت برگرداند
+type TicketUser = {
+  id?: string | null;
+  phone?: string | null;
+  fullName?: string | null;
+  gender?: "male" | "female" | "other" | null;
+  birthDate?: string | null; // yyyy-mm-dd یا ISO
+  plan?: "free" | "pro" | "vip" | null;
+  planExpiresAt?: string | null; // ISO
 };
 
 type Ticket = {
@@ -42,9 +54,91 @@ type Ticket = {
   pinned?: boolean;
   unread?: boolean;
   openedByName?: string | null;
+
+  // ⭐ فیلدهای جدید / اختیاری برای اطلاعات کاربر
+  openedById?: string | null; // مثلاً phone یا userId
+  user?: TicketUser | null;
 };
 
-// 🟢 گرفتن اطلاعات تیکت
+/* ========= کمک‌ها برای نمایش اطلاعات کاربر ========= */
+
+// تاریخ میلادی / ISO → جلالی کوتاه
+function formatJalali(input?: string | null): string {
+  if (!input) return "—";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "—";
+  try {
+    return d.toLocaleDateString("fa-IR-u-ca-persian", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+type PlanView = {
+  label: string;
+  colorBg: string;
+  colorText: string;
+  daysLeft: number | null;
+  status: "free" | "pro" | "expiring" | "expired";
+};
+
+function computePlanView(
+  plan?: string | null,
+  planExpiresAt?: string | null
+): PlanView {
+  const base: PlanView = {
+    label: "FREE",
+    colorBg: "#111827",
+    colorText: "#E5E7EB",
+    daysLeft: null,
+    status: "free",
+  };
+
+  if (!plan || plan === "free") return base;
+
+  // pro / vip
+  let status: PlanView["status"] = "pro";
+  let label = plan.toUpperCase();
+  let colorBg = "#064E3B";
+  let colorText = "#4ADE80";
+  let daysLeft: number | null = null;
+
+  if (planExpiresAt) {
+    const now = Date.now();
+    const exp = new Date(planExpiresAt).getTime();
+    if (!Number.isNaN(exp)) {
+      const diffMs = exp - now;
+      const oneDay = 24 * 60 * 60 * 1000;
+      daysLeft = Math.ceil(diffMs / oneDay);
+
+      if (daysLeft <= 0) {
+        status = "expired";
+        colorBg = "#7F1D1D";
+        colorText = "#FCA5A5";
+        label = "EXPIRED";
+      } else if (daysLeft <= 7) {
+        status = "expiring";
+        colorBg = "#451A03";
+        colorText = "#FBBF24";
+      }
+    }
+  }
+
+  return { label, colorBg, colorText, daysLeft, status };
+}
+
+function formatGender(g?: TicketUser["gender"]): string {
+  if (!g) return "نامشخص";
+  if (g === "male") return "مرد";
+  if (g === "female") return "زن";
+  return "سایر";
+}
+
+/* ========= گرفتن اطلاعات تیکت ========= */
 async function fetchTicket(id: string): Promise<Ticket | null> {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
@@ -62,17 +156,18 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 
   const json = await res.json().catch(() => null);
   if (!json?.ok) return null;
+
+  // json.ticket می‌تواند حاوی user و openedById هم باشد
   return json.ticket as Ticket;
 }
 
-/* ⭐ اکشن‌های سروری */
+/* ========= اکشن‌های سروری ========= */
 async function togglePinAction(formData: FormData) {
   "use server";
   const id = String(formData.get("id") || "");
   const to = String(formData.get("to") || "");
   const token = (await cookies()).get("admin_token")?.value || "";
   if (!id || !token) return;
-
   const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
   await fetch(`${base}/api/admin/tickets/${id}`, {
     method: "PATCH",
@@ -111,7 +206,7 @@ async function cycleStatusAction(formData: FormData) {
   revalidatePath(`/admin/tickets/${id}`);
 }
 
-// 🧡 صفحه جزئیات
+/* ========= صفحه جزئیات ========= */
 export default async function TicketDetailPage({
   params,
 }: {
@@ -123,7 +218,17 @@ export default async function TicketDetailPage({
 
   const backendBase =
     process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-  const userName = ticket.openedByName || ticket.title || "کاربر";
+
+  const userFromTicket = ticket.user || {};
+  const userPhone =
+    userFromTicket.phone || ticket.contact || ticket.openedById || "نامشخص";
+  const userName =
+    userFromTicket.fullName || ticket.openedByName || ticket.title || "کاربر";
+
+  const planView = computePlanView(
+    userFromTicket.plan,
+    userFromTicket.planExpiresAt
+  );
 
   const statusIcon =
     ticket.status === "open" ? (
@@ -164,9 +269,11 @@ export default async function TicketDetailPage({
             backgroundColor: "#050505",
             boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
             boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {/* ردیف بالا: برگشت + خلاصه وضعیت */}
+          {/* ردیف بالا: برگشت + زمان ایجاد */}
           <div
             style={{
               display: "flex",
@@ -193,7 +300,6 @@ export default async function TicketDetailPage({
               />
               <span>بازگشت به تیکت‌ها</span>
             </Link>
-
             <div
               style={{
                 fontSize: "11px",
@@ -206,13 +312,13 @@ export default async function TicketDetailPage({
             </div>
           </div>
 
-          {/* عنوان + نوع + سنجاق + وضعیت */}
+          {/* عنوان + سنجاق + نوع + وضعیت */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: "12px",
+              marginBottom: "8px",
             }}
           >
             <div
@@ -279,7 +385,6 @@ export default async function TicketDetailPage({
               >
                 {ticket.type === "tech" ? "پشتیبانی فنی" : "ارتباط با درمانگر"}
               </span>
-
               <form action={cycleStatusAction}>
                 <input type="hidden" name="id" value={ticket.id} />
                 <input type="hidden" name="current" value={ticket.status} />
@@ -308,7 +413,73 @@ export default async function TicketDetailPage({
             </div>
           </div>
 
-          {/* خط جداکننده */}
+          {/* ⭐ هدر اطلاعات کاربر – چسبان بالای لیست پیام‌ها */}
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              marginBottom: "10px",
+              padding: "10px 12px",
+              borderRadius: "12px",
+              border: "1px solid #1f2937",
+              background:
+                "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,64,175,0.5))",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                rowGap: 6,
+                columnGap: 16,
+                fontSize: "12px",
+              }}
+            >
+              <div>
+                <span style={{ opacity: 0.7 }}>شماره تماس: </span>
+                <span style={{ fontWeight: 700 }}>{userPhone}</span>
+              </div>
+              <div>
+                <span style={{ opacity: 0.7 }}>جنسیت: </span>
+                <span style={{ fontWeight: 700 }}>
+                  {formatGender(userFromTicket.gender)}
+                </span>
+              </div>
+              <div>
+                <span style={{ opacity: 0.7 }}>تاریخ تولد: </span>
+                <span style={{ fontWeight: 700 }}>
+                  {formatJalali(userFromTicket.birthDate)}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: "999px",
+                    backgroundColor: planView.colorBg,
+                    border: "1px solid rgba(148,163,184,0.5)",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                  }}
+                >
+                  <span style={{ color: planView.colorText }}>
+                    {planView.label}
+                  </span>
+                </div>
+                {planView.daysLeft !== null && planView.daysLeft >= 0 && (
+                  <span style={{ opacity: 0.8 }}>
+                    {planView.status === "expired"
+                      ? "منقضی شده"
+                      : `${planView.daysLeft} روز مانده`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* خط جداکننده زیر هدر اطلاعات */}
           <div
             style={{
               height: 1,
@@ -318,114 +489,12 @@ export default async function TicketDetailPage({
             }}
           />
 
-          {/* لیست پیام‌ها */}
-          <div
-            style={{
-              maxHeight: "60vh",
-              overflowY: "auto",
-              paddingRight: "4px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              marginBottom: "12px",
-            }}
-          >
-            {ticket.messages?.length ? (
-              ticket.messages.map((m) => {
-                const mine = m.sender === "admin";
-                const when = m.createdAt || m.ts;
-                const type = m.type || "text";
-                const rel = (m.fileUrl || "").toString();
-                const hasFile = rel && rel.startsWith("/");
-                const fullUrl = hasFile ? `${backendBase}${rel}` : null;
-                const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
-
-                const bubbleStyle: React.CSSProperties = {
-                  maxWidth: "85%",
-                  padding: "10px 12px",
-                  borderRadius: "14px",
-                  border: "1px solid",
-                  borderColor: mine ? "#ea580c" : "#333",
-                  backgroundColor: mine ? "#ea580c" : "#000",
-                  alignSelf: mine ? "flex-start" : "flex-end",
-                  fontSize: "13px",
-                };
-
-                const metaStyle: React.CSSProperties = {
-                  fontSize: "11px",
-                  marginBottom: 4,
-                  color: mine
-                    ? "rgba(255,255,255,0.85)"
-                    : "rgba(249,250,251,0.7)",
-                };
-
-                return (
-                  <div key={m.id} style={bubbleStyle}>
-                    <div style={metaStyle}>
-                      {senderLabel}
-                      {when ? (
-                        <span style={{ marginInline: 6, opacity: 0.7 }}>
-                          • {new Date(when).toLocaleString("fa-IR")}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {m.text ? (
-                      <div
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          marginBottom:
-                            type === "text" || !fullUrl ? 0 : 6,
-                        }}
-                      >
-                        {m.text}
-                      </div>
-                    ) : null}
-
-                    {type === "image" && fullUrl ? (
-                      <img
-                        src={fullUrl}
-                        alt="image"
-                        style={{
-                          maxHeight: "280px",
-                          borderRadius: "10px",
-                          border: "1px solid #374151",
-                          marginTop: m.text ? 6 : 0,
-                        }}
-                      />
-                    ) : type === "voice" && fullUrl ? (
-                      <div style={{ marginTop: 4 }}>
-                        <VoicePlayer src={fullUrl} />
-                      </div>
-                    ) : type === "file" && fullUrl ? (
-                      <a
-                        href={fullUrl}
-                        target="_blank"
-                        style={{
-                          display: "inline-block",
-                          marginTop: 4,
-                          fontSize: "12px",
-                          color: "rgba(255,255,255,0.9)",
-                          textDecoration: "underline",
-                        }}
-                      >
-                        دانلود فایل
-                      </a>
-                    ) : null}
-                  </div>
-                );
-              })
-            ) : (
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "rgba(156,163,175,0.9)",
-                }}
-              >
-                هنوز پیامی ثبت نشده.
-              </div>
-            )}
-          </div>
+          {/* لیست پیام‌ها – با اسکرول خودکار تا آخرین پیام */}
+          <MessagesList
+            messages={ticket.messages || []}
+            backendBase={backendBase}
+            userName={userName}
+          />
 
           {/* نوار ارسال پاسخ */}
           <div>
