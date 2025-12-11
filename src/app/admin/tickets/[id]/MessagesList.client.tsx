@@ -1,9 +1,12 @@
+// src/app/admin/tickets/[id]/MessagesList.client.tsx
 "use client";
 
 import React, { useEffect, useRef } from "react";
 import VoicePlayer from "./VoicePlayer.client";
 
-export type Message = {
+/* ===== انواع لوکال ===== */
+
+type Message = {
   id: string;
   ticketId: string;
   sender: "user" | "admin";
@@ -18,30 +21,51 @@ export type Message = {
 
 type Props = {
   messages: Message[];
-  userName: string;
   backendBase: string;
+  userName: string;
 };
 
-export default function MessagesList({
-  messages,
-  userName,
-  backendBase,
-}: Props) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+/* تشخیص نوع پیام (بر اساس mime یا url) */
+function detectType(
+  mime?: string | null,
+  url?: string | null
+): "text" | "voice" | "image" | "file" {
+  const m = (mime || "").toLowerCase();
+  if (m.startsWith("image/")) return "image";
+  if (m.startsWith("audio/")) return "voice";
+  if (m && !m.startsWith("text/")) return "file";
 
-  // 🔽 همیشه روی آخرین پیام بمان (اول لود + بعد از ارسال پیام جدید)
+  const u = (url || "").toLowerCase();
+  if (u.endsWith(".png") || u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".webp"))
+    return "image";
+  if (u.endsWith(".mp3") || u.endsWith(".wav") || u.endsWith(".m4a") || u.endsWith(".ogg"))
+    return "voice";
+  if (u) return "file";
+
+  return "text";
+}
+
+/* ===== لیست پیام‌ها (کلاینت) ===== */
+
+export default function MessagesList({ messages, backendBase, userName }: Props) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastMsgRef = useRef<HTMLDivElement | null>(null);
+
+  // هر بار تعداد پیام‌ها عوض شد → برو پایین
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages?.length]);
+    if (lastMsgRef.current) {
+      lastMsgRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    } else if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages.length]);
 
   return (
     <div
       ref={scrollRef}
       style={{
         flex: 1,
-        minHeight: 0,
+        minHeight: "260px", // حداقل ارتفاع برای ناحیه چت
         maxHeight: "100%",
         overflowY: "auto",
         paddingRight: "4px",
@@ -52,13 +76,14 @@ export default function MessagesList({
       }}
     >
       {messages && messages.length ? (
-        messages.map((m) => {
+        messages.map((m, idx) => {
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts;
           const rel = (m.fileUrl || "").toString();
           const hasFile = rel && rel.startsWith("/");
           const fullUrl = hasFile ? `${backendBase}${rel}` : null;
-          const type: Message["type"] = m.type || "text";
+
+          const type = m.type || detectType(m.mime, m.fileUrl);
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
           const bubbleStyle: React.CSSProperties = {
@@ -80,21 +105,19 @@ export default function MessagesList({
               : "rgba(249,250,251,0.7)",
           };
 
+          const isLast = idx === messages.length - 1;
+
           return (
-            <div key={m.id} style={bubbleStyle}>
+            <div
+              key={m.id}
+              style={bubbleStyle}
+              ref={isLast ? lastMsgRef : undefined}
+            >
               <div style={metaStyle}>
                 {senderLabel}
                 {when ? (
                   <span style={{ marginInline: 6, opacity: 0.7 }}>
-                    •{" "}
-                    {new Date(when).toLocaleString("fa-IR-u-ca-persian", {
-                      year: "2-digit",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
+                    • {new Date(when).toLocaleString("fa-IR")}
                   </span>
                 ) : null}
               </div>
