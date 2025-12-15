@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       path: "/",
       httpOnly: true,
       sameSite: "lax",
-      secure: false, // روی پرود حتما true
+      secure: true, // روی پرود حتما true
       maxAge: 60 * 60 * 24 * 7, // ۷ روز
     });
 
