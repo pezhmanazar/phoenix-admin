@@ -1,9 +1,8 @@
 // src/app/admin/login/page.tsx
 "use client";
-
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, FormEvent } from "react";
-import { apiFetch, setAdminToken } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 function mapErrorMessage(code: string): string {
   switch (code) {
@@ -57,9 +56,6 @@ export default function AdminLoginPage() {
   body: JSON.stringify(body),
 });
 const json = (await res.json()) as LoginResponse;
-
-      // ✅ توکن را ذخیره کن تا همه request های بعدی کار کنند
-      setAdminToken(json.token);
 
       const to = redirectTo || "/admin/tickets";
 

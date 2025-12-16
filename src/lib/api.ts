@@ -1,77 +1,30 @@
 // src/lib/api.ts
 type ApiFetchInit = RequestInit & { json?: any };
 
-const API_BASE =
-  (process.env.NEXT_PUBLIC_API_BASE &&
-    process.env.NEXT_PUBLIC_API_BASE.trim()) ||
-  "https://api.qoqnoos.app";
-
-/**
- * Admin token is stored client-side (localStorage) after login.
- * We attach it to every request as x-admin-token.
- */
-export function getAdminToken(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return localStorage.getItem("admin_token") || "";
-  } catch {
-    return "";
-  }
+function isAbsoluteUrl(u: string) {
+  return /^https?:\/\//i.test(u);
 }
 
-export function setAdminToken(token: string) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem("admin_token", token);
-  } catch {}
-}
+export async function apiFetch(url: string, init: ApiFetchInit = {}) {
+  const { json, headers, ...rest } = init;
 
-export function clearAdminToken() {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem("admin_token");
-  } catch {}
-}
+  // ✅ اگر مسیر از نوع /api/... بود، حتماً نسبی بزن (same-origin روی admin.qoqnoos.app)
+  // تا کوکی درست ست/ارسال بشه و CORS هم نخوری.
+  const finalUrl =
+    isAbsoluteUrl(url) || url.startsWith("/api/")
+      ? url
+      : `${process.env.NEXT_PUBLIC_API_BASE || ""}${url}`;
 
-export async function apiFetch(path: string, init: ApiFetchInit = {}) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
-
-  const token = getAdminToken();
-  const headers = new Headers(init.headers || {});
-  if (!headers.has("Accept")) headers.set("Accept", "application/json");
-
-  // اگر body به صورت json پاس داده شد
-  let body = init.body;
-  if (init.json !== undefined) {
-    headers.set("Content-Type", "application/json");
-    body = JSON.stringify(init.json);
+  const h = new Headers(headers || {});
+  if (json !== undefined && !h.has("Content-Type")) {
+    h.set("Content-Type", "application/json");
   }
 
-  if (token && !headers.has("x-admin-token")) {
-    headers.set("x-admin-token", token);
-  }
-
-  return fetch(url, {
-    ...init,
-    headers,
-    body,
+  return fetch(finalUrl, {
+    ...rest,
+    headers: h,
+    body: json !== undefined ? JSON.stringify(json) : (rest as any).body,
+    // ✅ حیاتی: کوکی‌ها برای لاگین/سشن
+    credentials: "include",
   });
-}
-
-export async function apiFetchJson<T = any>(path: string, init: ApiFetchInit = {}) {
-  const res = await apiFetch(path, init);
-  const ct = res.headers.get("content-type") || "";
-  const text = await res.text();
-
-  if (!ct.includes("application/json")) {
-    throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 200)}`);
-  }
-
-  const json = JSON.parse(text);
-
-  if (!res.ok || json?.ok === false) {
-    throw new Error(json?.error || `HTTP_${res.status}`);
-  }
-
-  return json as T;
 }
