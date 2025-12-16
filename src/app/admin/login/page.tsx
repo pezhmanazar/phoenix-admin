@@ -1,7 +1,9 @@
 // src/app/admin/login/page.tsx
 "use client";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, FormEvent } from "react";
+import { apiFetch, setAdminToken } from "@/lib/api";
 
 function mapErrorMessage(code: string): string {
   switch (code) {
@@ -17,6 +19,12 @@ function mapErrorMessage(code: string): string {
   }
 }
 
+type LoginResponse = {
+  ok: true;
+  token: string;
+  admin: any;
+};
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -30,45 +38,46 @@ export default function AdminLoginPage() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
+
     setErr(null);
 
     const body = { email: email.trim(), password };
     if (!body.email || !body.password) {
-      setErr("ایمیل و رمز را کامل وارد کنید.");
+      setErr("ایمیل و رمز رو کامل وارد کنید.");
       return;
     }
 
     try {
       setBusy(true);
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
 
-      const json = await res.json().catch(() => null);
+      // ✅ مستقیم به بک‌اند (پشت nginx /api) لاگین کن
+      const res = await apiFetch("/api/admin/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+const json = (await res.json()) as LoginResponse;
 
-      if (!json?.ok) {
-        setErr(json?.error || "login_failed");
-        return;
-      }
+      // ✅ توکن را ذخیره کن تا همه request های بعدی کار کنند
+      setAdminToken(json.token);
 
       const to = redirectTo || "/admin/tickets";
 
-      // اول تلاش با روتر خود Next
+      // روتر
       try {
         router.replace(to);
         router.refresh();
       } catch {
-        // اگر به هر دلیلی fail شد، میریم سراغ full reload
+        // ignore
       }
 
-      // فول ریلود برای اطمینان (و حل مشکل موندن روی صفحه لاگین)
+      // فول ریلود برای اطمینان
       if (typeof window !== "undefined") {
         window.location.href = to;
       }
-    } catch {
-      setErr("internal_error");
+    } catch (e: any) {
+      // apiFetch معمولاً Error(message) می‌دهد
+      setErr(e?.message || "internal_error");
     } finally {
       setBusy(false);
     }
@@ -117,6 +126,7 @@ export default function AdminLoginPage() {
           >
             ورود مدیر پشتیبانی
           </h1>
+
           <p
             style={{
               fontSize: "12px",
@@ -141,6 +151,7 @@ export default function AdminLoginPage() {
             >
               ایمیل
             </label>
+
             <input
               id="admin-email"
               type="email"
@@ -179,6 +190,7 @@ export default function AdminLoginPage() {
             >
               رمز عبور
             </label>
+
             <input
               id="admin-password"
               type="password"
