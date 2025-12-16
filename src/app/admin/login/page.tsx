@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
       // ✅ مهم: لاگین باید از /api/auth/login روی خود Next انجام شود تا cookie ست شود
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         credentials: "include",
         body: JSON.stringify(body),
       });
@@ -99,8 +99,13 @@ export default function AdminLoginPage() {
         window.location.href = to;
       }
     } catch (e: any) {
-      setErr(e?.message || "failed_to_fetch");
-    } finally {
+  const msg = String(e?.message || "");
+  if (msg.toLowerCase().includes("failed to fetch")) {
+    setErr("failed_to_fetch");
+  } else {
+    setErr(msg || "internal_error");
+  }
+} finally {
       setBusy(false);
     }
   }
