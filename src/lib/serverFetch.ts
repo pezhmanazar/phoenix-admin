@@ -1,11 +1,15 @@
 export async function backendFetch(path: string, init?: RequestInit) {
+  if (!path.startsWith("/api/admin/")) {
+    throw new Error(`backendFetch is only allowed for /api/admin/* paths. Got: ${path}`);
+  }
+
   const base = process.env.BACKEND_URL;
   const apiKey = process.env.ADMIN_API_KEY;
 
-  if (!base) throw new Error("BACKEND_URL is not set (check env.local)");
-  if (!apiKey) throw new Error("ADMIN_API_KEY is not set (check env.local)");
+  if (!base) throw new Error("BACKEND_URL is not set");
+  if (!apiKey) throw new Error("ADMIN_API_KEY is not set");
 
-  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = `${base}${path}`;
 
   const res = await fetch(url, {
     ...init,
