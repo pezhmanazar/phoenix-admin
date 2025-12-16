@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
 
     setErr(null);
 
-    const body = { email: email.trim(), password };
+    const body = { email: email.trim().toLowerCase(), password: password.trim() };
     if (!body.email || !body.password) {
       setErr("missing_login_fields");
       return;
