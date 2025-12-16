@@ -1,28 +1,39 @@
 // src/app/admin/login/page.tsx
 "use client";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, FormEvent } from "react";
-import { apiFetch } from "@/lib/api";
 
 function mapErrorMessage(code: string): string {
   switch (code) {
     case "login_failed":
     case "invalid_credentials":
       return "ایمیل یا رمز عبور اشتباه است.";
+    case "missing_login_fields":
+      return "ایمیل و رمز رو کامل وارد کنید.";
     case "unauthorized":
       return "دسترسی شما به این بخش مجاز نیست.";
     case "internal_error":
       return "اشکال داخلی سرور؛ کمی بعد دوباره امتحان کنید.";
+    case "failed_to_fetch":
+      return "ارتباط با سرور برقرار نشد. اینترنت/SSL/سرور را چک کنید.";
     default:
       return code;
   }
 }
 
-type LoginResponse = {
+type LoginOk = {
   ok: true;
-  token: string;
   admin: any;
+  redirect?: boolean;
 };
+
+type LoginFail = {
+  ok: false;
+  error: string;
+};
+
+type LoginResponse = LoginOk | LoginFail;
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -42,24 +53,40 @@ export default function AdminLoginPage() {
 
     const body = { email: email.trim(), password };
     if (!body.email || !body.password) {
-      setErr("ایمیل و رمز رو کامل وارد کنید.");
+      setErr("missing_login_fields");
       return;
     }
 
     try {
       setBusy(true);
 
-      // ✅ مستقیم به بک‌اند (پشت nginx /api) لاگین کن
-      const res = await apiFetch("/api/admin/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(body),
-});
-const json = (await res.json()) as LoginResponse;
+      // ✅ مهم: لاگین باید از /api/auth/login روی خود Next انجام شود تا cookie ست شود
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      // ✅ اگر به جای JSON، HTML برگشت (مثل صفحه خطا/ریدایرکت)، کرش نکن
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        const text = await res.text().catch(() => "");
+        console.log("[admin login] non-json response:", text.slice(0, 400));
+        setErr(`bad_response_${res.status}`);
+        return;
+      }
+
+      const json = (await res.json().catch(() => null)) as LoginResponse | null;
+
+      if (!json || json.ok !== true) {
+        setErr((json as LoginFail | null)?.error || "login_failed");
+        return;
+      }
 
       const to = redirectTo || "/admin/tickets";
 
-      // روتر
+      // اول روتر
       try {
         router.replace(to);
         router.refresh();
@@ -67,13 +94,12 @@ const json = (await res.json()) as LoginResponse;
         // ignore
       }
 
-      // فول ریلود برای اطمینان
+      // بعدش فول ریلود تا کوکی/سشن حتما اعمال شود
       if (typeof window !== "undefined") {
         window.location.href = to;
       }
     } catch (e: any) {
-      // apiFetch معمولاً Error(message) می‌دهد
-      setErr(e?.message || "internal_error");
+      setErr(e?.message || "failed_to_fetch");
     } finally {
       setBusy(false);
     }
