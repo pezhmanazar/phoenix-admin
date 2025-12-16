@@ -1,4 +1,5 @@
 // src/app/api/admin/[...path]/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
@@ -21,6 +22,7 @@ async function proxy(req: NextRequest, pathParts: string[]) {
   const url = new URL(req.url);
   const target = `${base}/api/admin/${path}${url.search}`;
 
+  // ✅ Next 15: cookies() Promise است
   const token = (await cookies()).get("admin_token")?.value || "";
 
   // هدرها
@@ -31,8 +33,7 @@ async function proxy(req: NextRequest, pathParts: string[]) {
 
   // بدنه (برای GET/HEAD نذار)
   const method = req.method.toUpperCase();
-  const body =
-    method === "GET" || method === "HEAD" ? undefined : await req.text();
+  const body = method === "GET" || method === "HEAD" ? undefined : await req.text();
 
   const r = await fetch(target, {
     method,
@@ -44,7 +45,6 @@ async function proxy(req: NextRequest, pathParts: string[]) {
   const ct = r.headers.get("content-type") || "";
   const raw = await r.text().catch(() => "");
 
-  // همون status و content-type رو برگردون
   return new NextResponse(raw, {
     status: r.status,
     headers: {
@@ -54,18 +54,30 @@ async function proxy(req: NextRequest, pathParts: string[]) {
   });
 }
 
-export async function GET(req: NextRequest, ctx: { params: { path: string[] } }) {
-  return proxy(req, ctx.params.path || []);
+// ✅ Next 15: ctx.params Promise شده
+type Ctx = { params: Promise<{ path?: string[] }> };
+
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const { path = [] } = await ctx.params;
+  return proxy(req, path);
 }
-export async function POST(req: NextRequest, ctx: { params: { path: string[] } }) {
-  return proxy(req, ctx.params.path || []);
+
+export async function POST(req: NextRequest, ctx: Ctx) {
+  const { path = [] } = await ctx.params;
+  return proxy(req, path);
 }
-export async function PUT(req: NextRequest, ctx: { params: { path: string[] } }) {
-  return proxy(req, ctx.params.path || []);
+
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  const { path = [] } = await ctx.params;
+  return proxy(req, path);
 }
-export async function PATCH(req: NextRequest, ctx: { params: { path: string[] } }) {
-  return proxy(req, ctx.params.path || []);
+
+export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const { path = [] } = await ctx.params;
+  return proxy(req, path);
 }
-export async function DELETE(req: NextRequest, ctx: { params: { path: string[] } }) {
-  return proxy(req, ctx.params.path || []);
+
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const { path = [] } = await ctx.params;
+  return proxy(req, path);
 }
