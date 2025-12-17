@@ -182,27 +182,22 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         {/* چپ: دکمه‌ها */}
 {me ? (
   <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-    {/* خروج */}
-    <div>
-      <LogoutButton />
-    </div>
-
-    {/* ویرایش پروفایل */}
+    {/* مدیریت کاربران (نزدیک‌تر به وسط) */}
     <Link
-      href="/admin/profile"
+      href="/admin/users"
       style={{
         padding: "8px 10px",
         borderRadius: 10,
-        border: "1px solid #374151",
-        backgroundColor: "#111827",
-        color: "#e5e7eb",
+        border: "1px solid #7c3aed",
+        backgroundColor: "#2e1065",
+        color: "#f5f3ff",
         fontSize: "12px",
-        fontWeight: 700,
+        fontWeight: 800,
         textDecoration: "none",
         whiteSpace: "nowrap",
       }}
     >
-      ویرایش پروفایل
+      مدیریت کاربران
     </Link>
 
     {/* مدیریت ادمین‌ها */}
@@ -225,23 +220,28 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </Link>
     )}
 
-    {/* مدیریت کاربران */}
+    {/* ویرایش پروفایل */}
     <Link
-      href="/admin/users"
+      href="/admin/profile"
       style={{
         padding: "8px 10px",
         borderRadius: 10,
-        border: "1px solid #7c3aed",
-        backgroundColor: "#2e1065",
-        color: "#f5f3ff",
+        border: "1px solid #374151",
+        backgroundColor: "#111827",
+        color: "#e5e7eb",
         fontSize: "12px",
-        fontWeight: 800,
+        fontWeight: 700,
         textDecoration: "none",
         whiteSpace: "nowrap",
       }}
     >
-      مدیریت کاربران
+      ویرایش پروفایل
     </Link>
+
+    {/* خروج (بچسبه به چپ) */}
+    <div>
+      <LogoutButton />
+    </div>
   </div>
 ) : null}
       </header>
