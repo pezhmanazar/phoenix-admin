@@ -1,7 +1,7 @@
 // src/app/admin/users/page.tsx
 "use client";
 
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type UserRow = {
@@ -72,7 +72,7 @@ function fmtFaDate(v?: string | null) {
 function planState(u: UserRow) {
   if (u.plan !== "pro") return "free";
   const dl = daysLeft(u.planExpiresAt || null);
-  if (dl === null) return "pro"; // pro بدون انقضا؟ (نادر)
+  if (dl === null) return "pro";
   if (dl <= 0) return "expired";
   if (dl <= 3) return "expiring";
   return "pro";
@@ -84,6 +84,7 @@ function Pill({ text, bg, border, color }: { text: string; bg: string; border: s
       style={{
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         padding: "4px 10px",
         borderRadius: 999,
         border: `1px solid ${border}`,
@@ -107,11 +108,6 @@ function PlanBadge({ u }: { u: UserRow }) {
   return <Pill text="FREE" bg="#0b1220" border="#374151" color="#e5e7eb" />;
 }
 
-function ProfileBadge({ ok }: { ok?: boolean }) {
-  if (!ok) return <Pill text="ناقص" bg="#111827" border="#374151" color="#e5e7eb" />;
-  return <Pill text="کامل" bg="#0b1220" border="#334155" color="#cbd5e1" />;
-}
-
 function buildCsv(rows: UserRow[]) {
   const headers = [
     "id",
@@ -129,7 +125,6 @@ function buildCsv(rows: UserRow[]) {
 
   const escape = (v: any) => {
     const s = String(v ?? "");
-    // CSV safe
     if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
@@ -149,7 +144,9 @@ function buildCsv(rows: UserRow[]) {
         u.profileCompleted ? "true" : "false",
         u.createdAt || "",
         u.updatedAt || "",
-      ].map(escape).join(",")
+      ]
+        .map(escape)
+        .join(",")
     ),
   ];
   return lines.join("\n");
@@ -222,7 +219,6 @@ export default function AdminUsersPage() {
   }
 
   useEffect(() => {
-    // وقتی url پارامترها تغییر کرد همگام‌سازی کن
     setQ(q0);
     setPage(page0);
     setLimit(limit0);
@@ -308,10 +304,9 @@ export default function AdminUsersPage() {
 
   async function exportCsv() {
     try {
-      // برای اکسل، CSV کافی و استاندارد است (xlsx واقعی بعداً)
       const all: UserRow[] = [];
       let p = 1;
-      const per = 100; // بک‌اند شما سقف 100 دارد
+      const per = 100;
       while (true) {
         const url = `/api/admin/users?q=${encodeURIComponent(q || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
         const r = await fetch(url, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
@@ -322,7 +317,7 @@ export default function AdminUsersPage() {
         all.push(...(j.users || []));
         if (all.length >= (j.total || 0) || (j.users || []).length === 0) break;
         p++;
-        if (p > 200) break; // ضد انفجار
+        if (p > 200) break;
       }
 
       const csv = buildCsv(all);
@@ -340,20 +335,13 @@ export default function AdminUsersPage() {
     }
   }
 
-  function onSearchSubmit(e: FormEvent) {
-    e.preventDefault();
-    setPage(1);
-    syncUrl({ q, page: 1 });
-    // load() از useEffect با تغییر url میاد
-  }
-
   return (
     <div style={{ maxWidth: 1200, marginInline: "auto" }}>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>مدیریت کاربران</h1>
           <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
-            {data ? `total ${data.total} (page ${data.page})` : "—"}
+            {data ? `مجموع: ${data.total} (صفحه ${data.page})` : "—"}
           </div>
         </div>
 
@@ -451,39 +439,6 @@ export default function AdminUsersPage() {
               </option>
             ))}
           </select>
-
-          <form onSubmit={onSearchSubmit} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="جستجو..."
-              style={{
-                width: 260,
-                padding: "9px 12px",
-                borderRadius: 12,
-                border: "1px solid #334155",
-                backgroundColor: "#0b1220",
-                color: "#fff",
-                fontSize: 12,
-                outline: "none",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                padding: "9px 12px",
-                borderRadius: 12,
-                border: "1px solid #7c2d12",
-                backgroundColor: "#ea580c",
-                color: "#fff",
-                fontSize: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              سرچ
-            </button>
-          </form>
         </div>
       </div>
 
@@ -496,16 +451,16 @@ export default function AdminUsersPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 12 }}>
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
           {loading ? "در حال دریافت..." : err ? `خطا: ${err}` : " "}
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
             <thead>
               <tr style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-                {["نام", "شماره", "پروفایل", "سن", "جنسیت", "پلن", "انقضا", "اقدامات"].map((h) => (
-                  <th key={h} style={{ textAlign: "right", padding: "12px 12px", fontSize: 12, color: "#cbd5e1" }}>
+                {["نام", "شماره", "سن", "جنسیت", "پلن", "انقضا", "اقدامات"].map((h) => (
+                  <th key={h} style={{ textAlign: "center", padding: "12px 12px", fontSize: 12, color: "#cbd5e1" }}>
                     {h}
                   </th>
                 ))}
@@ -519,22 +474,18 @@ export default function AdminUsersPage() {
 
                 return (
                   <tr key={u.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <td style={{ padding: "12px 12px", fontSize: 13, fontWeight: 800 }}>
+                    <td style={{ padding: "12px 12px", fontSize: 13, fontWeight: 800, textAlign: "center" }}>
                       {u.fullName || "—"}
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{u.id}</div>
                     </td>
 
-                    <td style={{ padding: "12px 12px", fontSize: 13 }}>{u.phone}</td>
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{u.phone}</td>
 
-                    <td style={{ padding: "12px 12px" }}>
-                      <ProfileBadge ok={!!u.profileCompleted} />
-                    </td>
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{calcAge(u.birthDate || null)}</td>
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{genderFa(u.gender || null)}</td>
 
-                    <td style={{ padding: "12px 12px", fontSize: 13 }}>{calcAge(u.birthDate || null)}</td>
-                    <td style={{ padding: "12px 12px", fontSize: 13 }}>{genderFa(u.gender || null)}</td>
-
-                    <td style={{ padding: "12px 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <td style={{ padding: "12px 12px", textAlign: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
                         <PlanBadge u={u} />
                         {u.plan === "pro" && dl !== null ? (
                           <span style={{ fontSize: 12, color: st === "expired" ? "#fca5a5" : st === "expiring" ? "#fdba74" : "#a7f3d0" }}>
@@ -544,12 +495,12 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
 
-                    <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1" }}>
+                    <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1", textAlign: "center" }}>
                       {u.planExpiresAt ? fmtFaDate(u.planExpiresAt) : "—"}
                     </td>
 
-                    <td style={{ padding: "12px 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <td style={{ padding: "12px 12px", textAlign: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
                         <button
                           disabled={isBusy}
                           onClick={() => {
@@ -568,7 +519,7 @@ export default function AdminUsersPage() {
                             opacity: isBusy ? 0.6 : 1,
                           }}
                         >
-                          PRO کردن
+                          PRO
                         </button>
 
                         <button
@@ -614,7 +565,7 @@ export default function AdminUsersPage() {
 
               {!loading && view.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12 }}>
+                  <td colSpan={7} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
                     موردی پیدا نشد.
                   </td>
                 </tr>
