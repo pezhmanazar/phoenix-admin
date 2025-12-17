@@ -86,6 +86,35 @@ function RoleBadge({ role }: { role?: string }) {
   );
 }
 
+function HeaderButton({
+  href,
+  children,
+  style,
+}: {
+  href: string;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        padding: "6px 10px",
+        borderRadius: 8,
+        border: "1px solid #374151",
+        backgroundColor: "#111827",
+        color: "#e5e7eb",
+        fontSize: "12px",
+        textDecoration: "none",
+        whiteSpace: "nowrap",
+        ...style,
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default async function AdminLayout({
   children,
 }: {
@@ -114,49 +143,47 @@ export default async function AdminLayout({
           justifyContent: "space-between",
           boxSizing: "border-box",
           gap: "12px",
+          direction: "rtl",
         }}
       >
-        {/* لینک پنل ققنوس (سمت راست در تم RTL مرورگر) */}
-        <Link
-          href="/admin/tickets"
+        {/* ✅ سمت راست: عنوان + اسم ادمین + بج */}
+        <div
           style={{
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
-            gap: 8,
-            borderRadius: 9999,
-            border: "1px solid #374151",
-            backgroundColor: "#020617",
-            padding: "8px 16px",
-            fontSize: "13px",
-            fontWeight: 700,
-            color: "rgba(255,255,255,0.9)",
-            textDecoration: "none",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
+            gap: 10,
+            minWidth: 0,
           }}
         >
-          <span aria-hidden>🎛️</span>
-          <span>پنل مدیریت ققنوس</span>
-        </Link>
-
-        {/* اطلاعات ادمین + دکمه‌ها (سمت چپ) */}
-        {me ? (
-          <div
+          <Link
+            href="/admin/tickets"
             style={{
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
-              justifyContent: "flex-end",
-              flexWrap: "wrap",
               gap: 8,
+              borderRadius: 9999,
+              border: "1px solid #374151",
+              backgroundColor: "#020617",
+              padding: "8px 16px",
+              fontSize: "13px",
+              fontWeight: 800,
+              color: "rgba(255,255,255,0.92)",
+              textDecoration: "none",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
           >
-            {/* نام و نقش */}
+            <span aria-hidden>🎛️</span>
+            <span>پنل مدیریت ققنوس</span>
+          </Link>
+
+          {me ? (
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                maxWidth: "220px",
+                gap: 8,
+                minWidth: 0,
               }}
             >
               <span
@@ -166,6 +193,7 @@ export default async function AdminLayout({
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  maxWidth: "240px",
                 }}
                 title={me.email}
               >
@@ -173,52 +201,56 @@ export default async function AdminLayout({
               </span>
               <RoleBadge role={me.role} />
             </div>
+          ) : null}
+        </div>
 
-            {/* پروفایل */}
-            <Link
-              href="/admin/profile"
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                border: "1px solid #374151",
-                backgroundColor: "#111827",
-                color: "#e5e7eb",
-                fontSize: "12px",
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              پروفایل
-            </Link>
+        {/* ✅ سمت چپ: دکمه‌ها (از چپ به راست: خروج، ادمین‌ها، کاربران، پروفایل) */}
+        {me ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              direction: "ltr", // ✅ ترتیب دکمه‌ها دقیقاً همون چیزی که گفتی
+              flexWrap: "wrap",
+              justifyContent: "flex-start",
+            }}
+          >
+            {/* خروج */}
+            <div style={{ marginInlineStart: 0 }}>
+              <LogoutButton />
+            </div>
 
             {/* فقط Owner: مدیریت ادمین‌ها */}
-            {me.role === "owner" && (
-              <Link
+            {me.role === "owner" ? (
+              <HeaderButton
                 href="/admin/admins"
                 style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
                   border: "none",
                   backgroundColor: "#0f766e",
                   color: "#ecfeff",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
+                  fontWeight: 700,
                 }}
               >
                 مدیریت ادمین‌ها
-              </Link>
-            )}
+              </HeaderButton>
+            ) : null}
 
-            {/* خروج – کامپوننت کلاینتی را فقط در یک container می‌گذاریم */}
-            <div
+            {/* مدیریت کاربران (رنگ متفاوت) */}
+            <HeaderButton
+              href="/admin/users"
               style={{
-                marginInlineStart: 4,
+                border: "none",
+                backgroundColor: "#7c2d12",
+                color: "#fff7ed",
+                fontWeight: 800,
               }}
             >
-              <LogoutButton />
-            </div>
+              مدیریت کاربران
+            </HeaderButton>
+
+            {/* ویرایش پروفایل */}
+            <HeaderButton href="/admin/profile">ویرایش پروفایل</HeaderButton>
           </div>
         ) : null}
       </header>
