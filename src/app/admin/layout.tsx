@@ -179,67 +179,71 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </form>
         </div>
 
-        {/* چپ: دکمه‌ها به ترتیب خواسته‌شده */}
-        {me ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-            <div>
-              <LogoutButton />
-            </div>
+        {/* چپ: دکمه‌ها */}
+{me ? (
+  <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+    {/* خروج */}
+    <div>
+      <LogoutButton />
+    </div>
 
-            {me.role === "owner" && (
-              <Link
-                href="/admin/admins"
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  border: "1px solid #0f766e",
-                  backgroundColor: "#0f766e",
-                  color: "#ecfeff",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                مدیریت ادمین‌ها
-              </Link>
-            )}
+    {/* ویرایش پروفایل */}
+    <Link
+      href="/admin/profile"
+      style={{
+        padding: "8px 10px",
+        borderRadius: 10,
+        border: "1px solid #374151",
+        backgroundColor: "#111827",
+        color: "#e5e7eb",
+        fontSize: "12px",
+        fontWeight: 700,
+        textDecoration: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      ویرایش پروفایل
+    </Link>
 
-            <Link
-              href="/admin/users"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 10,
-                border: "1px solid #7c3aed",
-                backgroundColor: "#2e1065",
-                color: "#f5f3ff",
-                fontSize: "12px",
-                fontWeight: 800,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              مدیریت کاربران
-            </Link>
+    {/* مدیریت ادمین‌ها */}
+    {me.role === "owner" && (
+      <Link
+        href="/admin/admins"
+        style={{
+          padding: "8px 10px",
+          borderRadius: 10,
+          border: "1px solid #0f766e",
+          backgroundColor: "#0f766e",
+          color: "#ecfeff",
+          fontSize: "12px",
+          fontWeight: 800,
+          textDecoration: "none",
+          whiteSpace: "nowrap",
+        }}
+      >
+        مدیریت ادمین‌ها
+      </Link>
+    )}
 
-            <Link
-              href="/admin/profile"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 10,
-                border: "1px solid #374151",
-                backgroundColor: "#111827",
-                color: "#e5e7eb",
-                fontSize: "12px",
-                fontWeight: 700,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}
-            >
-              ویرایش پروفایل
-            </Link>
-          </div>
-        ) : null}
+    {/* مدیریت کاربران */}
+    <Link
+      href="/admin/users"
+      style={{
+        padding: "8px 10px",
+        borderRadius: 10,
+        border: "1px solid #7c3aed",
+        backgroundColor: "#2e1065",
+        color: "#f5f3ff",
+        fontSize: "12px",
+        fontWeight: 800,
+        textDecoration: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      مدیریت کاربران
+    </Link>
+  </div>
+) : null}
       </header>
 
       <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
