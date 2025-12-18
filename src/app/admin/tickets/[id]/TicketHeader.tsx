@@ -1,5 +1,9 @@
+"use client";
 import React from "react";
 import TicketActionsMenu from "./TicketActionsMenu.client";
+import { useRouter } from "next/navigation";
+
+const router = useRouter();
 
 function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
   const base: React.CSSProperties = {
@@ -127,7 +131,7 @@ export default function TicketHeader({
             placeItems: "center",
             cursor: "pointer",
           }}
-          onClick={() => history.back()}
+          onClick={() => router.back()}
         >
           ➜
         </div>
