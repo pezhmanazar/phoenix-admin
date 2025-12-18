@@ -6,22 +6,23 @@ const BACKEND =
   process.env.BACKEND_URL?.trim() ||
   "https://qoqnoos.app";
 
-export async function POST(
-  _req: NextRequest,
+export async function PATCH(
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await ctx.params;
     const token = (await cookies()).get("admin_token")?.value || "";
+    const body = await req.json().catch(() => ({}));
 
-    const r = await fetch(`${BACKEND}/api/admin/announcements/${id}/delete`, {
-      method: "POST",
+    const r = await fetch(`${BACKEND}/api/admin/announcements/${id}`, {
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
         ...(token ? { "x-admin-token": token } : {}),
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
       cache: "no-store",
     });
 
