@@ -1,12 +1,22 @@
 // src/app/admin/tickets/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
-import ReplyBar from "./ReplyBar.client";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { CheckCircleIcon, ClockIcon, LockClosedIcon } from "@heroicons/react/24/solid";
+
+import ReplyBar from "./ReplyBar.client";
 import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
 import TicketHeader from "./TicketHeader";
+
+// ✅ کنترل‌ها
+import DeleteTicketButton from "./DeleteTicketButton.client";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  LockClosedIcon,
+  StarIcon,
+} from "@heroicons/react/24/solid";
+import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
 
 export const dynamic = "force-dynamic";
 
@@ -52,34 +62,57 @@ type Ticket = {
 };
 
 /* ===== توابع کمکی ===== */
-function planLabel(u?: TicketUser | null): {
-  chipText: string;
-  description: string;
-} {
+function normalizeBase(url?: string | null): string {
+  if (!url) return "";
+  return url.trim().replace(/\/+$/, "");
+}
+
+function formatJalaliWithTime(input?: string | null) {
+  if (!input) return "—";
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return "—";
+  try {
+    return d.toLocaleString("fa-IR-u-ca-persian", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return d.toISOString();
+  }
+}
+
+function planLabel(u?: TicketUser | null): { chipText: string; description: string } {
   const plan = u?.plan || "free";
   const rawExp = u?.planExpiresAt ?? null;
-
   const now = Date.now();
   const exp = rawExp ? new Date(rawExp) : null;
   const expired = exp ? exp.getTime() < now : false;
 
   if (plan === "pro" || plan === "vip") {
-    if (expired) {
-      return { chipText: "EXPIRED", description: "اشتراک منقضی شده" };
-    }
+    if (expired) return { chipText: "EXPIRED", description: "اشتراک منقضی شده" };
+
     if (exp) {
-      const daysLeft = Math.max(0, Math.floor((exp.getTime() - now) / (1000 * 60 * 60 * 24)));
-      return { chipText: plan === "vip" ? "VIP" : "PRO", description: `اشتراک فعال – ${daysLeft} روز باقی‌مانده` };
+      const daysLeft = Math.max(
+        0,
+        Math.floor((exp.getTime() - now) / (1000 * 60 * 60 * 24))
+      );
+      return {
+        chipText: plan === "vip" ? "VIP" : "PRO",
+        description: `اشتراک فعال – ${daysLeft} روز باقی‌مانده`,
+      };
     }
-    return { chipText: plan === "vip" ? "VIP" : "PRO", description: "اشتراک فعال" };
+
+    return {
+      chipText: plan === "vip" ? "VIP" : "PRO",
+      description: "اشتراک فعال",
+    };
   }
 
   return { chipText: "FREE", description: "بدون اشتراک فعال" };
-}
-
-function normalizeBase(url?: string | null): string {
-  if (!url) return "";
-  return url.trim().replace(/\/+$/, "");
 }
 
 function calcAgeLabel(birthDate?: string | null): string {
@@ -115,8 +148,62 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   return json.ticket as Ticket;
 }
 
+/* ===== اکشن‌های سروری ===== */
+async function togglePinAction(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  const to = String(formData.get("to") || "");
+  const token = (await cookies()).get("admin_token")?.value || "";
+  if (!id || !token) return;
+
+  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+
+  await fetch(`${base}/api/admin/tickets/${id}`, {
+    method: "PATCH",
+    headers: {
+      "x-admin-token": token,
+      "content-type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ pinned: to === "true" }),
+    cache: "no-store",
+  }).catch(() => {});
+
+  revalidatePath(`/admin/tickets/${id}`);
+}
+
+async function cycleStatusAction(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  const current = String(formData.get("current") || "");
+  const token = (await cookies()).get("admin_token")?.value || "";
+  if (!id || !token) return;
+
+  const next =
+    current === "open" ? "pending" : current === "pending" ? "closed" : "open";
+
+  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+
+  await fetch(`${base}/api/admin/tickets/${id}`, {
+    method: "PATCH",
+    headers: {
+      "x-admin-token": token,
+      "content-type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ status: next }),
+    cache: "no-store",
+  }).catch(() => {});
+
+  revalidatePath(`/admin/tickets/${id}`);
+}
+
 /* ===== صفحه جزئیات ===== */
-export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TicketDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   const ticket = await fetchTicket(id);
@@ -130,10 +217,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
   const u = ticket.user || null;
 
-  // ✅ اولویت با دیتای واقعی user
+  // ✅ اولویت: دیتای واقعی user
   const userName = u?.fullName || ticket.openedByName || ticket.title || "کاربر";
-  const phone = u?.phone || ticket.contact || "نامشخص";
-
+  const phone = u?.phone || ticket.contact || ticket.openedById || "نامشخص";
   const planInfo = planLabel(u);
   const ageLabel = calcAgeLabel(u?.birthDate ?? null);
 
@@ -181,10 +267,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             height: "calc(100vh - 80px)",
           }}
         >
-          {/* 🔄 رفرش مخفی هر ۱۰ ثانیه */}
+          {/* 🔄 رفرش مخفی */}
           <TicketAutoRefresh intervalMs={10000} />
 
-          {/* ✅ فقط هدر (بدون نوار دوم/جزئیات تکراری) */}
+          {/* هدر */}
           <div style={{ marginBottom: 10 }}>
             <TicketHeader
               userName={userName}
@@ -196,6 +282,77 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               ticketType={ticket.type}
             />
 
+            {/* ردیف کنترل‌ها: ایجاد + پین + وضعیت + حذف */}
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: 10,
+                color: "rgba(209,213,219,0.85)",
+              }}
+            >
+              <div>ایجاد: {formatJalaliWithTime(ticket.createdAt)}</div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {/* پین */}
+                <form action={togglePinAction}>
+                  <input type="hidden" name="id" value={ticket.id} />
+                  <input type="hidden" name="to" value={(!ticket.pinned).toString()} />
+                  <button
+                    type="submit"
+                    title={ticket.pinned ? "برداشتن سنجاق" : "سنجاق‌کردن این تیکت"}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {ticket.pinned ? (
+                      <StarIcon className="w-4 h-4 text-yellow-400" />
+                    ) : (
+                      <StarOutline className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                </form>
+
+                {/* وضعیت */}
+                <form action={cycleStatusAction}>
+                  <input type="hidden" name="id" value={ticket.id} />
+                  <input type="hidden" name="current" value={ticket.status} />
+                  <button
+                    type="submit"
+                    title={
+                      ticket.status === "open"
+                        ? "باز (کلیک برای در انتظار)"
+                        : ticket.status === "pending"
+                        ? "در انتظار (کلیک برای بسته)"
+                        : "بسته (کلیک برای باز)"
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {statusIcon}
+                  </button>
+                </form>
+
+                {/* حذف */}
+                <DeleteTicketButton ticketId={ticket.id} />
+              </div>
+            </div>
+
             {/* خط جداکننده */}
             <div
               style={{
@@ -206,14 +363,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             />
           </div>
 
-          {/* بدنه کارت */}
+          {/* بدنه */}
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
-              <MessagesList messages={ticket.messages} userName={userName} backendBase={backendMediaBase} />
+              <MessagesList
+                messages={ticket.messages}
+                userName={userName}
+                backendBase={backendMediaBase}
+              />
             </div>
 
             <div style={{ borderTop: "1px solid #1f2933", paddingTop: 8 }}>
-              {/* ✅ مهم: ticketId حتما پاس داده شود تا not_found تمام شود */}
+              {/* ✅ ticketId حتما پاس داده شود */}
               <ReplyBar ticketId={ticket.id} />
             </div>
           </div>
