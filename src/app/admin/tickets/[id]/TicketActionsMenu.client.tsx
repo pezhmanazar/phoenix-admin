@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function TicketActionsMenu({
   ticketId,
   pinned,
+  togglePinAction,
+  deleteTicketAction,
 }: {
   ticketId: string;
   pinned: boolean;
+  togglePinAction: (formData: FormData) => Promise<void>;
+  deleteTicketAction: (formData: FormData) => Promise<void>;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<"pin" | "delete" | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -23,49 +24,6 @@ export default function TicketActionsMenu({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
-
-  const togglePin = async () => {
-    try {
-      setBusy("pin");
-      const res = await fetch(`/api/admin/tickets/${ticketId}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ pinned: !pinned }),
-      });
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "pin_failed");
-      setOpen(false);
-      router.refresh();
-    } catch (e: any) {
-      alert(e?.message || "خطا در پین/آنپین");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const deleteTicket = async () => {
-    const ok = confirm("واقعا می‌خوای این تیکت حذف بشه؟ (قابل برگشت نیست)");
-    if (!ok) return;
-
-    try {
-      setBusy("delete");
-      const res = await fetch(`/api/admin/tickets/${ticketId}/delete`, {
-        method: "POST",
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "delete_failed");
-
-      setOpen(false);
-      router.replace("/admin/tickets");
-    } catch (e: any) {
-      alert(e?.message || "خطا در حذف تیکت");
-    } finally {
-      setBusy(null);
-    }
-  };
 
   return (
     <div ref={rootRef} style={{ position: "relative" }}>
@@ -79,7 +37,7 @@ export default function TicketActionsMenu({
           borderRadius: 10,
           border: "1px solid rgba(255,255,255,0.10)",
           background: "rgba(255,255,255,0.04)",
-          color: "rgba(255,255,255,0.85)",
+          color: "rgba(255,255,255,0.9)",
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
@@ -96,7 +54,7 @@ export default function TicketActionsMenu({
             position: "absolute",
             top: 40,
             left: 0,
-            minWidth: 170,
+            minWidth: 180,
             borderRadius: 14,
             border: "1px solid rgba(255,255,255,0.10)",
             background: "rgba(10,10,12,0.98)",
@@ -105,20 +63,38 @@ export default function TicketActionsMenu({
             zIndex: 50,
           }}
         >
-          <button type="button" onClick={togglePin} disabled={!!busy} style={menuItemStyle}>
-            {busy === "pin" ? "..." : pinned ? "برداشتن پین" : "پین کردن تیکت"}
-          </button>
+          {/* PIN / UNPIN via Server Action */}
+          <form action={togglePinAction}>
+            <input type="hidden" name="id" value={ticketId} />
+            <input type="hidden" name="to" value={(!pinned).toString()} />
+            <button
+              type="submit"
+              style={menuItemStyle}
+              onClick={() => setOpen(false)}
+            >
+              {pinned ? "برداشتن پین" : "پین کردن تیکت"}
+            </button>
+          </form>
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
 
-          <button
-            type="button"
-            onClick={deleteTicket}
-            disabled={!!busy}
-            style={{ ...menuItemStyle, color: "rgba(255,120,120,0.95)" }}
+          {/* DELETE via Server Action */}
+          <form
+            action={deleteTicketAction}
+            onSubmit={(e) => {
+              const ok = confirm("واقعا می‌خوای این تیکت حذف بشه؟ (قابل برگشت نیست)");
+              if (!ok) e.preventDefault();
+              else setOpen(false);
+            }}
           >
-            {busy === "delete" ? "..." : "حذف تیکت"}
-          </button>
+            <input type="hidden" name="id" value={ticketId} />
+            <button
+              type="submit"
+              style={{ ...menuItemStyle, color: "rgba(255,120,120,0.95)" }}
+            >
+              حذف تیکت
+            </button>
+          </form>
         </div>
       )}
     </div>

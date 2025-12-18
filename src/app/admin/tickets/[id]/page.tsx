@@ -1,6 +1,6 @@
-// src/app/admin/tickets/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import ReplyBar from "./ReplyBar.client";
 import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
@@ -55,24 +55,6 @@ function normalizeBase(url?: string | null): string {
   return url.trim().replace(/\/+$/, "");
 }
 
-function formatJalaliWithTime(input?: string | null) {
-  if (!input) return "—";
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return "—";
-  try {
-    return d.toLocaleString("fa-IR-u-ca-persian", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return d.toISOString();
-  }
-}
-
 function planLabel(u?: TicketUser | null): { chipText: string; description: string } {
   const plan = u?.plan || "free";
   const rawExp = u?.planExpiresAt ?? null;
@@ -82,22 +64,14 @@ function planLabel(u?: TicketUser | null): { chipText: string; description: stri
 
   if (plan === "pro" || plan === "vip") {
     if (expired) return { chipText: "EXPIRED", description: "اشتراک منقضی شده" };
-
     if (exp) {
-      const daysLeft = Math.max(
-        0,
-        Math.floor((exp.getTime() - now) / (1000 * 60 * 60 * 24))
-      );
+      const daysLeft = Math.max(0, Math.floor((exp.getTime() - now) / (1000 * 60 * 60 * 24)));
       return {
         chipText: plan === "vip" ? "VIP" : "PRO",
         description: `اشتراک فعال – ${daysLeft} روز باقی‌مانده`,
       };
     }
-
-    return {
-      chipText: plan === "vip" ? "VIP" : "PRO",
-      description: "اشتراک فعال",
-    };
+    return { chipText: plan === "vip" ? "VIP" : "PRO", description: "اشتراک فعال" };
   }
 
   return { chipText: "FREE", description: "بدون اشتراک فعال" };
@@ -107,13 +81,11 @@ function calcAgeLabel(birthDate?: string | null): string {
   if (!birthDate) return "سن نامشخص";
   const d = new Date(birthDate);
   if (Number.isNaN(d.getTime())) return "سن نامشخص";
-
   const now = new Date();
   let age = now.getFullYear() - d.getFullYear();
   const mDiff = now.getMonth() - d.getMonth();
   if (mDiff < 0 || (mDiff === 0 && now.getDate() < d.getDate())) age--;
   if (age < 0 || age > 120) return "سن نامشخص";
-
   return `${age.toLocaleString("fa-IR")} سال`;
 }
 
@@ -123,7 +95,6 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
 
   const internalBase = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-
   const res = await fetch(`${internalBase}/api/admin/tickets/${id}`, {
     headers: { "x-admin-token": token, Accept: "application/json" },
     cache: "no-store",
@@ -134,17 +105,52 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 
   const json = await res.json().catch(() => null);
   if (!json?.ok) return null;
-
   return json.ticket as Ticket;
 }
 
+/* ===== Server Actions ===== */
+async function togglePinAction(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  const to = String(formData.get("to") || "");
+  const token = (await cookies()).get("admin_token")?.value || "";
+  if (!id || !token) return;
+
+  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  await fetch(`${base}/api/admin/tickets/${id}`, {
+    method: "PATCH",
+    headers: {
+      "x-admin-token": token,
+      "content-type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ pinned: to === "true" }),
+    cache: "no-store",
+  }).catch(() => {});
+
+  revalidatePath(`/admin/tickets/${id}`);
+}
+
+async function deleteTicketAction(formData: FormData) {
+  "use server";
+  const id = String(formData.get("id") || "");
+  const token = (await cookies()).get("admin_token")?.value || "";
+  if (!id || !token) return;
+
+  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+  await fetch(`${base}/api/admin/tickets/${id}/delete`, {
+    method: "POST",
+    headers: { "x-admin-token": token, Accept: "application/json" },
+    cache: "no-store",
+  }).catch(() => {});
+
+  redirect("/admin/tickets");
+}
+
 /* ===== صفحه جزئیات ===== */
-export default async function TicketDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
@@ -156,7 +162,6 @@ export default async function TicketDetailPage({
 
   const u = ticket.user || null;
 
-  // ✅ اولویت: دیتای واقعی user
   const userName = u?.fullName || ticket.openedByName || ticket.title || "کاربر";
   const phone = u?.phone || ticket.contact || ticket.openedById || "نامشخص";
   const planInfo = planLabel(u);
@@ -170,9 +175,7 @@ export default async function TicketDetailPage({
         display: "flex",
         flexDirection: "column",
         background:
-          "radial-gradient(1200px 700px at 20% -10%, rgba(212,175,55,0.10), transparent 60%)," +
-          "radial-gradient(900px 600px at 90% 10%, rgba(233,138,21,0.10), transparent 55%)," +
-          "linear-gradient(180deg, #000 0%, #05070b 100%)",
+          "radial-gradient(900px 500px at 15% 0%, rgba(59,130,246,0.12), transparent 60%), radial-gradient(900px 500px at 85% 0%, rgba(245,158,11,0.10), transparent 60%), #000",
       }}
     >
       <main
@@ -190,21 +193,19 @@ export default async function TicketDetailPage({
             maxWidth: "980px",
             margin: "0 auto",
             padding: "18px 18px 14px",
-            borderRadius: "22px",
+            borderRadius: "20px",
             border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(10,10,12,0.72)",
-            boxShadow: "0 24px 60px rgba(0,0,0,0.65)",
+            background: "rgba(5,5,5,0.80)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.65)",
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             height: "calc(100vh - 80px)",
-            backdropFilter: "blur(10px)",
+            backdropFilter: "blur(8px)",
           }}
         >
-          {/* 🔄 رفرش مخفی */}
           <TicketAutoRefresh intervalMs={10000} />
 
-          {/* هدر */}
           <div style={{ marginBottom: 10 }}>
             <TicketHeader
               ticketId={ticket.id}
@@ -216,56 +217,26 @@ export default async function TicketDetailPage({
               planChipText={planInfo.chipText}
               planDescription={planInfo.description}
               ticketType={ticket.type}
+              togglePinAction={togglePinAction}
+              deleteTicketAction={deleteTicketAction}
             />
 
-            {/* ردیف کوچک فقط برای تاریخ ایجاد (بدون کنترل) */}
-            <div
-              style={{
-                marginTop: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                fontSize: 10,
-                color: "rgba(209,213,219,0.75)",
-              }}
-            >
-              ایجاد: {formatJalaliWithTime(ticket.createdAt)}
-            </div>
-
-            {/* خط جداکننده */}
             <div
               style={{
                 marginTop: 10,
                 height: 1,
                 background:
-                  "linear-gradient(to left, transparent, rgba(148,163,184,0.35), transparent)",
+                  "linear-gradient(to left, transparent, rgba(55,65,81,0.9), transparent)",
               }}
             />
           </div>
 
-          {/* بدنه */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div style={{ flex: 1, minHeight: 0, marginBottom: 10 }}>
-              <MessagesList
-                messages={ticket.messages}
-                userName={userName}
-                backendBase={backendMediaBase}
-              />
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
+              <MessagesList messages={ticket.messages} userName={userName} backendBase={backendMediaBase} />
             </div>
 
-            <div
-              style={{
-                borderTop: "1px solid rgba(148,163,184,0.22)",
-                paddingTop: 10,
-              }}
-            >
+            <div style={{ borderTop: "1px solid rgba(31,41,51,0.9)", paddingTop: 8 }}>
               <ReplyBar ticketId={ticket.id} />
             </div>
           </div>

@@ -1,17 +1,15 @@
-"use client";
-
 import React from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import TicketActionsMenu from "./TicketActionsMenu.client";
 
-function pill(text: string, tone: "dark" | "green" | "blue" = "dark"): React.CSSProperties {
+function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
   const base: React.CSSProperties = {
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 11,
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.85)",
+    color: "rgba(255,255,255,0.88)",
     whiteSpace: "nowrap",
   };
 
@@ -23,7 +21,6 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark"): React.CSS
       color: "rgba(167,243,208,0.95)",
     };
   }
-
   if (tone === "blue") {
     return {
       ...base,
@@ -32,7 +29,6 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark"): React.CSS
       color: "rgba(191,219,254,0.95)",
     };
   }
-
   return base;
 }
 
@@ -53,6 +49,8 @@ export default function TicketHeader({
   planChipText,
   planDescription,
   ticketType,
+  togglePinAction,
+  deleteTicketAction,
 }: {
   ticketId: string;
   pinned: boolean;
@@ -63,11 +61,11 @@ export default function TicketHeader({
   planChipText: string;
   planDescription: string;
   ticketType: "tech" | "therapy";
+  togglePinAction: (formData: FormData) => Promise<void>;
+  deleteTicketAction: (formData: FormData) => Promise<void>;
 }) {
-  const router = useRouter(); // ✅ فقط اینجا
   const typeFa = ticketType === "tech" ? "پشتیبانی فنی" : "درمان";
-
-  const planTone: "dark" | "green" | "blue" =
+  const planTone =
     planChipText === "PRO" || planChipText === "VIP"
       ? "green"
       : planChipText === "EXPIRED"
@@ -80,14 +78,15 @@ export default function TicketHeader({
         borderRadius: 18,
         padding: "10px 12px",
         border: "1px solid rgba(255,255,255,0.10)",
-        background: "linear-gradient(90deg, rgba(2,6,23,0.85), rgba(17,24,39,0.55))",
+        background:
+          "linear-gradient(90deg, rgba(2,6,23,0.92), rgba(17,24,39,0.55))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
       }}
     >
-      {/* ✅ چپ: کل اطلاعات داخل یک کادر و وسط‌چین */}
+      {/* چپ: همه اطلاعات (center) + نوع + سه نقطه */}
       <div
         style={{
           display: "flex",
@@ -102,36 +101,31 @@ export default function TicketHeader({
         <span style={pill(planChipText, planTone)} title={planDescription}>
           {planChipText}
         </span>
-
         <span style={pill(ageLabel)}>{ageLabel}</span>
         <span style={pill(genderFa(gender))}>{genderFa(gender)}</span>
         <span style={pill(phone)}>{phone}</span>
 
-        {/* نوع تیکت + سه نقطه کنار آن */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={pill(typeFa)}>{typeFa}</span>
-          <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
+
+          <TicketActionsMenu
+            ticketId={ticketId}
+            pinned={pinned}
+            togglePinAction={togglePinAction}
+            deleteTicketAction={deleteTicketAction}
+          />
         </div>
       </div>
 
-      {/* ✅ راست: فقط اسم */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginLeft: 12,
-          flexShrink: 0,
-        }}
-      >
+      {/* راست: فقط اسم + دکمه برگشت */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>
           {userName}
         </div>
 
-        <button
-          type="button"
+        <Link
+          href="/admin/tickets"
           title="بازگشت"
-          onClick={() => router.back()}
           style={{
             width: 34,
             height: 34,
@@ -141,11 +135,12 @@ export default function TicketHeader({
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
-            color: "rgba(255,255,255,0.9)",
+            color: "rgba(255,255,255,0.85)",
+            textDecoration: "none",
           }}
         >
           ➜
-        </button>
+        </Link>
       </div>
     </div>
   );
