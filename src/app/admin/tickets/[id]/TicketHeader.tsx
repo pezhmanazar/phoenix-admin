@@ -52,7 +52,7 @@ function genderFa(g?: string | null) {
   return "نامشخص";
 }
 
-function extractPersianOrLatinNumber(s: string) {
+function extractNum(s: string) {
   const m = s.match(/[0-9۰-۹]+/);
   return m ? m[0] : "—";
 }
@@ -80,8 +80,8 @@ export default function TicketHeader({
 }) {
   const router = useRouter();
 
-  const typeFa = ticketType === "tech" ? "فنی" : "درمان";
-  const TypeIcon = ticketType === "tech" ? WrenchScrewdriverIcon : HeartIcon;
+  const typeFa = ticketType === "tech" ? "درمان" : "پشتیبانی";
+  const TypeIcon = ticketType === "tech" ? HeartIcon : WrenchScrewdriverIcon;
 
   const planTone: "dark" | "green" | "blue" =
     planChipText === "PRO" || planChipText === "VIP"
@@ -90,7 +90,7 @@ export default function TicketHeader({
       ? "blue"
       : "dark";
 
-  const ageNum = extractPersianOrLatinNumber(ageLabel);
+  const ageNum = extractNum(ageLabel);
 
   return (
     <div
@@ -104,66 +104,16 @@ export default function TicketHeader({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
+        direction: "rtl", // ✅ کل هدر RTL
       }}
     >
-      {/* ✅ LEFT (چپ چپ): ... + type + plan + age(num) + gender(icon) + phone */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-start",
-          gap: 8,
-          flexWrap: "wrap",
-          // برای اینکه ترتیب دقیقاً همونی باشه که گفتی (از چپ به راست):
-          direction: "ltr",
-          minWidth: 0,
-        }}
-      >
-        {/* سه نقطه: چسبیده به گوشه چپ */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
-        </div>
-
-        {/* نوع تیکت با آیکن */}
-        <span style={pill("dark")}>
-          <TypeIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          <span style={{ direction: "rtl" }}>{typeFa}</span>
-        </span>
-
-        {/* بج اشتراک */}
-        <span style={pill(planTone)} title={planDescription}>
-          {planChipText}
-        </span>
-
-        {/* سن فقط عدد */}
-        <span style={pill("dark")}>
-          <span style={{ direction: "rtl" }}>سن:</span>
-          <span>{ageNum}</span>
-        </span>
-
-        {/* جنسیت با آیکن */}
-        <span style={pill("dark")}>
-          <UserIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          <span style={{ direction: "rtl" }}>{genderFa(gender)}</span>
-        </span>
-
-        {/* شماره */}
-        <span style={pill("dark")}>
-          <PhoneIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          <span>{phone}</span>
-        </span>
-      </div>
-
-      {/* ✅ RIGHT (راست راست): back button then name */}
+      {/* ✅ RIGHT SIDE (چسبیده به راست): فلش بعد اسم */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
-          // فلش باید راستِ راست باشه:
-          flexDirection: "row-reverse",
-          direction: "rtl",
+          justifyContent: "flex-end",
           flexShrink: 0,
         }}
       >
@@ -196,6 +146,52 @@ export default function TicketHeader({
         >
           {userName}
         </div>
+      </div>
+
+      {/* ✅ LEFT SIDE (چسبیده به چپ): ... سپس نوع سپس بقیه */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          justifyContent: "flex-start",
+          flexWrap: "wrap",
+          minWidth: 0,
+          // ✅ برای اینکه بچسبه به چپ، توی RTL از margin-right:auto استفاده می‌کنیم
+          marginRight: "auto",
+        }}
+      >
+        {/* سه نقطه */}
+        <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
+
+        {/* نوع تیکت */}
+        <span style={pill("dark")}>
+          <TypeIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+          {typeFa}
+        </span>
+
+        {/* اشتراک */}
+        <span style={pill(planTone)} title={planDescription}>
+          {planChipText}
+        </span>
+
+        {/* سن فقط عدد */}
+        <span style={pill("dark")}>
+          سن
+          <span style={{ opacity: 0.9 }}> {ageNum}</span>
+        </span>
+
+        {/* جنسیت با آیکن */}
+        <span style={pill("dark")}>
+          <UserIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+          {genderFa(gender)}
+        </span>
+
+        {/* شماره */}
+        <span style={pill("dark")}>
+          <PhoneIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+          {phone}
+        </span>
       </div>
     </div>
   );
