@@ -4,7 +4,7 @@ import {
   ArrowRightIcon,
   UserIcon,
   SparklesIcon,
-  WrenchScrewdriverIcon,
+  CakeIcon,
   ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/solid";
 
@@ -38,7 +38,7 @@ export default function TicketHeader({
     planColor = "#FCA5A5";
   }
 
-  // آیکن جنسیت + رنگ
+  // جنسیت + رنگ
   let genderColor = "#9CA3AF";
   if (gender === "male") genderColor = "#60A5FA";
   else if (gender === "female") genderColor = "#F472B6";
@@ -52,13 +52,6 @@ export default function TicketHeader({
       ? "جنسیت دیگر"
       : "جنسیت نامشخص";
 
-  const typeIcon =
-    ticketType === "tech" ? (
-      <WrenchScrewdriverIcon className="w-4 h-4" />
-    ) : (
-      <ChatBubbleLeftRightIcon className="w-4 h-4" />
-    );
-
   const typeTitle =
     ticketType === "tech" ? "پشتیبانی فنی" : "ارتباط با درمانگر";
 
@@ -68,16 +61,15 @@ export default function TicketHeader({
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "6px 10px",
+        padding: "8px 10px",
         borderRadius: 999,
         border: "1px solid #1F2937",
         background:
           "linear-gradient(90deg, #020617, #020617 10%, #020b3a 60%, #020617 100%)",
-        fontSize: 12,
-        minHeight: 40,
+        minHeight: 42,
       }}
     >
-      {/* فلش خروج – رو به راست */}
+      {/* بازگشت */}
       <Link
         href="/admin/tickets"
         aria-label="بازگشت به لیست تیکت‌ها"
@@ -89,8 +81,7 @@ export default function TicketHeader({
           height: 28,
           borderRadius: "999px",
           border: "1px solid rgba(148,163,184,0.6)",
-          background:
-            "radial-gradient(circle at 30% 30%, #0f172a, #020617)",
+          background: "radial-gradient(circle at 30% 30%, #0f172a, #020617)",
           color: "rgba(248,250,252,0.9)",
           flexShrink: 0,
         }}
@@ -98,37 +89,36 @@ export default function TicketHeader({
         <ArrowRightIcon className="w-4 h-4" />
       </Link>
 
-      {/* اسم، شماره، سن */}
+      {/* نام + شماره */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          color: "rgba(248,250,252,0.9)",
+          gap: 10,
           overflow: "hidden",
+          color: "rgba(248,250,252,0.95)",
         }}
       >
         <span
+          title={userName}
           style={{
             fontSize: 13,
-            fontWeight: 700,
+            fontWeight: 800,
             whiteSpace: "nowrap",
-            textOverflow: "ellipsis",
             overflow: "hidden",
-            maxWidth: 160,
+            textOverflow: "ellipsis",
+            maxWidth: 180,
           }}
         >
           {userName}
         </span>
-        <span style={{ opacity: 0.8, whiteSpace: "nowrap" }}>
+
+        <span style={{ opacity: 0.85, whiteSpace: "nowrap", fontSize: 12 }}>
           {phone}
-        </span>
-        <span style={{ opacity: 0.7, whiteSpace: "nowrap" }}>
-          {ageLabel}
         </span>
       </div>
 
-      {/* آیکن‌ها – در سمت چپ نوار */}
+      {/* آیتم‌ها سمت چپ */}
       <div
         style={{
           marginRight: "auto",
@@ -141,57 +131,80 @@ export default function TicketHeader({
         <div
           title={genderTitle}
           style={{
-            width: 22,
-            height: 22,
-            borderRadius: "999px",
-            border: "1px solid rgba(148,163,184,0.6)",
+            padding: "4px 8px",
+            borderRadius: 999,
+            border: "1px solid rgba(148,163,184,0.55)",
+            backgroundColor: "rgba(15,23,42,0.7)",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            color: genderColor,
-            backgroundColor: "rgba(15,23,42,0.8)",
+            gap: 6,
+            color: "rgba(248,250,252,0.9)",
+            fontSize: 11,
+            whiteSpace: "nowrap",
           }}
         >
-          <UserIcon className="w-3.5 h-3.5" />
+          <UserIcon className="w-4 h-4" style={{ color: genderColor }} />
+          <span style={{ opacity: 0.9 }}>{genderTitle}</span>
         </div>
 
-        {/* نوع اشتراک */}
+        {/* سن */}
+        <div
+          title="سن"
+          style={{
+            padding: "4px 8px",
+            borderRadius: 999,
+            border: "1px solid rgba(148,163,184,0.55)",
+            backgroundColor: "rgba(15,23,42,0.7)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            color: "rgba(248,250,252,0.9)",
+            fontSize: 11,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <CakeIcon className="w-4 h-4" />
+          <span style={{ opacity: 0.9 }}>{ageLabel}</span>
+        </div>
+
+        {/* اشتراک */}
         <div
           title={planDescription}
           style={{
-            padding: "2px 8px",
+            padding: "4px 10px",
             borderRadius: 999,
             border: "1px solid rgba(148,163,184,0.5)",
             backgroundColor: planBg,
             color: planColor,
             display: "flex",
             alignItems: "center",
-            gap: 4,
-            fontSize: 10,
-            fontWeight: 700,
+            gap: 6,
+            fontSize: 11,
+            fontWeight: 800,
             whiteSpace: "nowrap",
           }}
         >
-          <SparklesIcon className="w-3.5 h-3.5" />
+          <SparklesIcon className="w-4 h-4" />
           <span>{planChipText}</span>
         </div>
 
-        {/* نوع چت: فنی / درمانگر */}
+        {/* نوع تیکت */}
         <div
           title={typeTitle}
           style={{
-            width: 22,
-            height: 22,
+            width: 28,
+            height: 28,
             borderRadius: "999px",
             border: "1px solid rgba(148,163,184,0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "rgba(15,23,42,0.8)",
+            backgroundColor: "rgba(15,23,42,0.7)",
             color: "rgba(248,250,252,0.9)",
+            flexShrink: 0,
           }}
         >
-          {typeIcon}
+          <ChatBubbleLeftRightIcon className="w-4 h-4" />
         </div>
       </div>
     </div>

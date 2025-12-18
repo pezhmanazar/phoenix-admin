@@ -1,17 +1,12 @@
 // src/app/admin/tickets/[id]/ReplyBar.client.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function ReplyBar({ ticketId }: { ticketId?: string }) {
+export default function ReplyBar({ ticketId }: { ticketId: string }) {
   const router = useRouter();
-
-  const id = useMemo(() => {
-    if (ticketId) return ticketId;
-    if (typeof window === "undefined") return "";
-    return (window.location.pathname.split("/").pop() || "").trim();
-  }, [ticketId]);
+  const id = ticketId; // ✅ قطعی، بدون حدس
 
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -44,7 +39,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   useEffect(() => {
     setRecordingSupported(typeof window !== "undefined" && typeof MediaRecorder !== "undefined");
     return () => {
-      // cleanup on unmount
       try {
         stopTimer();
       } catch {}
@@ -54,6 +48,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       try {
         mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
       } catch {}
+
       recorderRef.current = null;
       mediaStreamRef.current = null;
       chunksRef.current = [];
@@ -112,7 +107,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     const f = e.target.files?.[0] || null;
     setFile(f || null);
 
-    // اگر فایل انتخاب شد، ویس ضبط‌شده رو پاک کن (دو منبع همزمان گیج‌کننده‌ست)
     if (f && recordBlobUrlRef.current) {
       try {
         URL.revokeObjectURL(recordBlobUrlRef.current);
@@ -145,7 +139,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   const startRecording = async () => {
     if (!recordingSupported || isRecording) return;
 
-    // اگر قبلاً ویس داشتیم، اول جمعش کن
     if (recordBlobUrlRef.current) {
       try {
         URL.revokeObjectURL(recordBlobUrlRef.current);
@@ -156,7 +149,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       setSeconds(0);
     }
 
-    // اگر فایل انتخاب شده بود، پاکش کن (همزمان ضبط + فایل = تجربه‌ی بد)
     if (file) {
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -188,7 +180,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         const url = URL.createObjectURL(blob);
-
         recordBlobUrlRef.current = url;
         setRecordBlobUrl(url);
       };
@@ -272,9 +263,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
-              (res.status === 413
-                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
-                : "ارسال ویس ناموفق بود")
+              (res.status === 413 ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید." : "ارسال ویس ناموفق بود")
           );
         }
       } else if (hasFile) {
@@ -293,9 +282,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
-              (res.status === 413
-                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
-                : "ارسال فایل ناموفق بود")
+              (res.status === 413 ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید." : "ارسال فایل ناموفق بود")
           );
         }
       } else {
@@ -312,11 +299,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       }
 
       clearForm();
-
-      // ✅ بدون reload: رفرش داده‌ها در همون صفحه
       router.refresh();
 
-      // ✅ یک اسکرول نرم به پایین (برای چت)
       setTimeout(() => {
         const scroller = document.querySelector('[data-ticket-scroll="1"]') as HTMLElement | null;
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
@@ -393,20 +377,9 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   return (
     <div style={container}>
       <div style={mainRow}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          onChange={onFileChange}
-          style={{ display: "none" }}
-        />
+        <input ref={fileInputRef} type="file" onChange={onFileChange} style={{ display: "none" }} />
 
-        <button
-          type="button"
-          onClick={onPickFile}
-          style={iconBtn}
-          title="ضمیمه فایل / تصویر / ویس"
-          disabled={sending || isRecording}
-        >
+        <button type="button" onClick={onPickFile} style={iconBtn} title="ضمیمه فایل / تصویر / ویس" disabled={sending || isRecording}>
           📎
         </button>
 
@@ -428,37 +401,19 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
             backgroundColor: isRecording ? "#b91c1c" : "#09090b",
             borderColor: isRecording ? "#f87171" : "#3f3f46",
           }}
-          title={
-            !recordingSupported
-              ? "مرورگر از ضبط صدا پشتیبانی نمی‌کند"
-              : isRecording
-              ? "پایان ضبط"
-              : "شروع ضبط ویس"
-          }
+          title={!recordingSupported ? "مرورگر از ضبط صدا پشتیبانی نمی‌کند" : isRecording ? "پایان ضبط" : "شروع ضبط ویس"}
           disabled={sending || !!file}
         >
           🎤
         </button>
 
-        <button
-          type="button"
-          onClick={onSend}
-          style={sendBtn}
-          disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
-          title="ارسال"
-        >
+        <button type="button" onClick={onSend} style={sendBtn} disabled={sending || (!text.trim() && !file && !recordBlobUrl)} title="ارسال">
           ◀
         </button>
       </div>
 
       <div style={infoRow}>
-        {isRecording ? (
-          <span style={{ color: "#f97373" }}>
-            در حال ضبط… {formatTime(seconds)}
-          </span>
-        ) : recordBlobUrl ? (
-          <span>ویس آماده ارسال – {formatTime(seconds)}</span>
-        ) : null}
+        {isRecording ? <span style={{ color: "#f97373" }}>در حال ضبط… {formatTime(seconds)}</span> : recordBlobUrl ? <span>ویس آماده ارسال – {formatTime(seconds)}</span> : null}
 
         {file ? (
           <span>
