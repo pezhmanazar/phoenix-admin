@@ -14,10 +14,12 @@ import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
 import TicketHeader from "./TicketHeader";
 
+// ✅ دکمه حذف (تو گفتی ساختیش)
+import DeleteTicketButton from "./DeleteTicketButton.client";
+
 export const dynamic = "force-dynamic";
 
 /* ===== انواع داده ===== */
-
 type AdminMessage = {
   id: string;
   ticketId: string;
@@ -59,8 +61,6 @@ type Ticket = {
 };
 
 /* ===== توابع کمکی ===== */
-
-// تاریخ شمسی ساده – الان فقط برای createdAt استفاده می‌کنیم
 function formatJalaliWithTime(input?: string | null) {
   if (!input) return "—";
   const d = new Date(input);
@@ -79,7 +79,6 @@ function formatJalaliWithTime(input?: string | null) {
   }
 }
 
-// برچسب پلن
 function planLabel(u?: TicketUser | null): {
   chipText: string;
   chipKind: "free" | "pro" | "expired";
@@ -135,18 +134,15 @@ function planLabel(u?: TicketUser | null): {
   };
 }
 
-// نرمال‌سازی base URL برای مدیا (حذف / های انتهایی)
 function normalizeBase(url?: string | null): string {
   if (!url) return "";
   return url.trim().replace(/\/+$/, "");
 }
 
-// برچسب سن (XX ساله / سن نامشخص)
 function calcAgeLabel(birthDate?: string | null): string {
   if (!birthDate) return "سن نامشخص";
   const d = new Date(birthDate);
   if (Number.isNaN(d.getTime())) return "سن نامشخص";
-
   const now = new Date();
   let age = now.getFullYear() - d.getFullYear();
   const mDiff = now.getMonth() - d.getMonth();
@@ -154,12 +150,10 @@ function calcAgeLabel(birthDate?: string | null): string {
     age--;
   }
   if (age < 0 || age > 120) return "سن نامشخص";
-
   return `${age.toLocaleString("fa-IR")} ساله`;
 }
 
 /* ===== API: گرفتن تیکت ===== */
-
 async function fetchTicket(id: string): Promise<Ticket | null> {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
@@ -168,7 +162,7 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
     process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
 
   const res = await fetch(`${internalBase}/api/admin/tickets/${id}`, {
-    headers: { "x-admin-token": token },
+    headers: { "x-admin-token": token, Accept: "application/json" },
     cache: "no-store",
   });
 
@@ -184,23 +178,27 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
 }
 
 /* ===== اکشن‌های سروری ===== */
-
 async function togglePinAction(formData: FormData) {
   "use server";
   const id = String(formData.get("id") || "");
   const to = String(formData.get("to") || "");
   const token = (await cookies()).get("admin_token")?.value || "";
   if (!id || !token) return;
+
   const base =
     process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+
   await fetch(`${base}/api/admin/tickets/${id}`, {
     method: "PATCH",
     headers: {
       "x-admin-token": token,
       "content-type": "application/json",
+      Accept: "application/json",
     },
     body: JSON.stringify({ pinned: to === "true" }),
+    cache: "no-store",
   }).catch(() => {});
+
   revalidatePath(`/admin/tickets/${id}`);
 }
 
@@ -210,37 +208,42 @@ async function cycleStatusAction(formData: FormData) {
   const current = String(formData.get("current") || "");
   const token = (await cookies()).get("admin_token")?.value || "";
   if (!id || !token) return;
+
   const next =
     current === "open"
       ? "pending"
       : current === "pending"
       ? "closed"
       : "open";
+
   const base =
     process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
+
   await fetch(`${base}/api/admin/tickets/${id}`, {
     method: "PATCH",
     headers: {
       "x-admin-token": token,
       "content-type": "application/json",
+      Accept: "application/json",
     },
     body: JSON.stringify({ status: next }),
+    cache: "no-store",
   }).catch(() => {});
+
   revalidatePath(`/admin/tickets/${id}`);
 }
 
 /* ===== صفحه جزئیات ===== */
-
 export default async function TicketDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
-  // base مخصوص مدیا برای مرورگر
   const backendMediaBase =
     normalizeBase(process.env.NEXT_PUBLIC_UPLOAD_BASE) ||
     normalizeBase(process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE) ||
@@ -248,11 +251,8 @@ export default async function TicketDetailPage({
     "";
 
   const u = ticket.user || null;
-
   const userName = ticket.openedByName || ticket.title || "کاربر";
-  const phone =
-    u?.phone || ticket.contact || ticket.openedById || "نامشخص";
-
+  const phone = u?.phone || ticket.contact || ticket.openedById || "نامشخص";
   const planInfo = planLabel(u);
   const ageLabel = calcAgeLabel(u?.birthDate ?? null);
 
@@ -284,7 +284,6 @@ export default async function TicketDetailPage({
           padding: "24px 16px",
         }}
       >
-        {/* کارت اصلی با ارتفاع ثابت در صفحه */}
         <div
           style={{
             width: "100%",
@@ -304,7 +303,7 @@ export default async function TicketDetailPage({
           {/* 🔄 رفرش مخفی هر ۱۰ ثانیه */}
           <TicketAutoRefresh intervalMs={10000} />
 
-          {/* هدر جدید کامپکت */}
+          {/* هدر */}
           <div style={{ marginBottom: 10 }}>
             <TicketHeader
               userName={userName}
@@ -316,10 +315,33 @@ export default async function TicketDetailPage({
               ticketType={ticket.type}
             />
 
-            {/* ردیف دوم کوچک: پین + وضعیت + تاریخ ایجاد */}
+            {/* ✅ جزئیات کاربر (واضح‌تر) */}
             <div
               style={{
-                marginTop: 6,
+                marginTop: 10,
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.03)",
+                fontSize: 11,
+                color: "rgba(209,213,219,0.9)",
+                lineHeight: 1.8,
+              }}
+            >
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <div>شناسه کاربر: {u?.id || "—"}</div>
+                <div>نام: {u?.fullName || ticket.openedByName || "—"}</div>
+                <div>تلفن: {phone}</div>
+                <div>جنسیت: {u?.gender || "—"}</div>
+                <div>تولد: {u?.birthDate ? formatJalaliWithTime(u.birthDate) : "—"}</div>
+                <div>اشتراک: {planInfo.description}</div>
+              </div>
+            </div>
+
+            {/* ردیف دوم کوچک: پین + وضعیت + تاریخ ایجاد + حذف */}
+            <div
+              style={{
+                marginTop: 10,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -327,15 +349,13 @@ export default async function TicketDetailPage({
                 color: "rgba(209,213,219,0.85)",
               }}
             >
-              <div>
-                ایجاد: {formatJalaliWithTime(ticket.createdAt)}
-              </div>
+              <div>ایجاد: {formatJalaliWithTime(ticket.createdAt)}</div>
 
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
+                  gap: 10,
                 }}
               >
                 {/* سنجاق */}
@@ -349,9 +369,7 @@ export default async function TicketDetailPage({
                   <button
                     type="submit"
                     title={
-                      ticket.pinned
-                        ? "برداشتن سنجاق"
-                        : "سنجاق‌کردن این تیکت"
+                      ticket.pinned ? "برداشتن سنجاق" : "سنجاق‌کردن این تیکت"
                     }
                     style={{
                       background: "none",
@@ -401,13 +419,16 @@ export default async function TicketDetailPage({
                     {statusIcon}
                   </button>
                 </form>
+
+                {/* ✅ حذف تیکت */}
+                <DeleteTicketButton ticketId={ticket.id} />
               </div>
             </div>
 
-            {/* خط جداکننده زیر هدر */}
+            {/* خط جداکننده */}
             <div
               style={{
-                marginTop: 6,
+                marginTop: 8,
                 height: 1,
                 background:
                   "linear-gradient(to left, transparent, #374151, transparent)",
@@ -415,7 +436,7 @@ export default async function TicketDetailPage({
             />
           </div>
 
-          {/* بدنه کارت: پیام‌ها (اسکرول) + نوار پاسخ ثابت پایین */}
+          {/* بدنه کارت */}
           <div
             style={{
               flex: 1,
@@ -424,7 +445,6 @@ export default async function TicketDetailPage({
               flexDirection: "column",
             }}
           >
-            {/* لیست پیام‌ها – فقط این بخش اسکرول می‌خورد */}
             <div
               style={{
                 flex: 1,
@@ -439,7 +459,6 @@ export default async function TicketDetailPage({
               />
             </div>
 
-            {/* ReplyBar – همیشه پایین کارت */}
             <div
               style={{
                 borderTop: "1px solid #1f2933",

@@ -1,29 +1,24 @@
 // src/app/admin/tickets/[id]/ReplyBar.client.tsx
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   const router = useRouter();
 
-  // --- ticket id ---
-  const id =
-    ticketId ||
-    (typeof window !== "undefined"
-      ? (window.location.pathname.split("/").pop() || "").trim()
-      : "");
+  const id = useMemo(() => {
+    if (ticketId) return ticketId;
+    if (typeof window === "undefined") return "";
+    return (window.location.pathname.split("/").pop() || "").trim();
+  }, [ticketId]);
 
-  // --- state متن و فایل ---
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // --- ضبط ویس ---
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -34,24 +29,10 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   const [seconds, setSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
   const [recordBlobUrl, setRecordBlobUrl] = useState<string | null>(null);
+  const recordBlobUrlRef = useRef<string | null>(null);
   const [recordMime, setRecordMime] = useState<string>("");
 
-  // --- برای auto-resize textarea ---
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    setRecordingSupported(
-      typeof window !== "undefined" &&
-        // @ts-ignore
-        !!window.MediaRecorder
-    );
-    return () => {
-      cleanupRecording();
-      if (recordBlobUrl) URL.revokeObjectURL(recordBlobUrl);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -60,15 +41,37 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     el.style.height = Math.min(el.scrollHeight, max) + "px";
   }, [text]);
 
-  // --- تایمر ضبط ---
+  useEffect(() => {
+    setRecordingSupported(typeof window !== "undefined" && typeof MediaRecorder !== "undefined");
+    return () => {
+      // cleanup on unmount
+      try {
+        stopTimer();
+      } catch {}
+      try {
+        recorderRef.current?.stop?.();
+      } catch {}
+      try {
+        mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+      } catch {}
+      recorderRef.current = null;
+      mediaStreamRef.current = null;
+      chunksRef.current = [];
+
+      if (recordBlobUrlRef.current) {
+        try {
+          URL.revokeObjectURL(recordBlobUrlRef.current);
+        } catch {}
+        recordBlobUrlRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startTimer = () => {
     stopTimer();
     setSeconds(0);
-    // @ts-ignore
-    timerRef.current = window.setInterval(
-      () => setSeconds((s) => s + 1),
-      1000
-    );
+    timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
   };
 
   const stopTimer = () => {
@@ -78,15 +81,18 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     }
   };
 
-  // --- تمیز کردن ضبط ---
   const cleanupRecording = () => {
     try {
       stopTimer();
+    } catch {}
+    try {
       recorderRef.current?.stop?.();
     } catch {}
     recorderRef.current = null;
     chunksRef.current = [];
-    mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+    try {
+      mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+    } catch {}
     mediaStreamRef.current = null;
     setIsRecording(false);
   };
@@ -98,7 +104,6 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     return `${pad(m)}:${pad(s)}`;
   };
 
-  // --- فایل ضمیمه ---
   const onPickFile = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -106,43 +111,70 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
   const onFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const f = e.target.files?.[0] || null;
     setFile(f || null);
+
+    // اگر فایل انتخاب شد، ویس ضبط‌شده رو پاک کن (دو منبع همزمان گیج‌کننده‌ست)
+    if (f && recordBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(recordBlobUrlRef.current);
+      } catch {}
+      recordBlobUrlRef.current = null;
+      setRecordBlobUrl(null);
+      setRecordMime("");
+      setSeconds(0);
+      cleanupRecording();
+    }
   };
 
-  // --- پاک کردن فرم ---
   const clearForm = () => {
     setText("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (recordBlobUrl) URL.revokeObjectURL(recordBlobUrl);
+
+    if (recordBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(recordBlobUrlRef.current);
+      } catch {}
+      recordBlobUrlRef.current = null;
+    }
     setRecordBlobUrl(null);
     setRecordMime("");
     setSeconds(0);
     cleanupRecording();
   };
 
-  // --- شروع ضبط (با میکروفن) ---
   const startRecording = async () => {
     if (!recordingSupported || isRecording) return;
+
+    // اگر قبلاً ویس داشتیم، اول جمعش کن
+    if (recordBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(recordBlobUrlRef.current);
+      } catch {}
+      recordBlobUrlRef.current = null;
+      setRecordBlobUrl(null);
+      setRecordMime("");
+      setSeconds(0);
+    }
+
+    // اگر فایل انتخاب شده بود، پاکش کن (همزمان ضبط + فایل = تجربه‌ی بد)
+    if (file) {
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
 
       let mimeType = "";
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-        mimeType = "audio/webm;codecs=opus";
-      } else if (MediaRecorder.isTypeSupported("audio/webm")) {
-        mimeType = "audio/webm";
-      } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
-        mimeType = "audio/ogg;codecs=opus";
-      } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
-        mimeType = "audio/ogg";
-      }
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
+      else if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
+      else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) mimeType = "audio/ogg;codecs=opus";
+      else if (MediaRecorder.isTypeSupported("audio/ogg")) mimeType = "audio/ogg";
 
-      const rec = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined
-      );
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       recorderRef.current = rec;
+
       setRecordMime(mimeType || rec.mimeType || "audio/webm");
       chunksRef.current = [];
 
@@ -153,11 +185,11 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       rec.onstop = () => {
         stopTimer();
         setIsRecording(false);
-        const blob = new Blob(chunksRef.current, {
-          type: rec.mimeType || "audio/webm",
-        });
+
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         const url = URL.createObjectURL(blob);
-        setFile(null);
+
+        recordBlobUrlRef.current = url;
         setRecordBlobUrl(url);
       };
 
@@ -175,65 +207,37 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
     try {
       recorderRef.current.stop();
     } catch {}
-    mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+    try {
+      mediaStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+    } catch {}
     mediaStreamRef.current = null;
   };
 
   const cancelRecording = () => {
     cleanupRecording();
-    if (recordBlobUrl) URL.revokeObjectURL(recordBlobUrl);
+    if (recordBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(recordBlobUrlRef.current);
+      } catch {}
+      recordBlobUrlRef.current = null;
+    }
     setRecordBlobUrl(null);
     setRecordMime("");
     setSeconds(0);
   };
 
-  // --- کلیک روی آیکن میکروفن: شروع/توقف ---
   const onMicClick = () => {
     if (!recordingSupported) {
-      alert(
-        "مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی را به‌صورت فایل آپلود کنید."
-      );
+      alert("مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی را به‌صورت فایل آپلود کنید.");
       return;
     }
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
+    if (isRecording) stopRecording();
+    else startRecording();
   };
 
-  // --- کمک‌کننده برای هندل ارور fetch ---
-  const ensureOk = async (res: Response) => {
-    let bodyText = "";
-    try {
-      bodyText = await res.text();
-    } catch {
-      bodyText = "";
-    }
-
-    // اگر JSON بود، سعی کن پارس کنی
-    let json: any = null;
-    try {
-      json = bodyText ? JSON.parse(bodyText) : null;
-    } catch {
-      json = null;
-    }
-
-    if (!res.ok || (json && json.ok === false)) {
-      const msg =
-        (json && json.error) ||
-        bodyText ||
-        `HTTP ${res.status} ${res.statusText || ""}`.trim();
-      throw new Error(msg);
-    }
-
-    // اگر اوکی بود ولی JSON قابل‌پارس بود، برش گردون
-    return json ?? bodyText;
-  };
-
-  // --- ارسال ---
   const onSend = async () => {
     if (!id) return;
+
     const hasRecorded = !!recordBlobUrl;
     const onlyText = !!text.trim() && !file && !hasRecorded;
     const hasFile = !!file;
@@ -260,10 +264,11 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
+          credentials: "include",
+          headers: { Accept: "application/json" },
         });
 
         const json = await res.json().catch(() => ({} as any));
-
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
@@ -280,10 +285,11 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
         const res = await fetch(`/api/admin/tickets/${id}/reply-upload`, {
           method: "POST",
           body: fd,
+          credentials: "include",
+          headers: { Accept: "application/json" },
         });
 
         const json = await res.json().catch(() => ({} as any));
-
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
@@ -295,7 +301,8 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       } else {
         const res = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({ text: text.trim() }),
         });
         const json = await res.json().catch(() => ({} as any));
@@ -305,14 +312,23 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
       }
 
       clearForm();
-      if (typeof window !== "undefined") window.location.reload();
+
+      // ✅ بدون reload: رفرش داده‌ها در همون صفحه
+      router.refresh();
+
+      // ✅ یک اسکرول نرم به پایین (برای چت)
+      setTimeout(() => {
+        const scroller = document.querySelector('[data-ticket-scroll="1"]') as HTMLElement | null;
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+        else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      }, 80);
     } catch (e: any) {
       alert(e?.message || "خطا در ارسال پیام");
     } finally {
       setSending(false);
     }
   };
-  
+
   // ---------- استایل‌ها ----------
   const container: React.CSSProperties = {
     borderTop: "1px solid #27272a",
@@ -342,8 +358,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
 
   const sendBtn: React.CSSProperties = {
     ...iconBtn,
-    background:
-      "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
+    background: "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
     border: "none",
     fontSize: 16,
   };
@@ -390,7 +405,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           onClick={onPickFile}
           style={iconBtn}
           title="ضمیمه فایل / تصویر / ویس"
-          disabled={sending}
+          disabled={sending || isRecording}
         >
           📎
         </button>
@@ -402,6 +417,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
           placeholder="نوشتن پاسخ…"
           style={textareaStyle}
           rows={1}
+          disabled={sending}
         />
 
         <button
@@ -419,7 +435,7 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
               ? "پایان ضبط"
               : "شروع ضبط ویس"
           }
-          disabled={sending}
+          disabled={sending || !!file}
         >
           🎤
         </button>
@@ -466,6 +482,25 @@ export default function ReplyBar({ ticketId }: { ticketId?: string }) {
             }}
           >
             پاک‌سازی
+          </button>
+        )}
+
+        {isRecording && (
+          <button
+            type="button"
+            onClick={cancelRecording}
+            disabled={sending}
+            style={{
+              marginRight: "auto",
+              border: "none",
+              background: "none",
+              color: "#fca5a5",
+              cursor: "pointer",
+              fontSize: 11,
+              textDecoration: "underline",
+            }}
+          >
+            لغو ضبط
           </button>
         )}
       </div>
