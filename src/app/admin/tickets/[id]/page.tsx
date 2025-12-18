@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
 import ReplyBar from "./ReplyBar.client";
 import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
@@ -8,7 +7,6 @@ import TicketHeader from "./TicketHeader";
 
 export const dynamic = "force-dynamic";
 
-/* ===== انواع داده ===== */
 type AdminMessage = {
   id: string;
   ticketId: string;
@@ -27,9 +25,9 @@ type TicketUser = {
   phone?: string | null;
   fullName?: string | null;
   gender?: "male" | "female" | "other" | null;
-  birthDate?: string | null; // ISO
+  birthDate?: string | null;
   plan?: "free" | "pro" | "vip" | null;
-  planExpiresAt?: string | null; // ISO
+  planExpiresAt?: string | null;
 };
 
 type Ticket = {
@@ -49,7 +47,6 @@ type Ticket = {
   user?: TicketUser | null;
 };
 
-/* ===== توابع کمکی ===== */
 function normalizeBase(url?: string | null): string {
   if (!url) return "";
   return url.trim().replace(/\/+$/, "");
@@ -73,7 +70,6 @@ function planLabel(u?: TicketUser | null): { chipText: string; description: stri
     }
     return { chipText: plan === "vip" ? "VIP" : "PRO", description: "اشتراک فعال" };
   }
-
   return { chipText: "FREE", description: "بدون اشتراک فعال" };
 }
 
@@ -89,7 +85,6 @@ function calcAgeLabel(birthDate?: string | null): string {
   return `${age.toLocaleString("fa-IR")} سال`;
 }
 
-/* ===== API: گرفتن تیکت ===== */
 async function fetchTicket(id: string): Promise<Ticket | null> {
   const token = (await cookies()).get("admin_token")?.value;
   if (!token) redirect(`/admin/login?redirect=/admin/tickets/${id}`);
@@ -108,49 +103,8 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   return json.ticket as Ticket;
 }
 
-/* ===== Server Actions ===== */
-async function togglePinAction(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") || "");
-  const to = String(formData.get("to") || "");
-  const token = (await cookies()).get("admin_token")?.value || "";
-  if (!id || !token) return;
-
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-  await fetch(`${base}/api/admin/tickets/${id}`, {
-    method: "PATCH",
-    headers: {
-      "x-admin-token": token,
-      "content-type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ pinned: to === "true" }),
-    cache: "no-store",
-  }).catch(() => {});
-
-  revalidatePath(`/admin/tickets/${id}`);
-}
-
-async function deleteTicketAction(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") || "");
-  const token = (await cookies()).get("admin_token")?.value || "";
-  if (!id || !token) return;
-
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-  await fetch(`${base}/api/admin/tickets/${id}/delete`, {
-    method: "POST",
-    headers: { "x-admin-token": token, Accept: "application/json" },
-    cache: "no-store",
-  }).catch(() => {});
-
-  redirect("/admin/tickets");
-}
-
-/* ===== صفحه جزئیات ===== */
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
@@ -171,11 +125,11 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     <div
       style={{
         minHeight: "100vh",
+        background:
+          "radial-gradient(1200px 800px at 20% 10%, rgba(59,130,246,0.10), transparent 55%), radial-gradient(900px 700px at 80% 20%, rgba(16,185,129,0.10), transparent 60%), #000",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
-        background:
-          "radial-gradient(900px 500px at 15% 0%, rgba(59,130,246,0.12), transparent 60%), radial-gradient(900px 500px at 85% 0%, rgba(245,158,11,0.10), transparent 60%), #000",
       }}
     >
       <main
@@ -190,18 +144,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
         <div
           style={{
             width: "100%",
-            maxWidth: "980px",
+            maxWidth: "900px",
             margin: "0 auto",
             padding: "18px 18px 14px",
             borderRadius: "20px",
             border: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(5,5,5,0.80)",
-            boxShadow: "0 20px 50px rgba(0,0,0,0.65)",
+            background: "rgba(5,5,5,0.70)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 22px 55px rgba(0,0,0,0.65)",
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             height: "calc(100vh - 80px)",
-            backdropFilter: "blur(8px)",
           }}
         >
           <TicketAutoRefresh intervalMs={10000} />
@@ -217,16 +171,13 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               planChipText={planInfo.chipText}
               planDescription={planInfo.description}
               ticketType={ticket.type}
-              togglePinAction={togglePinAction}
-              deleteTicketAction={deleteTicketAction}
             />
 
             <div
               style={{
                 marginTop: 10,
                 height: 1,
-                background:
-                  "linear-gradient(to left, transparent, rgba(55,65,81,0.9), transparent)",
+                background: "linear-gradient(to left, transparent, rgba(148,163,184,0.35), transparent)",
               }}
             />
           </div>
@@ -236,7 +187,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               <MessagesList messages={ticket.messages} userName={userName} backendBase={backendMediaBase} />
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(31,41,51,0.9)", paddingTop: 8 }}>
+            <div style={{ borderTop: "1px solid rgba(148,163,184,0.18)", paddingTop: 8 }}>
               <ReplyBar ticketId={ticket.id} />
             </div>
           </div>
