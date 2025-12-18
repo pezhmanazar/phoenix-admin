@@ -18,7 +18,7 @@ export default function TicketActionsMenu({
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as any)) setOpen(false);
+      if (!rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -58,13 +58,12 @@ export default function TicketActionsMenu({
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok || !json?.ok) throw new Error(json?.error || "delete_failed");
 
-      // بعد از حذف برگرد به لیست
-      window.location.href = "/admin/tickets";
+      setOpen(false);
+      router.replace("/admin/tickets");
     } catch (e: any) {
       alert(e?.message || "خطا در حذف تیکت");
     } finally {
       setBusy(null);
-      setOpen(false);
     }
   };
 
@@ -106,12 +105,7 @@ export default function TicketActionsMenu({
             zIndex: 50,
           }}
         >
-          <button
-            type="button"
-            onClick={togglePin}
-            disabled={!!busy}
-            style={menuItemStyle}
-          >
+          <button type="button" onClick={togglePin} disabled={!!busy} style={menuItemStyle}>
             {busy === "pin" ? "..." : pinned ? "برداشتن پین" : "پین کردن تیکت"}
           </button>
 
@@ -121,10 +115,7 @@ export default function TicketActionsMenu({
             type="button"
             onClick={deleteTicket}
             disabled={!!busy}
-            style={{
-              ...menuItemStyle,
-              color: "rgba(255,120,120,0.95)",
-            }}
+            style={{ ...menuItemStyle, color: "rgba(255,120,120,0.95)" }}
           >
             {busy === "delete" ? "..." : "حذف تیکت"}
           </button>

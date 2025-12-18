@@ -1,11 +1,10 @@
 "use client";
+
 import React from "react";
-import TicketActionsMenu from "./TicketActionsMenu.client";
 import { useRouter } from "next/navigation";
+import TicketActionsMenu from "./TicketActionsMenu.client";
 
-const router = useRouter();
-
-function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
+function pill(text: string, tone: "dark" | "green" | "blue" = "dark"): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: "6px 10px",
     borderRadius: 999,
@@ -15,6 +14,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
     color: "rgba(255,255,255,0.85)",
     whiteSpace: "nowrap",
   };
+
   if (tone === "green") {
     return {
       ...base,
@@ -23,6 +23,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
       color: "rgba(167,243,208,0.95)",
     };
   }
+
   if (tone === "blue") {
     return {
       ...base,
@@ -31,6 +32,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
       color: "rgba(191,219,254,0.95)",
     };
   }
+
   return base;
 }
 
@@ -62,10 +64,15 @@ export default function TicketHeader({
   planDescription: string;
   ticketType: "tech" | "therapy";
 }) {
+  const router = useRouter(); // ✅ فقط اینجا
   const typeFa = ticketType === "tech" ? "پشتیبانی فنی" : "درمان";
 
-  const planTone =
-    planChipText === "PRO" || planChipText === "VIP" ? "green" : planChipText === "EXPIRED" ? "blue" : "dark";
+  const planTone: "dark" | "green" | "blue" =
+    planChipText === "PRO" || planChipText === "VIP"
+      ? "green"
+      : planChipText === "EXPIRED"
+      ? "blue"
+      : "dark";
 
   return (
     <div
@@ -73,8 +80,7 @@ export default function TicketHeader({
         borderRadius: 18,
         padding: "10px 12px",
         border: "1px solid rgba(255,255,255,0.10)",
-        background:
-          "linear-gradient(90deg, rgba(2,6,23,0.85), rgba(17,24,39,0.55))",
+        background: "linear-gradient(90deg, rgba(2,6,23,0.85), rgba(17,24,39,0.55))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -90,12 +96,14 @@ export default function TicketHeader({
           flexWrap: "wrap",
           justifyContent: "center",
           textAlign: "center",
+          flex: 1,
         }}
       >
-        <span style={pill(planChipText as string, planTone as any)} title={planDescription}>
+        <span style={pill(planChipText, planTone)} title={planDescription}>
           {planChipText}
         </span>
-        <span style={pill(ageLabel)}> {ageLabel} </span>
+
+        <span style={pill(ageLabel)}>{ageLabel}</span>
         <span style={pill(genderFa(gender))}>{genderFa(gender)}</span>
         <span style={pill(phone)}>{phone}</span>
 
@@ -112,15 +120,18 @@ export default function TicketHeader({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          marginLeft: "auto",
+          marginLeft: 12,
+          flexShrink: 0,
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>
           {userName}
         </div>
 
-        <div
+        <button
+          type="button"
           title="بازگشت"
+          onClick={() => router.back()}
           style={{
             width: 34,
             height: 34,
@@ -130,11 +141,11 @@ export default function TicketHeader({
             display: "grid",
             placeItems: "center",
             cursor: "pointer",
+            color: "rgba(255,255,255,0.9)",
           }}
-          onClick={() => router.back()}
         >
           ➜
-        </div>
+        </button>
       </div>
     </div>
   );
