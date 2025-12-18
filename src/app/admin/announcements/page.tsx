@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://qoqnoos.app";
+const API_BASE = ""; // ✅ same-origin (Next proxy)
 
 type AnnouncementLevel = "info" | "warning" | "critical";
 type AnnouncementPlacement = "top_banner";
@@ -38,13 +38,7 @@ type ApiOptions = {
   body?: unknown;
 };
 
-function getAdminToken(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("admin_token") || "";
-}
-
 async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const token = getAdminToken();
   const method = options.method ?? "GET";
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -52,17 +46,19 @@ async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      "x-admin-token": token,
     },
+    credentials: "include", // ✅ cookie admin_token is sent
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const ct = res.headers.get("content-type") || "";
   const text = await res.text();
 
-  // اگه سرور HTML داد یعنی WCDN/Upstream error
+  // اگه سرور HTML داد یعنی upstream error / WCDN / route mismatch
   if (!ct.includes("application/json")) {
-    throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 120)}...`);
+    throw new Error(
+      `Non-JSON response (${res.status}): ${text.slice(0, 160)}...`
+    );
   }
 
   const json = JSON.parse(text) as { ok?: boolean; error?: string };
@@ -91,7 +87,7 @@ type FormState = {
   enabled: boolean;
   priority: number;
   startAt: string; // datetime-local
-  endAt: string;   // datetime-local
+  endAt: string; // datetime-local
 };
 
 const emptyForm: FormState = {
@@ -131,7 +127,9 @@ export default function AnnouncementsPage() {
   async function load(): Promise<void> {
     setLoading(true);
     try {
-      const out = await api<AdminAnnouncementsListResponse>(`/api/admin/announcements${queryString}`);
+      const out = await api<AdminAnnouncementsListResponse>(
+        `/admin/api/announcements${queryString}`
+      );
       setItems(out.data.items || []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -189,7 +187,7 @@ export default function AnnouncementsPage() {
           startAt: toISOorNull(form.startAt),
           endAt: toISOorNull(form.endAt),
         };
-        await api(`/api/admin/announcements`, { method: "POST", body: payload });
+        await api(`/admin/api/announcements`, { method: "POST", body: payload });
       } else {
         const payload = {
           title: form.title.trim() ? form.title.trim() : null,
@@ -202,7 +200,10 @@ export default function AnnouncementsPage() {
           startAt: form.startAt ? toISOorNull(form.startAt) : null,
           endAt: form.endAt ? toISOorNull(form.endAt) : null,
         };
-        await api(`/api/admin/announcements/${editItem.id}`, { method: "PATCH", body: payload });
+        await api(`/admin/api/announcements/${editItem.id}`, {
+          method: "PATCH",
+          body: payload,
+        });
       }
       setModalOpen(false);
       await load();
@@ -218,7 +219,10 @@ export default function AnnouncementsPage() {
     if (!confirm(`حذف شود؟\n${it.id}`)) return;
     setLoading(true);
     try {
-      await api(`/api/admin/announcements/${it.id}/delete`, { method: "POST", body: {} });
+      await api(`/admin/api/announcements/${it.id}/delete`, {
+        method: "POST",
+        body: {},
+      });
       await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -239,19 +243,32 @@ export default function AnnouncementsPage() {
           onChange={(e) => setQ(e.target.value)}
           style={{ flex: 1, padding: 8 }}
         />
-        <select value={enabled} onChange={(e) => setEnabled(e.target.value)} style={{ padding: 8 }}>
+        <select
+          value={enabled}
+          onChange={(e) => setEnabled(e.target.value)}
+          style={{ padding: 8 }}
+        >
           <option value="">همه</option>
           <option value="true">فقط فعال</option>
           <option value="false">فقط غیرفعال</option>
         </select>
-        <button onClick={openCreate} disabled={loading} style={{ padding: "8px 12px" }}>
+        <button
+          onClick={openCreate}
+          disabled={loading}
+          style={{ padding: "8px 12px" }}
+        >
           + بنر جدید
         </button>
       </div>
 
       {loading ? <div>Loading...</div> : null}
 
-      <table width="100%" border={1} cellPadding={8} style={{ borderCollapse: "collapse" }}>
+      <table
+        width="100%"
+        border={1}
+        cellPadding={8}
+        style={{ borderCollapse: "collapse" }}
+      >
         <thead>
           <tr>
             <th>ID</th>
@@ -277,14 +294,20 @@ export default function AnnouncementsPage() {
               <td>{it.startAt ? new Date(it.startAt).toLocaleString() : "-"}</td>
               <td>{it.endAt ? new Date(it.endAt).toLocaleString() : "-"}</td>
               <td>
-                <button onClick={() => openEdit(it)} disabled={loading}>Edit</button>{" "}
-                <button onClick={() => remove(it)} disabled={loading}>Delete</button>
+                <button onClick={() => openEdit(it)} disabled={loading}>
+                  Edit
+                </button>{" "}
+                <button onClick={() => remove(it)} disabled={loading}>
+                  Delete
+                </button>
               </td>
             </tr>
           ))}
           {items.length === 0 ? (
             <tr>
-              <td colSpan={9} align="center">هیچ بنری نیست</td>
+              <td colSpan={9} align="center">
+                هیچ بنری نیست
+              </td>
             </tr>
           ) : null}
         </tbody>
@@ -351,7 +374,9 @@ export default function AnnouncementsPage() {
                 <label>Placement:</label>
                 <select
                   value={form.placement}
-                  onChange={(e) => setForm({ ...form, placement: e.target.value as AnnouncementPlacement })}
+                  onChange={(e) =>
+                    setForm({ ...form, placement: e.target.value as AnnouncementPlacement })
+                  }
                 >
                   <option value="top_banner">top_banner</option>
                 </select>
@@ -410,7 +435,9 @@ export default function AnnouncementsPage() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setModalOpen(false)} disabled={loading}>Cancel</button>
+              <button onClick={() => setModalOpen(false)} disabled={loading}>
+                Cancel
+              </button>
               <button onClick={submit} disabled={loading}>
                 {editItem ? "Save" : "Create"}
               </button>
