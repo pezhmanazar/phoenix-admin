@@ -3,6 +3,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const menuItemStyle: React.CSSProperties = {
+  width: "100%",
+  textAlign: "right",
+  padding: "10px 12px",
+  border: "none",
+  background: "transparent",
+  color: "rgba(255,255,255,0.88)",
+  cursor: "pointer",
+  fontSize: 12,
+};
+
 export default function TicketActionsMenu({
   ticketId,
   pinned,
@@ -18,7 +29,7 @@ export default function TicketActionsMenu({
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!rootRef.current) return;
-      if (!rootRef.current.contains(e.target as any)) setOpen(false);
+      if (!rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -30,11 +41,16 @@ export default function TicketActionsMenu({
       const res = await fetch(`/api/admin/tickets/${ticketId}`, {
         method: "PATCH",
         credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({ pinned: !pinned }),
       });
+
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok || !json?.ok) throw new Error(json?.error || "pin_failed");
+
       setOpen(false);
       router.refresh();
     } catch (e: any) {
@@ -55,6 +71,7 @@ export default function TicketActionsMenu({
         credentials: "include",
         headers: { Accept: "application/json" },
       });
+
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok || !json?.ok) throw new Error(json?.error || "delete_failed");
 
@@ -124,14 +141,3 @@ export default function TicketActionsMenu({
     </div>
   );
 }
-
-const menuItemStyle: React.CSSProperties = {
-  width: "100%",
-  textAlign: "right",
-  padding: "10px 12px",
-  border: "none",
-  background: "transparent",
-  color: "rgba(255,255,255,0.88)",
-  cursor: "pointer",
-  fontSize: 12,
-};

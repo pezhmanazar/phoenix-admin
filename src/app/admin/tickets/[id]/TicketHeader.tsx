@@ -14,6 +14,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
     color: "rgba(255,255,255,0.85)",
     whiteSpace: "nowrap",
   };
+
   if (tone === "green") {
     return {
       ...base,
@@ -22,6 +23,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
       color: "rgba(167,243,208,0.95)",
     };
   }
+
   if (tone === "blue") {
     return {
       ...base,
@@ -30,6 +32,7 @@ function pill(text: string, tone: "dark" | "green" | "blue" = "dark") {
       color: "rgba(191,219,254,0.95)",
     };
   }
+
   return base;
 }
 
@@ -64,7 +67,7 @@ export default function TicketHeader({
   const router = useRouter();
 
   const typeFa = ticketType === "tech" ? "پشتیبانی فنی" : "درمان";
-  const planTone =
+  const planTone: "dark" | "green" | "blue" =
     planChipText === "PRO" || planChipText === "VIP"
       ? "green"
       : planChipText === "EXPIRED"
@@ -85,7 +88,7 @@ export default function TicketHeader({
         gap: 12,
       }}
     >
-      {/* راست: فقط اسم + دکمه برگشت */}
+      {/* راست: فقط اسم + برگشت */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>
           {userName}
@@ -126,12 +129,10 @@ export default function TicketHeader({
         <span style={pill(planChipText, planTone)} title={planDescription}>
           {planChipText}
         </span>
-
         <span style={pill(ageLabel)}>{ageLabel}</span>
         <span style={pill(genderFa(gender))}>{genderFa(gender)}</span>
         <span style={pill(phone)}>{phone}</span>
 
-        {/* نوع تیکت + سه نقطه */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={pill(typeFa)}>{typeFa}</span>
           <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
