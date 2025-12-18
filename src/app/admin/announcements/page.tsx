@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = ""; // ✅ same-origin (Next proxy)
+const API_BASE = ""; // same-origin (Next proxy)
 
 type AnnouncementLevel = "info" | "warning" | "critical";
 type AnnouncementPlacement = "top_banner";
@@ -47,18 +47,16 @@ async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    credentials: "include", // ✅ cookie admin_token is sent
+    credentials: "include",
     body: options.body ? JSON.stringify(options.body) : undefined,
+    cache: "no-store",
   });
 
   const ct = res.headers.get("content-type") || "";
   const text = await res.text();
 
-  // اگه سرور HTML داد یعنی upstream error / WCDN / route mismatch
   if (!ct.includes("application/json")) {
-    throw new Error(
-      `Non-JSON response (${res.status}): ${text.slice(0, 160)}...`
-    );
+    throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 160)}...`);
   }
 
   const json = JSON.parse(text) as { ok?: boolean; error?: string };
@@ -75,6 +73,13 @@ function toISOorNull(v: string): string | null {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
+}
+
+function fmt(v: string | null): string {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
 }
 
 type FormState = {
@@ -103,14 +108,292 @@ const emptyForm: FormState = {
   endAt: "",
 };
 
+/* ---------------- styles (match admin/users vibe) ---------------- */
+const pageWrap: React.CSSProperties = {
+  maxWidth: 1100,
+  margin: "0 auto",
+};
+
+const card: React.CSSProperties = {
+  background: "linear-gradient(180deg,#050a12,#020617)",
+  border: "1px solid #111827",
+  borderRadius: 16,
+  padding: 16,
+  boxShadow: "0 12px 30px rgba(0,0,0,0.55)",
+};
+
+const titleRow: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  marginBottom: 12,
+};
+
+const h1: React.CSSProperties = {
+  margin: 0,
+  fontSize: 18,
+  fontWeight: 900,
+  color: "rgba(255,255,255,0.92)",
+};
+
+const sub: React.CSSProperties = {
+  marginTop: 6,
+  fontSize: 12,
+  color: "rgba(255,255,255,0.6)",
+};
+
+const controls: React.CSSProperties = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  alignItems: "center",
+  marginBottom: 12,
+};
+
+const input: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 999,
+  border: "1px solid #374151",
+  background: "#0b1220",
+  color: "#fff",
+  fontSize: 13,
+  outline: "none",
+};
+
+const select: React.CSSProperties = {
+  ...input,
+  padding: "10px 12px",
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 999,
+  border: "1px solid #7c2d12",
+  background: "#ea580c",
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+const btnGhost: React.CSSProperties = {
+  padding: "10px 14px",
+  borderRadius: 999,
+  border: "1px solid #374151",
+  background: "#111827",
+  color: "#e5e7eb",
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+const tableWrap: React.CSSProperties = {
+  overflowX: "auto",
+  borderRadius: 14,
+  border: "1px solid #111827",
+};
+
+const table: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  fontSize: 13,
+};
+
+const th: React.CSSProperties = {
+  textAlign: "left",
+  padding: "10px 12px",
+  borderBottom: "1px solid #111827",
+  background: "#050a12",
+  color: "rgba(255,255,255,0.75)",
+  fontWeight: 900,
+  whiteSpace: "nowrap",
+};
+
+const td: React.CSSProperties = {
+  padding: "10px 12px",
+  borderBottom: "1px solid #0b1220",
+  color: "rgba(255,255,255,0.86)",
+  verticalAlign: "top",
+};
+
+function levelPill(level: AnnouncementLevel) {
+  let bg = "#0b1220";
+  let border = "#374151";
+  let color = "#e5e7eb";
+  let label = "Info";
+  if (level === "warning") {
+    bg = "#2a1606";
+    border = "#9a3412";
+    color = "#fed7aa";
+    label = "Warning";
+  } else if (level === "critical") {
+    bg = "#2a0b10";
+    border = "#b91c1c";
+    color = "#fecaca";
+    label = "Critical";
+  } else {
+    bg = "#071a2b";
+    border = "#0369a1";
+    color = "#bae6fd";
+    label = "Info";
+  }
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "4px 10px",
+        borderRadius: 999,
+        border: `1px solid ${border}`,
+        background: bg,
+        color,
+        fontSize: 11,
+        fontWeight: 900,
+        whiteSpace: "nowrap",
+      }}
+      title={level}
+    >
+      {label}
+    </span>
+  );
+}
+
+const iconBtn: React.CSSProperties = {
+  padding: "7px 10px",
+  borderRadius: 10,
+  border: "1px solid #374151",
+  background: "#0b1220",
+  color: "#e5e7eb",
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const iconBtnDanger: React.CSSProperties = {
+  ...iconBtn,
+  border: "1px solid #7f1d1d",
+  background: "#2a0b10",
+  color: "#fecaca",
+};
+
+const overlay: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.65)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 16,
+  zIndex: 50,
+};
+
+const modal: React.CSSProperties = {
+  width: 760,
+  maxWidth: "100%",
+  background: "linear-gradient(180deg,#0b1220,#020617)",
+  border: "1px solid #1f2937",
+  borderRadius: 18,
+  boxShadow: "0 30px 80px rgba(0,0,0,0.7)",
+  padding: 16,
+  color: "#e5e7eb",
+};
+
+const modalHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 12,
+};
+
+const modalTitle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 16,
+  fontWeight: 950,
+};
+
+const xBtn: React.CSSProperties = {
+  width: 38,
+  height: 38,
+  borderRadius: 12,
+  border: "1px solid #374151",
+  background: "#0b1220",
+  color: "#e5e7eb",
+  fontSize: 18,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const fieldRow: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+  marginBottom: 10,
+};
+
+const label: React.CSSProperties = {
+  fontSize: 12,
+  color: "rgba(255,255,255,0.7)",
+  fontWeight: 800,
+  marginBottom: 6,
+  display: "block",
+};
+
+const input2: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: "1px solid #374151",
+  background: "#050a12",
+  color: "#e5e7eb",
+  fontSize: 13,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const textarea2: React.CSSProperties = {
+  ...input2,
+  height: 110,
+  resize: "vertical",
+};
+
+const footer: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+  marginTop: 14,
+};
+
+const btnSave: React.CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: 12,
+  border: "1px solid #16a34a",
+  background: "#16a34a",
+  color: "#fff",
+  fontWeight: 950,
+  cursor: "pointer",
+};
+
+const btnCancel: React.CSSProperties = {
+  padding: "10px 16px",
+  borderRadius: 12,
+  border: "1px solid #374151",
+  background: "#111827",
+  color: "#e5e7eb",
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
 export default function AnnouncementsPage() {
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Announcement[]>([]);
 
-  const [q, setQ] = useState<string>("");
+  const [q, setQ] = useState("");
   const [enabled, setEnabled] = useState<string>(""); // "", "true", "false"
 
-  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Announcement | null>(null);
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -169,7 +452,7 @@ export default function AnnouncementsPage() {
 
   async function submit(): Promise<void> {
     if (!form.message.trim()) {
-      alert("message لازم است");
+      alert("متن بنر لازم است");
       return;
     }
     setLoading(true);
@@ -233,212 +516,236 @@ export default function AnnouncementsPage() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Announcements (بنر همگانی)</h2>
+    <div style={pageWrap}>
+      <div style={card}>
+        <div style={titleRow}>
+          <div>
+            <h2 style={h1}>Announcements (بنر همگانی)</h2>
+            <div style={sub}>مدیریت پیام‌های داخل اپ (بالای صفحه / زیر هدر)</div>
+          </div>
+          <button onClick={openCreate} disabled={loading} style={btnPrimary}>
+            + بنر جدید
+          </button>
+        </div>
 
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
-        <input
-          placeholder="جستجو: متن/عنوان/ID"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ flex: 1, padding: 8 }}
-        />
-        <select
-          value={enabled}
-          onChange={(e) => setEnabled(e.target.value)}
-          style={{ padding: 8 }}
-        >
-          <option value="">همه</option>
-          <option value="true">فقط فعال</option>
-          <option value="false">فقط غیرفعال</option>
-        </select>
-        <button
-          onClick={openCreate}
-          disabled={loading}
-          style={{ padding: "8px 12px" }}
-        >
-          + بنر جدید
-        </button>
+        <div style={controls}>
+          <input
+            placeholder="جستجو: متن / عنوان / ID"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ ...input, flex: 1, minWidth: 220 }}
+          />
+          <select value={enabled} onChange={(e) => setEnabled(e.target.value)} style={select}>
+            <option value="">همه</option>
+            <option value="true">فقط فعال</option>
+            <option value="false">فقط غیرفعال</option>
+          </select>
+          <button onClick={() => load()} disabled={loading} style={btnGhost}>
+            رفرش
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, padding: "6px 2px" }}>
+            Loading...
+          </div>
+        ) : null}
+
+        <div style={tableWrap}>
+          <table style={table}>
+            <thead>
+              <tr>
+                <th style={th}>ID</th>
+                <th style={th}>Message</th>
+                <th style={th}>Level</th>
+                <th style={th}>Enabled</th>
+                <th style={th}>Dismiss</th>
+                <th style={th}>Priority</th>
+                <th style={th}>Start</th>
+                <th style={th}>End</th>
+                <th style={th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id}>
+                  <td style={{ ...td, whiteSpace: "nowrap", opacity: 0.95 }}>{it.id}</td>
+                  <td style={{ ...td, maxWidth: 520 }}>
+                    <div style={{ fontWeight: 900, marginBottom: 4 }}>
+                      {it.title ? it.title : <span style={{ opacity: 0.6 }}>بدون عنوان</span>}
+                    </div>
+                    <div style={{ opacity: 0.9, lineHeight: 1.8 }}>{it.message}</div>
+                  </td>
+                  <td style={td}>{levelPill(it.level)}</td>
+                  <td style={td}>{it.enabled ? "✅" : "—"}</td>
+                  <td style={td}>{it.dismissible ? "اختیاری" : "اجباری"}</td>
+                  <td style={td}>{it.priority}</td>
+                  <td style={td}>{fmt(it.startAt)}</td>
+                  <td style={td}>{fmt(it.endAt)}</td>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>
+                    <button onClick={() => openEdit(it)} disabled={loading} style={iconBtn}>
+                      Edit
+                    </button>{" "}
+                    <button onClick={() => remove(it)} disabled={loading} style={iconBtnDanger}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {items.length === 0 ? (
+                <tr>
+                  <td style={{ ...td, textAlign: "center", opacity: 0.7 }} colSpan={9}>
+                    هیچ بنری نیست
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      {loading ? <div>Loading...</div> : null}
-
-      <table
-        width="100%"
-        border={1}
-        cellPadding={8}
-        style={{ borderCollapse: "collapse" }}
-      >
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Message</th>
-            <th>Level</th>
-            <th>Enabled</th>
-            <th>Dismissible</th>
-            <th>Priority</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((it) => (
-            <tr key={it.id}>
-              <td>{it.id}</td>
-              <td style={{ maxWidth: 420 }}>{it.message}</td>
-              <td>{it.level}</td>
-              <td>{String(it.enabled)}</td>
-              <td>{String(it.dismissible)}</td>
-              <td>{it.priority}</td>
-              <td>{it.startAt ? new Date(it.startAt).toLocaleString() : "-"}</td>
-              <td>{it.endAt ? new Date(it.endAt).toLocaleString() : "-"}</td>
-              <td>
-                <button onClick={() => openEdit(it)} disabled={loading}>
-                  Edit
-                </button>{" "}
-                <button onClick={() => remove(it)} disabled={loading}>
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-          {items.length === 0 ? (
-            <tr>
-              <td colSpan={9} align="center">
-                هیچ بنری نیست
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
 
       {modalOpen ? (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
+          style={overlay}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setModalOpen(false);
           }}
         >
-          <div style={{ background: "#fff", padding: 16, width: 720, maxWidth: "100%" }}>
-            <h3>{editItem ? "ویرایش بنر" : "ساخت بنر"}</h3>
+          <div style={modal}>
+            <div style={modalHeader}>
+              <h3 style={modalTitle}>{editItem ? "ویرایش بنر" : "ساخت بنر"}</h3>
+              <button onClick={() => setModalOpen(false)} style={xBtn} aria-label="close">
+                ×
+              </button>
+            </div>
 
             {!editItem ? (
               <div style={{ marginBottom: 10 }}>
-                <label>ID (اختیاری): </label>
-                <input value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} />
+                <label style={label}>ID (اختیاری)</label>
+                <input
+                  value={form.id}
+                  onChange={(e) => setForm({ ...form, id: e.target.value })}
+                  style={input2}
+                  placeholder="مثلاً: maintenance_2025_12"
+                />
               </div>
             ) : (
-              <div style={{ marginBottom: 10 }}>
+              <div style={{ marginBottom: 10, fontSize: 13, opacity: 0.85 }}>
                 <b>ID:</b> {editItem.id}
               </div>
             )}
 
-            <div style={{ marginBottom: 10 }}>
-              <label>Title (اختیاری): </label>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                style={{ width: "100%" }}
-              />
+            <div style={fieldRow}>
+              <div>
+                <label style={label}>عنوان (اختیاری)</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  style={input2}
+                  placeholder="مثلاً: اطلاعیه مهم"
+                />
+              </div>
+              <div>
+                <label style={label}>Priority</label>
+                <input
+                  type="number"
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: Number(e.target.value || 0) })}
+                  style={input2}
+                  min={0}
+                />
+              </div>
             </div>
 
             <div style={{ marginBottom: 10 }}>
-              <label>Message:</label>
+              <label style={label}>متن بنر</label>
               <textarea
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
-                style={{ width: "100%", height: 90 }}
+                style={textarea2}
+                placeholder="متن پیام…"
               />
             </div>
 
-            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+            <div style={fieldRow}>
               <div>
-                <label>Level:</label>
-                <select
-                  value={form.level}
-                  onChange={(e) => setForm({ ...form, level: e.target.value as AnnouncementLevel })}
-                >
-                  <option value="info">info</option>
-                  <option value="warning">warning</option>
-                  <option value="critical">critical</option>
-                </select>
-              </div>
-
-              <div>
-                <label>Placement:</label>
+                <label style={label}>Placement</label>
                 <select
                   value={form.placement}
-                  onChange={(e) =>
-                    setForm({ ...form, placement: e.target.value as AnnouncementPlacement })
-                  }
+                  onChange={(e) => setForm({ ...form, placement: e.target.value as AnnouncementPlacement })}
+                  style={input2}
                 >
                   <option value="top_banner">top_banner</option>
                 </select>
               </div>
 
               <div>
-                <label>Priority:</label>
-                <input
-                  type="number"
-                  value={form.priority}
-                  onChange={(e) => setForm({ ...form, priority: Number(e.target.value || 0) })}
-                  style={{ width: 90 }}
-                />
+                <label style={label}>Level</label>
+                <select
+                  value={form.level}
+                  onChange={(e) => setForm({ ...form, level: e.target.value as AnnouncementLevel })}
+                  style={input2}
+                >
+                  <option value="info">info</option>
+                  <option value="warning">warning</option>
+                  <option value="critical">critical</option>
+                </select>
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 16, marginBottom: 10 }}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.enabled}
-                  onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-                />{" "}
-                Enabled
-              </label>
-
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.dismissible}
-                  onChange={(e) => setForm({ ...form, dismissible: e.target.checked })}
-                />{" "}
-                Dismissible (اختیاری)
-              </label>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <div style={{ flex: 1 }}>
-                <label>StartAt (اختیاری):</label>
+            <div style={{ ...fieldRow, gridTemplateColumns: "1fr 1fr" }}>
+              <div>
+                <label style={label}>StartAt (اختیاری)</label>
                 <input
                   type="datetime-local"
                   value={form.startAt}
                   onChange={(e) => setForm({ ...form, startAt: e.target.value })}
-                  style={{ width: "100%" }}
+                  style={input2}
                 />
               </div>
-              <div style={{ flex: 1 }}>
-                <label>EndAt (اختیاری):</label>
+              <div>
+                <label style={label}>EndAt (اختیاری)</label>
                 <input
                   type="datetime-local"
                   value={form.endAt}
                   onChange={(e) => setForm({ ...form, endAt: e.target.value })}
-                  style={{ width: "100%" }}
+                  style={input2}
                 />
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setModalOpen(false)} disabled={loading}>
+            <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={form.enabled}
+                  onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+                />
+                فعال
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                <input
+                  type="checkbox"
+                  checked={form.dismissible}
+                  onChange={(e) => setForm({ ...form, dismissible: e.target.checked })}
+                />
+                اختیاری (قابل بستن)
+              </label>
+
+              {!form.dismissible ? (
+                <span style={{ fontSize: 12, opacity: 0.7 }}>
+                  * اجباری‌ها را فقط یک‌بار نشان می‌دهیم (بعد از seen)
+                </span>
+              ) : null}
+            </div>
+
+            <div style={footer}>
+              <button onClick={() => setModalOpen(false)} disabled={loading} style={btnCancel}>
                 Cancel
               </button>
-              <button onClick={submit} disabled={loading}>
+              <button onClick={submit} disabled={loading} style={btnSave}>
                 {editItem ? "Save" : "Create"}
               </button>
             </div>
