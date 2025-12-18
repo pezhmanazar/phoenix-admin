@@ -1,22 +1,10 @@
 // src/app/admin/tickets/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
-
 import ReplyBar from "./ReplyBar.client";
 import MessagesList from "./MessagesList.client";
 import TicketAutoRefresh from "./TicketAutoRefresh.client";
 import TicketHeader from "./TicketHeader";
-
-// ✅ کنترل‌ها
-import DeleteTicketButton from "./DeleteTicketButton.client";
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  LockClosedIcon,
-  StarIcon,
-} from "@heroicons/react/24/solid";
-import { StarIcon as StarOutline } from "@heroicons/react/24/outline";
 
 export const dynamic = "force-dynamic";
 
@@ -119,11 +107,13 @@ function calcAgeLabel(birthDate?: string | null): string {
   if (!birthDate) return "سن نامشخص";
   const d = new Date(birthDate);
   if (Number.isNaN(d.getTime())) return "سن نامشخص";
+
   const now = new Date();
   let age = now.getFullYear() - d.getFullYear();
   const mDiff = now.getMonth() - d.getMonth();
   if (mDiff < 0 || (mDiff === 0 && now.getDate() < d.getDate())) age--;
   if (age < 0 || age > 120) return "سن نامشخص";
+
   return `${age.toLocaleString("fa-IR")} سال`;
 }
 
@@ -148,56 +138,6 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
   return json.ticket as Ticket;
 }
 
-/* ===== اکشن‌های سروری ===== */
-async function togglePinAction(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") || "");
-  const to = String(formData.get("to") || "");
-  const token = (await cookies()).get("admin_token")?.value || "";
-  if (!id || !token) return;
-
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-
-  await fetch(`${base}/api/admin/tickets/${id}`, {
-    method: "PATCH",
-    headers: {
-      "x-admin-token": token,
-      "content-type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ pinned: to === "true" }),
-    cache: "no-store",
-  }).catch(() => {});
-
-  revalidatePath(`/admin/tickets/${id}`);
-}
-
-async function cycleStatusAction(formData: FormData) {
-  "use server";
-  const id = String(formData.get("id") || "");
-  const current = String(formData.get("current") || "");
-  const token = (await cookies()).get("admin_token")?.value || "";
-  if (!id || !token) return;
-
-  const next =
-    current === "open" ? "pending" : current === "pending" ? "closed" : "open";
-
-  const base = process.env.BACKEND_URL?.trim() || "http://127.0.0.1:4000";
-
-  await fetch(`${base}/api/admin/tickets/${id}`, {
-    method: "PATCH",
-    headers: {
-      "x-admin-token": token,
-      "content-type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ status: next }),
-    cache: "no-store",
-  }).catch(() => {});
-
-  revalidatePath(`/admin/tickets/${id}`);
-}
-
 /* ===== صفحه جزئیات ===== */
 export default async function TicketDetailPage({
   params,
@@ -205,7 +145,6 @@ export default async function TicketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
@@ -223,23 +162,17 @@ export default async function TicketDetailPage({
   const planInfo = planLabel(u);
   const ageLabel = calcAgeLabel(u?.birthDate ?? null);
 
-  const statusIcon =
-    ticket.status === "open" ? (
-      <CheckCircleIcon className="w-4 h-4 text-green-400" />
-    ) : ticket.status === "pending" ? (
-      <ClockIcon className="w-4 h-4 text-yellow-400" />
-    ) : (
-      <LockClosedIcon className="w-4 h-4 text-gray-400" />
-    );
-
   return (
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#000",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
+        background:
+          "radial-gradient(1200px 700px at 20% -10%, rgba(212,175,55,0.10), transparent 60%)," +
+          "radial-gradient(900px 600px at 90% 10%, rgba(233,138,21,0.10), transparent 55%)," +
+          "linear-gradient(180deg, #000 0%, #05070b 100%)",
       }}
     >
       <main
@@ -254,17 +187,18 @@ export default async function TicketDetailPage({
         <div
           style={{
             width: "100%",
-            maxWidth: "900px",
+            maxWidth: "980px",
             margin: "0 auto",
-            padding: "20px 22px 18px",
-            borderRadius: "18px",
-            border: "1px solid #333",
-            backgroundColor: "#050505",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+            padding: "18px 18px 14px",
+            borderRadius: "22px",
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(10,10,12,0.72)",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.65)",
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             height: "calc(100vh - 80px)",
+            backdropFilter: "blur(10px)",
           }}
         >
           {/* 🔄 رفرش مخفی */}
@@ -273,6 +207,8 @@ export default async function TicketDetailPage({
           {/* هدر */}
           <div style={{ marginBottom: 10 }}>
             <TicketHeader
+              ticketId={ticket.id}
+              pinned={!!ticket.pinned}
               userName={userName}
               phone={phone}
               ageLabel={ageLabel}
@@ -282,90 +218,41 @@ export default async function TicketDetailPage({
               ticketType={ticket.type}
             />
 
-            {/* ردیف کنترل‌ها: ایجاد + پین + وضعیت + حذف */}
+            {/* ردیف کوچک فقط برای تاریخ ایجاد (بدون کنترل) */}
             <div
               style={{
-                marginTop: 10,
+                marginTop: 8,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 fontSize: 10,
-                color: "rgba(209,213,219,0.85)",
+                color: "rgba(209,213,219,0.75)",
               }}
             >
-              <div>ایجاد: {formatJalaliWithTime(ticket.createdAt)}</div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* پین */}
-                <form action={togglePinAction}>
-                  <input type="hidden" name="id" value={ticket.id} />
-                  <input type="hidden" name="to" value={(!ticket.pinned).toString()} />
-                  <button
-                    type="submit"
-                    title={ticket.pinned ? "برداشتن سنجاق" : "سنجاق‌کردن این تیکت"}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      margin: 0,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {ticket.pinned ? (
-                      <StarIcon className="w-4 h-4 text-yellow-400" />
-                    ) : (
-                      <StarOutline className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
-                </form>
-
-                {/* وضعیت */}
-                <form action={cycleStatusAction}>
-                  <input type="hidden" name="id" value={ticket.id} />
-                  <input type="hidden" name="current" value={ticket.status} />
-                  <button
-                    type="submit"
-                    title={
-                      ticket.status === "open"
-                        ? "باز (کلیک برای در انتظار)"
-                        : ticket.status === "pending"
-                        ? "در انتظار (کلیک برای بسته)"
-                        : "بسته (کلیک برای باز)"
-                    }
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      margin: 0,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {statusIcon}
-                  </button>
-                </form>
-
-                {/* حذف */}
-                <DeleteTicketButton ticketId={ticket.id} />
-              </div>
+              ایجاد: {formatJalaliWithTime(ticket.createdAt)}
             </div>
 
             {/* خط جداکننده */}
             <div
               style={{
-                marginTop: 8,
+                marginTop: 10,
                 height: 1,
-                background: "linear-gradient(to left, transparent, #374151, transparent)",
+                background:
+                  "linear-gradient(to left, transparent, rgba(148,163,184,0.35), transparent)",
               }}
             />
           </div>
 
           {/* بدنه */}
-          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <div style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div style={{ flex: 1, minHeight: 0, marginBottom: 10 }}>
               <MessagesList
                 messages={ticket.messages}
                 userName={userName}
@@ -373,8 +260,12 @@ export default async function TicketDetailPage({
               />
             </div>
 
-            <div style={{ borderTop: "1px solid #1f2933", paddingTop: 8 }}>
-              {/* ✅ ticketId حتما پاس داده شود */}
+            <div
+              style={{
+                borderTop: "1px solid rgba(148,163,184,0.22)",
+                paddingTop: 10,
+              }}
+            >
               <ReplyBar ticketId={ticket.id} />
             </div>
           </div>
