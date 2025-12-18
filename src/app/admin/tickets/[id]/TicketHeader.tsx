@@ -80,8 +80,8 @@ export default function TicketHeader({
 }) {
   const router = useRouter();
 
-  const typeFa = ticketType === "tech" ? "درمان" : "پشتیبانی";
-  const TypeIcon = ticketType === "tech" ? HeartIcon : WrenchScrewdriverIcon;
+  // ✅ درست: therapy => قلب، tech => آچار
+  const TypeIcon = ticketType === "therapy" ? HeartIcon : WrenchScrewdriverIcon;
 
   const planTone: "dark" | "green" | "blue" =
     planChipText === "PRO" || planChipText === "VIP"
@@ -103,18 +103,72 @@ export default function TicketHeader({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+
+        // ✅ ترفند: برای اینکه "چپ/راست" دقیقاً فیزیکی بشه، کانتینر رو LTR می‌ذاریم
+        // ولی متن‌ها/RTL داخل آیتم‌ها مشکلی ندارن.
+        direction: "ltr",
         gap: 12,
-        direction: "rtl", // ✅ کل هدر RTL
       }}
     >
-      {/* ✅ RIGHT SIDE (چسبیده به راست): فلش بعد اسم */}
+      {/* ✅ LEFT (چسبیده به چپ): ... سپس به سمت راست: typeIcon, plan, phone, gender, age */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+
+          // چسبیده به لبه چپ
+          justifyContent: "flex-start",
+
+          // ترتیب دقیق چپ→راست
+          direction: "ltr",
+
+          flexWrap: "wrap",
+          minWidth: 0,
+        }}
+      >
+        {/* سه نقطه چسبیده به چپ */}
+        <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
+
+        {/* فقط آیکن نوع تیکت */}
+        <span style={pill("dark")} title={ticketType === "therapy" ? "درمان" : "پشتیبانی"}>
+          <TypeIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+        </span>
+
+        {/* بج اشتراک */}
+        <span style={pill(planTone)} title={planDescription}>
+          {planChipText}
+        </span>
+
+        {/* شماره */}
+        <span style={pill("dark")}>
+          <PhoneIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+          {phone}
+        </span>
+
+        {/* جنسیت */}
+        <span style={pill("dark")}>
+          <UserIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
+          {genderFa(gender)}
+        </span>
+
+        {/* سن فقط عدد */}
+        <span style={pill("dark")}>{ageNum}</span>
+      </div>
+
+      {/* ✅ RIGHT (چسبیده به راست): فلش بعد اسم */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
-          justifyContent: "flex-end",
           flexShrink: 0,
+
+          // چسب به راست
+          marginLeft: "auto",
+
+          // برای اینکه فلش سمت راست و اسم بعدش بیاد
+          direction: "rtl",
         }}
       >
         <button
@@ -142,56 +196,11 @@ export default function TicketHeader({
             fontWeight: 800,
             color: "rgba(255,255,255,0.92)",
             whiteSpace: "nowrap",
+            direction: "rtl",
           }}
         >
           {userName}
         </div>
-      </div>
-
-      {/* ✅ LEFT SIDE (چسبیده به چپ): ... سپس نوع سپس بقیه */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          justifyContent: "flex-start",
-          flexWrap: "wrap",
-          minWidth: 0,
-          // ✅ برای اینکه بچسبه به چپ، توی RTL از margin-right:auto استفاده می‌کنیم
-          marginRight: "auto",
-        }}
-      >
-        {/* سه نقطه */}
-        <TicketActionsMenu ticketId={ticketId} pinned={pinned} />
-
-        {/* نوع تیکت */}
-        <span style={pill("dark")}>
-          <TypeIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          {typeFa}
-        </span>
-
-        {/* اشتراک */}
-        <span style={pill(planTone)} title={planDescription}>
-          {planChipText}
-        </span>
-
-        {/* سن فقط عدد */}
-        <span style={pill("dark")}>
-          سن
-          <span style={{ opacity: 0.9 }}> {ageNum}</span>
-        </span>
-
-        {/* جنسیت با آیکن */}
-        <span style={pill("dark")}>
-          <UserIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          {genderFa(gender)}
-        </span>
-
-        {/* شماره */}
-        <span style={pill("dark")}>
-          <PhoneIcon style={{ width: 14, height: 14, opacity: 0.9 }} />
-          {phone}
-        </span>
       </div>
     </div>
   );
