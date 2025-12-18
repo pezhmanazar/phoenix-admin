@@ -1,7 +1,5 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
+import { cookies } from "next/headers";
 
 function backendBase(): string {
   return (
@@ -13,42 +11,46 @@ function backendBase(): string {
 
 async function adminTokenFromCookie(): Promise<string> {
   try {
-    const jar = await cookies();
-    return jar.get("admin_token")?.value || "";
+    const c = await cookies(); // ✅ Next 15: cookies() async
+    return c.get("admin_token")?.value || "";
   } catch {
     return "";
   }
 }
 
-export async function PATCH(req: Request, ctx: { params: { id: string } }) {
+type Ctx = { params: Promise<{ id: string }> }; // ✅ Next 15: params can be Promise
+
+export async function PATCH(req: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+
   const token = await adminTokenFromCookie();
-  const base = backendBase();
-  const id = ctx.params.id;
+  if (!token) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
 
-  const targetUrl = `${base}/api/admin/announcements/${encodeURIComponent(id)}`;
+  const body = await req.json().catch(() => ({}));
 
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-  if (token.trim()) headers["x-admin-token"] = token.trim();
-
-  const bodyText = await req.text().catch(() => "");
-
-  const r = await fetch(targetUrl, {
+  const r = await fetch(`${backendBase()}/api/admin/announcements/${id}`, {
     method: "PATCH",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "x-admin-token": token,
+    },
+    body: JSON.stringify(body),
     cache: "no-store",
-    body: bodyText || "{}",
   });
 
   const text = await r.text();
+  const ct = r.headers.get("content-type") || "";
 
-  return new NextResponse(text, {
-    status: r.status,
-    headers: {
-      "Content-Type": r.headers.get("content-type") || "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
-  });
+  if (!ct.includes("application/json")) {
+    return NextResponse.json(
+      { ok: false, error: `Non-JSON response (${r.status})`, raw: text.slice(0, 200) },
+      { status: 502 }
+    );
+  }
+
+  const json = JSON.parse(text);
+  return NextResponse.json(json, { status: r.status });
 }
