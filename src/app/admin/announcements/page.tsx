@@ -1,6 +1,7 @@
+// phoenix-admin\src\app\admin\announcements\page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const API_BASE = ""; // same-origin (Next proxy)
 
@@ -20,6 +21,12 @@ type Announcement = {
   priority: number;
   createdAt: string;
   updatedAt: string;
+
+  // ✅ targets
+  targetFree: boolean;
+  targetPro: boolean;
+  targetExpiring: boolean;
+  targetExpired: boolean;
 };
 
 type AdminAnnouncementsListResponse = {
@@ -68,6 +75,7 @@ async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+// datetime-local → ISO
 function toISOorNull(v: string): string | null {
   if (!v) return null;
   const d = new Date(v);
@@ -75,11 +83,33 @@ function toISOorNull(v: string): string | null {
   return d.toISOString();
 }
 
-function fmt(v: string | null): string {
-  if (!v) return "-";
+// ✅ نمایش شمسی/جلالی + ساعت تهران
+function fmtJalali(v: string | null): string {
+  if (!v) return "—";
   const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString();
+  if (Number.isNaN(d.getTime())) return "—";
+
+  try {
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      timeZone: "Asia/Tehran",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    // fallback
+    return d.toLocaleString("fa-IR");
+  }
+}
+
+// برای نمایش تاریخ شمسیِ مقدار datetime-local (که string مثل 2025-12-19T14:30 می‌ده)
+function fmtJalaliFromLocalInput(v: string): string {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return fmtJalali(d.toISOString());
 }
 
 type FormState = {
@@ -93,6 +123,12 @@ type FormState = {
   priority: number;
   startAt: string; // datetime-local
   endAt: string; // datetime-local
+
+  // ✅ targets
+  targetFree: boolean;
+  targetPro: boolean;
+  targetExpiring: boolean;
+  targetExpired: boolean;
 };
 
 const emptyForm: FormState = {
@@ -106,6 +142,12 @@ const emptyForm: FormState = {
   priority: 0,
   startAt: "",
   endAt: "",
+
+  // ✅ defaults (همگانی برای Free/Pro)
+  targetFree: true,
+  targetPro: true,
+  targetExpiring: false,
+  targetExpired: false,
 };
 
 /* ---------------- styles (match admin/users vibe) ---------------- */
@@ -203,7 +245,7 @@ const table: React.CSSProperties = {
 };
 
 const th: React.CSSProperties = {
-  textAlign: "left",
+  textAlign: "center", // ✅ وسط چین
   padding: "10px 12px",
   borderBottom: "1px solid #111827",
   background: "#050a12",
@@ -213,6 +255,7 @@ const th: React.CSSProperties = {
 };
 
 const td: React.CSSProperties = {
+  textAlign: "center", // ✅ وسط چین
   padding: "10px 12px",
   borderBottom: "1px solid #0b1220",
   color: "rgba(255,255,255,0.86)",
@@ -223,28 +266,29 @@ function levelPill(level: AnnouncementLevel) {
   let bg = "#0b1220";
   let border = "#374151";
   let color = "#e5e7eb";
-  let label = "Info";
+  let label = "اطلاعات";
   if (level === "warning") {
     bg = "#2a1606";
     border = "#9a3412";
     color = "#fed7aa";
-    label = "Warning";
+    label = "هشدار";
   } else if (level === "critical") {
     bg = "#2a0b10";
     border = "#b91c1c";
     color = "#fecaca";
-    label = "Critical";
+    label = "بحرانی";
   } else {
     bg = "#071a2b";
     border = "#0369a1";
     color = "#bae6fd";
-    label = "Info";
+    label = "اطلاعات";
   }
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         padding: "4px 10px",
         borderRadius: 999,
         border: `1px solid ${border}`,
@@ -253,6 +297,7 @@ function levelPill(level: AnnouncementLevel) {
         fontSize: 11,
         fontWeight: 900,
         whiteSpace: "nowrap",
+        minWidth: 70,
       }}
       title={level}
     >
@@ -291,7 +336,7 @@ const overlay: React.CSSProperties = {
 };
 
 const modal: React.CSSProperties = {
-  width: 760,
+  width: 780,
   maxWidth: "100%",
   background: "linear-gradient(180deg,#0b1220,#020617)",
   border: "1px solid #1f2937",
@@ -359,6 +404,13 @@ const textarea2: React.CSSProperties = {
   resize: "vertical",
 };
 
+const helper: React.CSSProperties = {
+  marginTop: 6,
+  fontSize: 12,
+  opacity: 0.75,
+  lineHeight: 1.6,
+};
+
 const footer: React.CSSProperties = {
   display: "flex",
   justifyContent: "flex-end",
@@ -386,6 +438,18 @@ const btnCancel: React.CSSProperties = {
   cursor: "pointer",
 };
 
+function targetsText(it: Pick<
+  Announcement,
+  "targetFree" | "targetPro" | "targetExpiring" | "targetExpired"
+>): string {
+  const parts: string[] = [];
+  if (it.targetFree) parts.push("Free");
+  if (it.targetPro) parts.push("Pro");
+  if (it.targetExpiring) parts.push("درحال انقضا");
+  if (it.targetExpired) parts.push("منقضی");
+  return parts.length ? parts.join(" / ") : "—";
+}
+
 export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Announcement[]>([]);
@@ -410,13 +474,11 @@ export default function AnnouncementsPage() {
   async function load(): Promise<void> {
     setLoading(true);
     try {
-      const out = await api<AdminAnnouncementsListResponse>(
-        `/admin/api/announcements${queryString}`
-      );
+      const out = await api<AdminAnnouncementsListResponse>(`/admin/api/announcements${queryString}`);
       setItems(out.data.items || []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      alert(`Load failed: ${msg}`);
+      alert(`خطا در دریافت لیست: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -446,6 +508,11 @@ export default function AnnouncementsPage() {
       priority: Number(it.priority || 0),
       startAt: it.startAt ? it.startAt.slice(0, 16) : "",
       endAt: it.endAt ? it.endAt.slice(0, 16) : "",
+
+      targetFree: Boolean(it.targetFree),
+      targetPro: Boolean(it.targetPro),
+      targetExpiring: Boolean(it.targetExpiring),
+      targetExpired: Boolean(it.targetExpired),
     });
     setModalOpen(true);
   }
@@ -455,6 +522,13 @@ export default function AnnouncementsPage() {
       alert("متن بنر لازم است");
       return;
     }
+
+    // ✅ حداقل یک گروه باید انتخاب شود
+    if (!(form.targetFree || form.targetPro || form.targetExpiring || form.targetExpired)) {
+      alert("حداقل یک گروه هدف را انتخاب کن");
+      return;
+    }
+
     setLoading(true);
     try {
       if (!editItem) {
@@ -469,6 +543,12 @@ export default function AnnouncementsPage() {
           priority: Number(form.priority || 0),
           startAt: toISOorNull(form.startAt),
           endAt: toISOorNull(form.endAt),
+
+          // ✅ targets
+          targetFree: Boolean(form.targetFree),
+          targetPro: Boolean(form.targetPro),
+          targetExpiring: Boolean(form.targetExpiring),
+          targetExpired: Boolean(form.targetExpired),
         };
         await api(`/admin/api/announcements`, { method: "POST", body: payload });
       } else {
@@ -482,6 +562,12 @@ export default function AnnouncementsPage() {
           priority: Number(form.priority || 0),
           startAt: form.startAt ? toISOorNull(form.startAt) : null,
           endAt: form.endAt ? toISOorNull(form.endAt) : null,
+
+          // ✅ targets
+          targetFree: Boolean(form.targetFree),
+          targetPro: Boolean(form.targetPro),
+          targetExpiring: Boolean(form.targetExpiring),
+          targetExpired: Boolean(form.targetExpired),
         };
         await api(`/admin/api/announcements/${editItem.id}`, {
           method: "PATCH",
@@ -492,7 +578,7 @@ export default function AnnouncementsPage() {
       await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      alert(`Save failed: ${msg}`);
+      alert(`خطا در ذخیره: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -502,14 +588,11 @@ export default function AnnouncementsPage() {
     if (!confirm(`حذف شود؟\n${it.id}`)) return;
     setLoading(true);
     try {
-      await api(`/admin/api/announcements/${it.id}/delete`, {
-        method: "POST",
-        body: {},
-      });
+      await api(`/admin/api/announcements/${it.id}/delete`, { method: "POST", body: {} });
       await load();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      alert(`Delete failed: ${msg}`);
+      alert(`خطا در حذف: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -520,7 +603,7 @@ export default function AnnouncementsPage() {
       <div style={card}>
         <div style={titleRow}>
           <div>
-            <h2 style={h1}>Announcements (بنر همگانی)</h2>
+            <h2 style={h1}>بنر همگانی</h2>
             <div style={sub}>مدیریت پیام‌های داخل اپ (بالای صفحه / زیر هدر)</div>
           </div>
           <button onClick={openCreate} disabled={loading} style={btnPrimary}>
@@ -541,13 +624,13 @@ export default function AnnouncementsPage() {
             <option value="false">فقط غیرفعال</option>
           </select>
           <button onClick={() => load()} disabled={loading} style={btnGhost}>
-            رفرش
+            بروزرسانی
           </button>
         </div>
 
         {loading ? (
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, padding: "6px 2px" }}>
-            Loading...
+            در حال دریافت...
           </div>
         ) : null}
 
@@ -555,39 +638,50 @@ export default function AnnouncementsPage() {
           <table style={table}>
             <thead>
               <tr>
-                <th style={th}>ID</th>
-                <th style={th}>Message</th>
-                <th style={th}>Level</th>
-                <th style={th}>Enabled</th>
-                <th style={th}>Dismiss</th>
-                <th style={th}>Priority</th>
-                <th style={th}>Start</th>
-                <th style={th}>End</th>
-                <th style={th}>Actions</th>
+                <th style={th}>شناسه</th>
+                <th style={th}>متن</th>
+                <th style={th}>سطح</th>
+                <th style={th}>وضعیت</th>
+                <th style={th}>نوع</th>
+                <th style={th}>اولویت</th>
+                <th style={th}>گروه هدف</th>
+                <th style={th}>شروع</th>
+                <th style={th}>پایان</th>
+                <th style={th}>عملیات</th>
               </tr>
             </thead>
             <tbody>
               {items.map((it) => (
                 <tr key={it.id}>
                   <td style={{ ...td, whiteSpace: "nowrap", opacity: 0.95 }}>{it.id}</td>
-                  <td style={{ ...td, maxWidth: 520 }}>
+
+                  <td style={{ ...td, maxWidth: 520, textAlign: "center" }}>
                     <div style={{ fontWeight: 900, marginBottom: 4 }}>
                       {it.title ? it.title : <span style={{ opacity: 0.6 }}>بدون عنوان</span>}
                     </div>
                     <div style={{ opacity: 0.9, lineHeight: 1.8 }}>{it.message}</div>
                   </td>
+
                   <td style={td}>{levelPill(it.level)}</td>
-                  <td style={td}>{it.enabled ? "✅" : "—"}</td>
+                  <td style={td}>{it.enabled ? "✅ فعال" : "— غیرفعال"}</td>
                   <td style={td}>{it.dismissible ? "اختیاری" : "اجباری"}</td>
                   <td style={td}>{it.priority}</td>
-                  <td style={td}>{fmt(it.startAt)}</td>
-                  <td style={td}>{fmt(it.endAt)}</td>
+
+                  <td style={td}>
+                    <span style={{ fontSize: 12, fontWeight: 900, opacity: 0.9 }}>
+                      {targetsText(it)}
+                    </span>
+                  </td>
+
+                  <td style={td}>{fmtJalali(it.startAt)}</td>
+                  <td style={td}>{fmtJalali(it.endAt)}</td>
+
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     <button onClick={() => openEdit(it)} disabled={loading} style={iconBtn}>
-                      Edit
+                      ویرایش
                     </button>{" "}
                     <button onClick={() => remove(it)} disabled={loading} style={iconBtnDanger}>
-                      Delete
+                      حذف
                     </button>
                   </td>
                 </tr>
@@ -595,8 +689,8 @@ export default function AnnouncementsPage() {
 
               {items.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, textAlign: "center", opacity: 0.7 }} colSpan={9}>
-                    هیچ بنری نیست
+                  <td style={{ ...td, textAlign: "center", opacity: 0.7 }} colSpan={10}>
+                    هیچ بنری وجود ندارد
                   </td>
                 </tr>
               ) : null}
@@ -614,7 +708,7 @@ export default function AnnouncementsPage() {
         >
           <div style={modal}>
             <div style={modalHeader}>
-              <h3 style={modalTitle}>{editItem ? "ویرایش بنر" : "ساخت بنر"}</h3>
+              <h3 style={modalTitle}>{editItem ? "ویرایش بنر" : "ساخت بنر جدید"}</h3>
               <button onClick={() => setModalOpen(false)} style={xBtn} aria-label="close">
                 ×
               </button>
@@ -622,17 +716,18 @@ export default function AnnouncementsPage() {
 
             {!editItem ? (
               <div style={{ marginBottom: 10 }}>
-                <label style={label}>ID (اختیاری)</label>
+                <label style={label}>شناسه (اختیاری)</label>
                 <input
                   value={form.id}
                   onChange={(e) => setForm({ ...form, id: e.target.value })}
                   style={input2}
                   placeholder="مثلاً: maintenance_2025_12"
                 />
+                <div style={helper}>اگر خالی بگذاری، سیستم خودش یک شناسه می‌سازد.</div>
               </div>
             ) : (
               <div style={{ marginBottom: 10, fontSize: 13, opacity: 0.85 }}>
-                <b>ID:</b> {editItem.id}
+                <b>شناسه:</b> {editItem.id}
               </div>
             )}
 
@@ -647,7 +742,7 @@ export default function AnnouncementsPage() {
                 />
               </div>
               <div>
-                <label style={label}>Priority</label>
+                <label style={label}>اولویت</label>
                 <input
                   type="number"
                   value={form.priority}
@@ -655,6 +750,7 @@ export default function AnnouncementsPage() {
                   style={input2}
                   min={0}
                 />
+                <div style={helper}>عدد بالاتر یعنی نمایش جلوتر.</div>
               </div>
             </div>
 
@@ -670,52 +766,105 @@ export default function AnnouncementsPage() {
 
             <div style={fieldRow}>
               <div>
-                <label style={label}>Placement</label>
+                <label style={label}>جایگاه</label>
                 <select
                   value={form.placement}
                   onChange={(e) => setForm({ ...form, placement: e.target.value as AnnouncementPlacement })}
                   style={input2}
                 >
-                  <option value="top_banner">top_banner</option>
+                  <option value="top_banner">بالای صفحه (top_banner)</option>
                 </select>
               </div>
 
               <div>
-                <label style={label}>Level</label>
+                <label style={label}>سطح پیام</label>
                 <select
                   value={form.level}
                   onChange={(e) => setForm({ ...form, level: e.target.value as AnnouncementLevel })}
                   style={input2}
                 >
-                  <option value="info">info</option>
-                  <option value="warning">warning</option>
-                  <option value="critical">critical</option>
+                  <option value="info">اطلاعات</option>
+                  <option value="warning">هشدار</option>
+                  <option value="critical">بحرانی</option>
                 </select>
               </div>
             </div>
 
+            {/* ✅ targets */}
+            <div style={{ marginTop: 8, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 950, opacity: 0.85, marginBottom: 8 }}>
+                ارسال به گروه‌ها
+              </div>
+
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.targetFree}
+                    onChange={(e) => setForm({ ...form, targetFree: e.target.checked })}
+                  />
+                  Free
+                </label>
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.targetPro}
+                    onChange={(e) => setForm({ ...form, targetPro: e.target.checked })}
+                  />
+                  Pro
+                </label>
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.targetExpiring}
+                    onChange={(e) => setForm({ ...form, targetExpiring: e.target.checked })}
+                  />
+                  نزدیک به انقضا
+                </label>
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.targetExpired}
+                    onChange={(e) => setForm({ ...form, targetExpired: e.target.checked })}
+                  />
+                  منقضی
+                </label>
+              </div>
+
+              {!(form.targetFree || form.targetPro || form.targetExpiring || form.targetExpired) ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#fecaca", fontWeight: 900 }}>
+                  حداقل یک گروه باید انتخاب شود
+                </div>
+              ) : null}
+            </div>
+
             <div style={{ ...fieldRow, gridTemplateColumns: "1fr 1fr" }}>
               <div>
-                <label style={label}>StartAt (اختیاری)</label>
+                <label style={label}>شروع (اختیاری)</label>
                 <input
                   type="datetime-local"
                   value={form.startAt}
                   onChange={(e) => setForm({ ...form, startAt: e.target.value })}
                   style={input2}
                 />
+                <div style={helper}>نمایش شمسی: {fmtJalaliFromLocalInput(form.startAt)}</div>
               </div>
               <div>
-                <label style={label}>EndAt (اختیاری)</label>
+                <label style={label}>پایان (اختیاری)</label>
                 <input
                   type="datetime-local"
                   value={form.endAt}
                   onChange={(e) => setForm({ ...form, endAt: e.target.value })}
                   style={input2}
                 />
+                <div style={helper}>نمایش شمسی: {fmtJalaliFromLocalInput(form.endAt)}</div>
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
+            <div style={{ display: "flex", gap: 14, marginTop: 6, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
                 <input
                   type="checkbox"
@@ -731,22 +880,22 @@ export default function AnnouncementsPage() {
                   checked={form.dismissible}
                   onChange={(e) => setForm({ ...form, dismissible: e.target.checked })}
                 />
-                اختیاری (قابل بستن)
+                قابل بستن (اختیاری)
               </label>
 
               {!form.dismissible ? (
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  * اجباری‌ها را فقط یک‌بار نشان می‌دهیم (بعد از seen)
+                <span style={{ fontSize: 12, opacity: 0.75 }}>
+                  * بنرهای اجباری بعد از seen طبق منطق سرور مدیریت می‌شوند.
                 </span>
               ) : null}
             </div>
 
             <div style={footer}>
               <button onClick={() => setModalOpen(false)} disabled={loading} style={btnCancel}>
-                Cancel
+                انصراف
               </button>
               <button onClick={submit} disabled={loading} style={btnSave}>
-                {editItem ? "Save" : "Create"}
+                {editItem ? "ذخیره تغییرات" : "ساخت بنر"}
               </button>
             </div>
           </div>
