@@ -5,6 +5,9 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const API_BASE = ""; // same-origin (Next proxy)
 
+// Iran timezone (no DST) = +03:30
+const IR_TZ_OFFSET_MIN = 210; // minutes
+
 type AnnouncementLevel = "info" | "warning" | "critical";
 type AnnouncementPlacement = "top_banner";
 
@@ -75,18 +78,55 @@ async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   return JSON.parse(text) as T;
 }
 
-// datetime-local → ISO
-function toISOorNull(v: string): string | null {
+/**
+ * ✅ datetime-local -> ISO (treat input as Tehran time)
+ * input: "YYYY-MM-DDTHH:mm"
+ */
+function tehranLocalInputToISO(v: string): string | null {
   if (!v) return null;
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(v);
+  if (!m) return null;
+
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const hh = Number(m[4]);
+  const mm = Number(m[5]);
+
+  if (![y, mo, d, hh, mm].every((x) => Number.isFinite(x))) return null;
+
+  // This is the Tehran "wall clock" time. Convert to UTC by subtracting +03:30.
+  const utcMs = Date.UTC(y, mo - 1, d, hh, mm) - IR_TZ_OFFSET_MIN * 60 * 1000;
+  const dt = new Date(utcMs);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString();
 }
 
-// ✅ نمایش شمسی/جلالی + ساعت تهران
-function fmtJalali(v: string | null): string {
-  if (!v) return "—";
-  const d = new Date(v);
+/**
+ * ✅ ISO -> datetime-local string (Tehran wall-clock)
+ */
+function isoToTehranLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+
+  // Convert UTC -> Tehran (+03:30)
+  const tehranMs = d.getTime() + IR_TZ_OFFSET_MIN * 60 * 1000;
+  const t = new Date(tehranMs);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const yyyy = t.getUTCFullYear();
+  const mm = pad(t.getUTCMonth() + 1);
+  const dd = pad(t.getUTCDate());
+  const hh = pad(t.getUTCHours());
+  const mi = pad(t.getUTCMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+// ✅ نمایش شمسی/جلالی + ساعت تهران (برای نمایش در لیست)
+function fmtJalali(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
 
   try {
@@ -99,17 +139,16 @@ function fmtJalali(v: string | null): string {
       minute: "2-digit",
     }).format(d);
   } catch {
-    // fallback
     return d.toLocaleString("fa-IR");
   }
 }
 
-// برای نمایش تاریخ شمسیِ مقدار datetime-local (که string مثل 2025-12-19T14:30 می‌ده)
-function fmtJalaliFromLocalInput(v: string): string {
-  if (!v) return "—";
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "—";
-  return fmtJalali(d.toISOString());
+// ✅ نمایش شمسی فقط وقتی انتخاب شده
+function fmtJalaliFromTehranLocalInput(v: string): string {
+  if (!v) return "";
+  const iso = tehranLocalInputToISO(v);
+  if (!iso) return "";
+  return fmtJalali(iso);
 }
 
 type FormState = {
@@ -121,8 +160,8 @@ type FormState = {
   dismissible: boolean;
   enabled: boolean;
   priority: number;
-  startAt: string; // datetime-local
-  endAt: string; // datetime-local
+  startAt: string; // datetime-local (Tehran wall clock)
+  endAt: string; // datetime-local (Tehran wall clock)
 
   // ✅ targets
   targetFree: boolean;
@@ -143,14 +182,13 @@ const emptyForm: FormState = {
   startAt: "",
   endAt: "",
 
-  // ✅ defaults (همگانی برای Free/Pro)
   targetFree: true,
   targetPro: true,
   targetExpiring: false,
   targetExpired: false,
 };
 
-/* ---------------- styles (match admin/users vibe) ---------------- */
+/* ---------------- styles ---------------- */
 const pageWrap: React.CSSProperties = {
   maxWidth: 1100,
   margin: "0 auto",
@@ -245,7 +283,7 @@ const table: React.CSSProperties = {
 };
 
 const th: React.CSSProperties = {
-  textAlign: "center", // ✅ وسط چین
+  textAlign: "center",
   padding: "10px 12px",
   borderBottom: "1px solid #111827",
   background: "#050a12",
@@ -255,18 +293,19 @@ const th: React.CSSProperties = {
 };
 
 const td: React.CSSProperties = {
-  textAlign: "center", // ✅ وسط چین
+  textAlign: "center",
   padding: "10px 12px",
   borderBottom: "1px solid #0b1220",
   color: "rgba(255,255,255,0.86)",
-  verticalAlign: "top",
+  verticalAlign: "middle",
 };
 
 function levelPill(level: AnnouncementLevel) {
-  let bg = "#0b1220";
-  let border = "#374151";
-  let color = "#e5e7eb";
+  let bg = "#071a2b";
+  let border = "#0369a1";
+  let color = "#bae6fd";
   let label = "اطلاعات";
+
   if (level === "warning") {
     bg = "#2a1606";
     border = "#9a3412";
@@ -277,12 +316,8 @@ function levelPill(level: AnnouncementLevel) {
     border = "#b91c1c";
     color = "#fecaca";
     label = "بحرانی";
-  } else {
-    bg = "#071a2b";
-    border = "#0369a1";
-    color = "#bae6fd";
-    label = "اطلاعات";
   }
+
   return (
     <span
       style={{
@@ -336,7 +371,7 @@ const overlay: React.CSSProperties = {
 };
 
 const modal: React.CSSProperties = {
-  width: 780,
+  width: 820,
   maxWidth: "100%",
   background: "linear-gradient(180deg,#0b1220,#020617)",
   border: "1px solid #1f2937",
@@ -438,16 +473,17 @@ const btnCancel: React.CSSProperties = {
   cursor: "pointer",
 };
 
-function targetsText(it: Pick<
-  Announcement,
-  "targetFree" | "targetPro" | "targetExpiring" | "targetExpired"
->): string {
+function targetsText(it: Pick<Announcement, "targetFree" | "targetPro" | "targetExpiring" | "targetExpired">): string {
   const parts: string[] = [];
   if (it.targetFree) parts.push("Free");
   if (it.targetPro) parts.push("Pro");
-  if (it.targetExpiring) parts.push("درحال انقضا");
-  if (it.targetExpired) parts.push("منقضی");
+  if (it.targetExpiring) parts.push("Expiring");
+  if (it.targetExpired) parts.push("Expired");
   return parts.length ? parts.join(" / ") : "—";
+}
+
+function statusText(enabled: boolean): string {
+  return enabled ? "✅ فعال" : "غیرفعال";
 }
 
 export default function AnnouncementsPage() {
@@ -497,6 +533,7 @@ export default function AnnouncementsPage() {
 
   function openEdit(it: Announcement): void {
     setEditItem(it);
+
     setForm({
       id: it.id || "",
       title: it.title || "",
@@ -506,14 +543,17 @@ export default function AnnouncementsPage() {
       dismissible: Boolean(it.dismissible),
       enabled: Boolean(it.enabled),
       priority: Number(it.priority || 0),
-      startAt: it.startAt ? it.startAt.slice(0, 16) : "",
-      endAt: it.endAt ? it.endAt.slice(0, 16) : "",
+
+      // ✅ show inputs in Tehran local wall-clock
+      startAt: isoToTehranLocalInput(it.startAt),
+      endAt: isoToTehranLocalInput(it.endAt),
 
       targetFree: Boolean(it.targetFree),
       targetPro: Boolean(it.targetPro),
       targetExpiring: Boolean(it.targetExpiring),
       targetExpired: Boolean(it.targetExpired),
     });
+
     setModalOpen(true);
   }
 
@@ -523,7 +563,6 @@ export default function AnnouncementsPage() {
       return;
     }
 
-    // ✅ حداقل یک گروه باید انتخاب شود
     if (!(form.targetFree || form.targetPro || form.targetExpiring || form.targetExpired)) {
       alert("حداقل یک گروه هدف را انتخاب کن");
       return;
@@ -541,10 +580,11 @@ export default function AnnouncementsPage() {
           dismissible: Boolean(form.dismissible),
           enabled: Boolean(form.enabled),
           priority: Number(form.priority || 0),
-          startAt: toISOorNull(form.startAt),
-          endAt: toISOorNull(form.endAt),
 
-          // ✅ targets
+          // ✅ store as ISO by treating inputs as Tehran time
+          startAt: tehranLocalInputToISO(form.startAt),
+          endAt: tehranLocalInputToISO(form.endAt),
+
           targetFree: Boolean(form.targetFree),
           targetPro: Boolean(form.targetPro),
           targetExpiring: Boolean(form.targetExpiring),
@@ -560,10 +600,10 @@ export default function AnnouncementsPage() {
           dismissible: Boolean(form.dismissible),
           enabled: Boolean(form.enabled),
           priority: Number(form.priority || 0),
-          startAt: form.startAt ? toISOorNull(form.startAt) : null,
-          endAt: form.endAt ? toISOorNull(form.endAt) : null,
 
-          // ✅ targets
+          startAt: form.startAt ? tehranLocalInputToISO(form.startAt) : null,
+          endAt: form.endAt ? tehranLocalInputToISO(form.endAt) : null,
+
           targetFree: Boolean(form.targetFree),
           targetPro: Boolean(form.targetPro),
           targetExpiring: Boolean(form.targetExpiring),
@@ -574,6 +614,7 @@ export default function AnnouncementsPage() {
           body: payload,
         });
       }
+
       setModalOpen(false);
       await load();
     } catch (e) {
@@ -598,22 +639,25 @@ export default function AnnouncementsPage() {
     }
   }
 
+  const selectedStartJ = fmtJalaliFromTehranLocalInput(form.startAt);
+  const selectedEndJ = fmtJalaliFromTehranLocalInput(form.endAt);
+
   return (
     <div style={pageWrap}>
       <div style={card}>
         <div style={titleRow}>
           <div>
-            <h2 style={h1}>بنر همگانی</h2>
+            <h2 style={h1}>📣 بنر همگانی</h2>
             <div style={sub}>مدیریت پیام‌های داخل اپ (بالای صفحه / زیر هدر)</div>
           </div>
           <button onClick={openCreate} disabled={loading} style={btnPrimary}>
-            + بنر جدید
+            ➕ بنر جدید
           </button>
         </div>
 
         <div style={controls}>
           <input
-            placeholder="جستجو: متن / عنوان / ID"
+            placeholder="جستجو: عنوان / متن / ID"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ ...input, flex: 1, minWidth: 220 }}
@@ -624,7 +668,7 @@ export default function AnnouncementsPage() {
             <option value="false">فقط غیرفعال</option>
           </select>
           <button onClick={() => load()} disabled={loading} style={btnGhost}>
-            بروزرسانی
+            🔄 بروزرسانی
           </button>
         </div>
 
@@ -638,8 +682,7 @@ export default function AnnouncementsPage() {
           <table style={table}>
             <thead>
               <tr>
-                <th style={th}>شناسه</th>
-                <th style={th}>متن</th>
+                <th style={th}>عنوان</th>
                 <th style={th}>سطح</th>
                 <th style={th}>وضعیت</th>
                 <th style={th}>نوع</th>
@@ -653,24 +696,22 @@ export default function AnnouncementsPage() {
             <tbody>
               {items.map((it) => (
                 <tr key={it.id}>
-                  <td style={{ ...td, whiteSpace: "nowrap", opacity: 0.95 }}>{it.id}</td>
-
-                  <td style={{ ...td, maxWidth: 520, textAlign: "center" }}>
-                    <div style={{ fontWeight: 900, marginBottom: 4 }}>
+                  <td style={{ ...td, textAlign: "center", maxWidth: 360 }}>
+                    <div style={{ fontWeight: 950, opacity: 0.95, lineHeight: 1.6 }}>
                       {it.title ? it.title : <span style={{ opacity: 0.6 }}>بدون عنوان</span>}
                     </div>
-                    <div style={{ opacity: 0.9, lineHeight: 1.8 }}>{it.message}</div>
+                    <div style={{ marginTop: 6, fontSize: 11, opacity: 0.6, direction: "ltr" }}>
+                      {it.id}
+                    </div>
                   </td>
 
                   <td style={td}>{levelPill(it.level)}</td>
-                  <td style={td}>{it.enabled ? "✅ فعال" : "— غیرفعال"}</td>
+                  <td style={td}>{statusText(it.enabled)}</td>
                   <td style={td}>{it.dismissible ? "اختیاری" : "اجباری"}</td>
                   <td style={td}>{it.priority}</td>
 
                   <td style={td}>
-                    <span style={{ fontSize: 12, fontWeight: 900, opacity: 0.9 }}>
-                      {targetsText(it)}
-                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 900, opacity: 0.9 }}>{targetsText(it)}</span>
                   </td>
 
                   <td style={td}>{fmtJalali(it.startAt)}</td>
@@ -678,10 +719,10 @@ export default function AnnouncementsPage() {
 
                   <td style={{ ...td, whiteSpace: "nowrap" }}>
                     <button onClick={() => openEdit(it)} disabled={loading} style={iconBtn}>
-                      ویرایش
+                      ✏️ ویرایش
                     </button>{" "}
                     <button onClick={() => remove(it)} disabled={loading} style={iconBtnDanger}>
-                      حذف
+                      🗑️ حذف
                     </button>
                   </td>
                 </tr>
@@ -689,7 +730,7 @@ export default function AnnouncementsPage() {
 
               {items.length === 0 ? (
                 <tr>
-                  <td style={{ ...td, textAlign: "center", opacity: 0.7 }} colSpan={10}>
+                  <td style={{ ...td, textAlign: "center", opacity: 0.7 }} colSpan={9}>
                     هیچ بنری وجود ندارد
                   </td>
                 </tr>
@@ -708,7 +749,7 @@ export default function AnnouncementsPage() {
         >
           <div style={modal}>
             <div style={modalHeader}>
-              <h3 style={modalTitle}>{editItem ? "ویرایش بنر" : "ساخت بنر جدید"}</h3>
+              <h3 style={modalTitle}>{editItem ? "✏️ ویرایش بنر" : "➕ ساخت بنر جدید"}</h3>
               <button onClick={() => setModalOpen(false)} style={xBtn} aria-label="close">
                 ×
               </button>
@@ -716,33 +757,31 @@ export default function AnnouncementsPage() {
 
             {!editItem ? (
               <div style={{ marginBottom: 10 }}>
-                <label style={label}>شناسه (اختیاری)</label>
+                <label style={label}>🆔 شناسه (اختیاری)</label>
                 <input
                   value={form.id}
                   onChange={(e) => setForm({ ...form, id: e.target.value })}
                   style={input2}
-                  placeholder="مثلاً: maintenance_2025_12"
                 />
-                <div style={helper}>اگر خالی بگذاری، سیستم خودش یک شناسه می‌سازد.</div>
+                <div style={helper}>اگر خالی بگذاری، سیستم خودش شناسه تولید می‌کند.</div>
               </div>
             ) : (
               <div style={{ marginBottom: 10, fontSize: 13, opacity: 0.85 }}>
-                <b>شناسه:</b> {editItem.id}
+                <b>🆔 شناسه:</b> <span style={{ direction: "ltr" }}>{editItem.id}</span>
               </div>
             )}
 
             <div style={fieldRow}>
               <div>
-                <label style={label}>عنوان (اختیاری)</label>
+                <label style={label}>🧾 عنوان (اختیاری)</label>
                 <input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   style={input2}
-                  placeholder="مثلاً: اطلاعیه مهم"
                 />
               </div>
               <div>
-                <label style={label}>اولویت</label>
+                <label style={label}>⭐ اولویت</label>
                 <input
                   type="number"
                   value={form.priority}
@@ -755,7 +794,7 @@ export default function AnnouncementsPage() {
             </div>
 
             <div style={{ marginBottom: 10 }}>
-              <label style={label}>متن بنر</label>
+              <label style={label}>📝 متن بنر</label>
               <textarea
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
@@ -766,7 +805,7 @@ export default function AnnouncementsPage() {
 
             <div style={fieldRow}>
               <div>
-                <label style={label}>جایگاه</label>
+                <label style={label}>📍 جایگاه</label>
                 <select
                   value={form.placement}
                   onChange={(e) => setForm({ ...form, placement: e.target.value as AnnouncementPlacement })}
@@ -777,7 +816,7 @@ export default function AnnouncementsPage() {
               </div>
 
               <div>
-                <label style={label}>سطح پیام</label>
+                <label style={label}>🚦 سطح پیام</label>
                 <select
                   value={form.level}
                   onChange={(e) => setForm({ ...form, level: e.target.value as AnnouncementLevel })}
@@ -790,10 +829,9 @@ export default function AnnouncementsPage() {
               </div>
             </div>
 
-            {/* ✅ targets */}
             <div style={{ marginTop: 8, marginBottom: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 950, opacity: 0.85, marginBottom: 8 }}>
-                ارسال به گروه‌ها
+                🎯 Target Groups
               </div>
 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
@@ -821,7 +859,7 @@ export default function AnnouncementsPage() {
                     checked={form.targetExpiring}
                     onChange={(e) => setForm({ ...form, targetExpiring: e.target.checked })}
                   />
-                  نزدیک به انقضا
+                  Expiring
                 </label>
 
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800 }}>
@@ -830,7 +868,7 @@ export default function AnnouncementsPage() {
                     checked={form.targetExpired}
                     onChange={(e) => setForm({ ...form, targetExpired: e.target.checked })}
                   />
-                  منقضی
+                  Expired
                 </label>
               </div>
 
@@ -843,24 +881,25 @@ export default function AnnouncementsPage() {
 
             <div style={{ ...fieldRow, gridTemplateColumns: "1fr 1fr" }}>
               <div>
-                <label style={label}>شروع (اختیاری)</label>
+                <label style={label}>🕒 شروع (اختیاری) — ساعت ایران</label>
                 <input
                   type="datetime-local"
                   value={form.startAt}
                   onChange={(e) => setForm({ ...form, startAt: e.target.value })}
                   style={input2}
                 />
-                <div style={helper}>نمایش شمسی: {fmtJalaliFromLocalInput(form.startAt)}</div>
+                {form.startAt ? <div style={helper}>نمایش شمسی: {selectedStartJ}</div> : null}
               </div>
+
               <div>
-                <label style={label}>پایان (اختیاری)</label>
+                <label style={label}>🕒 پایان (اختیاری) — ساعت ایران</label>
                 <input
                   type="datetime-local"
                   value={form.endAt}
                   onChange={(e) => setForm({ ...form, endAt: e.target.value })}
                   style={input2}
                 />
-                <div style={helper}>نمایش شمسی: {fmtJalaliFromLocalInput(form.endAt)}</div>
+                {form.endAt ? <div style={helper}>نمایش شمسی: {selectedEndJ}</div> : null}
               </div>
             </div>
 
