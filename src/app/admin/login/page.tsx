@@ -38,7 +38,9 @@ type LoginResponse = LoginOk | LoginFail;
 export default function AdminLoginPage() {
   const router = useRouter();
   const sp = useSearchParams();
-  const redirectTo = sp.get("redirect") || "/admin/tickets";
+
+  // ✅ دیفالت بعد از لاگین = صفحه اصلی پنل (آنالیتیکس)
+  const redirectTo = sp.get("redirect") || "/admin/analytics";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,10 +62,10 @@ export default function AdminLoginPage() {
     try {
       setBusy(true);
 
-      // ✅ مهم: لاگین باید از /api/auth/login روی خود Next انجام شود تا cookie ست شود
+      // ✅ لاگین باید از /api/auth/login روی خود Next انجام شود تا cookie ست شود
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "include",
         body: JSON.stringify(body),
       });
@@ -78,13 +80,13 @@ export default function AdminLoginPage() {
       }
 
       const json = (await res.json().catch(() => null)) as LoginResponse | null;
-
       if (!json || json.ok !== true) {
         setErr((json as LoginFail | null)?.error || "login_failed");
         return;
       }
 
-      const to = redirectTo || "/admin/tickets";
+      // ✅ مقصد نهایی
+      const to = redirectTo || "/admin/analytics";
 
       // اول روتر
       try {
@@ -99,13 +101,13 @@ export default function AdminLoginPage() {
         window.location.href = to;
       }
     } catch (e: any) {
-  const msg = String(e?.message || "");
-  if (msg.toLowerCase().includes("failed to fetch")) {
-    setErr("failed_to_fetch");
-  } else {
-    setErr(msg || "internal_error");
-  }
-} finally {
+      const msg = String(e?.message || "");
+      if (msg.toLowerCase().includes("failed to fetch")) {
+        setErr("failed_to_fetch");
+      } else {
+        setErr(msg || "internal_error");
+      }
+    } finally {
       setBusy(false);
     }
   }
@@ -162,7 +164,7 @@ export default function AdminLoginPage() {
               marginBottom: "18px",
             }}
           >
-            برای دسترسی به تیکت‌ها و مدیریت کاربران وارد شوید.
+            برای دسترسی به داشبورد و ابزارهای مدیریتی وارد شوید.
           </p>
 
           {/* ایمیل */}
@@ -178,7 +180,6 @@ export default function AdminLoginPage() {
             >
               ایمیل
             </label>
-
             <input
               id="admin-email"
               type="email"
@@ -217,7 +218,6 @@ export default function AdminLoginPage() {
             >
               رمز عبور
             </label>
-
             <input
               id="admin-password"
               type="password"
