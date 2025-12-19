@@ -189,21 +189,30 @@ export default function AdminUsersPage() {
 
     if (nq) params.set("q", nq);
     else params.delete("q");
+
     params.set("page", String(np));
     params.set("limit", String(nl));
+
     if (nf && nf !== "all") params.set("filter", nf);
     else params.delete("filter");
+
     if (ns && ns !== "created_desc") params.set("sort", ns);
     else params.delete("sort");
 
     router.replace(`/admin/users?${params.toString()}`);
   }
 
+  function applySearch() {
+    const cleaned = (q || "").trim();
+    setPage(1);
+    syncUrl({ q: cleaned, page: 1 });
+  }
+
   async function load() {
     setLoading(true);
     setErr(null);
     try {
-      const url = `/api/admin/users?q=${encodeURIComponent(q || "")}&page=${page}&limit=${limit}&ts=${Date.now()}`;
+      const url = `/api/admin/users?q=${encodeURIComponent(q0 || "")}&page=${page0}&limit=${limit0}&ts=${Date.now()}`;
       const r = await fetch(url, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) throw new Error("bad_response");
@@ -259,16 +268,16 @@ export default function AdminUsersPage() {
   async function setPlan(userId: string, plan: "pro" | "free", daysVal?: number) {
     setBusy((m) => ({ ...m, [userId]: true }));
     try {
-      const endpoint =
-        plan === "pro" ? `/api/admin/users/${userId}/set-plan` : `/api/admin/users/${userId}/cancel-plan`;
-
+      const endpoint = plan === "pro" ? `/api/admin/users/${userId}/set-plan` : `/api/admin/users/${userId}/cancel-plan`;
       const body = plan === "pro" ? { plan: "pro", days: daysVal || 30 } : {};
+
       const r = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "include",
         body: plan === "pro" ? JSON.stringify(body) : undefined,
       });
+
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) throw new Error("bad_response");
       const j = await r.json().catch(() => null);
@@ -307,8 +316,9 @@ export default function AdminUsersPage() {
       const all: UserRow[] = [];
       let p = 1;
       const per = 100;
+
       while (true) {
-        const url = `/api/admin/users?q=${encodeURIComponent(q || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
+        const url = `/api/admin/users?q=${encodeURIComponent(q0 || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
         const r = await fetch(url, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
         const ct = r.headers.get("content-type") || "";
         if (!ct.includes("application/json")) throw new Error("bad_response");
@@ -337,15 +347,85 @@ export default function AdminUsersPage() {
 
   return (
     <div style={{ maxWidth: 1200, marginInline: "auto" }}>
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
+      {/* ✅ Search bar (moved from header to here) */}
+      <div
+        style={{
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 280 }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>مدیریت کاربران</h1>
           <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
             {data ? `مجموع: ${data.total} (صفحه ${data.page})` : "—"}
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 320, display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 560 }}>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              placeholder="جستجو: نام / شماره / آیدی"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 999,
+                border: "1px solid #374151",
+                backgroundColor: "#0b1220",
+                color: "#fff",
+                fontSize: "13px",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={applySearch}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 999,
+                border: "1px solid #7c2d12",
+                backgroundColor: "#ea580c",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: 900,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              جستجو
+            </button>
+            <button
+              onClick={() => {
+                setQ("");
+                setPage(1);
+                syncUrl({ q: "", page: 1 });
+              }}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 999,
+                border: "1px solid #334155",
+                backgroundColor: "#0b1220",
+                color: "#e2e8f0",
+                fontSize: "12px",
+                fontWeight: 900,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              title="پاک کردن جستجو"
+            >
+              پاک‌کردن
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
           <button
             onClick={exportCsv}
             style={{
@@ -451,7 +531,15 @@ export default function AdminUsersPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
+        <div
+          style={{
+            padding: "10px 12px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            color: "#94a3b8",
+            fontSize: 12,
+            textAlign: "center",
+          }}
+        >
           {loading ? "در حال دریافت..." : err ? `خطا: ${err}` : " "}
         </div>
 
@@ -575,7 +663,15 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Pagination */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 12px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
             نمایش {data ? `${Math.min(data.total, (page - 1) * limit + 1)} تا ${Math.min(data.total, page * limit)} از ${data.total}` : "—"}
           </div>
