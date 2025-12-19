@@ -65,7 +65,7 @@ function RoleBadge({ role }: { role?: string }) {
         backgroundColor: bg,
         color,
         fontSize: "11px",
-        fontWeight: 700,
+        fontWeight: 800,
         whiteSpace: "nowrap",
       }}
     >
@@ -73,6 +73,19 @@ function RoleBadge({ role }: { role?: string }) {
     </span>
   );
 }
+
+const navBase: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "9px 12px", // ✅ یکدست
+  borderRadius: 12,
+  fontSize: "12px",
+  fontWeight: 900,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+  lineHeight: 1,
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await fetchMe();
@@ -101,8 +114,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       >
         {/* راست: عنوان + اسم + نقش */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 280 }}>
+          {/* ✅ کلیک روی این باید برگرده صفحه اصلی = آنالیتیکس */}
           <Link
-            href="/admin/tickets"
+            href="/admin/analytics"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -110,15 +124,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               borderRadius: 9999,
               border: "1px solid #374151",
               backgroundColor: "#020617",
-              padding: "8px 14px",
+              padding: "9px 14px", // کمی همسان‌تر با بقیه
               fontSize: "13px",
-              fontWeight: 800,
+              fontWeight: 900,
               color: "rgba(255,255,255,0.92)",
               textDecoration: "none",
               whiteSpace: "nowrap",
+              lineHeight: 1,
             }}
+            title="بازگشت به صفحه اصلی پنل (آمار و تحلیل)"
           >
-            <span aria-hidden>🎛️</span>
+            <span aria-hidden>📊</span>
             <span>پنل مدیریت ققنوس</span>
           </Link>
 
@@ -142,47 +158,55 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           ) : null}
         </div>
 
-        {/* وسط: (حذف شد) */}
+        {/* وسط: (خالی) */}
         <div style={{ flex: 1 }} />
 
         {/* چپ: دکمه‌ها */}
         {me ? (
           <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-            {/* مدیریت کاربران */}
+            {/* ✅ مدیریت کاربران */}
             <Link
               href="/admin/users"
               style={{
-                padding: "8px 10px",
-                borderRadius: 10,
+                ...navBase,
                 border: "1px solid #7c3aed",
                 backgroundColor: "#2e1065",
                 color: "#f5f3ff",
-                fontSize: "12px",
-                fontWeight: 800,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
               }}
+              title="مدیریت کاربران"
             >
+              <span aria-hidden>👥</span>
               مدیریت کاربران
             </Link>
 
-            {/* بنر همگانی (کنار مدیریت کاربران) */}
+            {/* ✅ مدیریت تیکت‌ها (کنار مدیریت کاربران) */}
+            <Link
+              href="/admin/tickets"
+              style={{
+                ...navBase,
+                border: "1px solid #22c55e",
+                backgroundColor: "#064e3b",
+                color: "#dcfce7",
+              }}
+              title="مدیریت تیکت‌ها"
+            >
+              <span aria-hidden>🎫</span>
+              مدیریت تیکت‌ها
+            </Link>
+
+            {/* بنر همگانی */}
             <Link
               href="/admin/announcements"
               style={{
-                padding: "8px 10px",
-                borderRadius: 10,
+                ...navBase,
                 border: "1px solid #ea580c",
                 backgroundColor: "#7c2d12",
                 color: "#ffedd5",
-                fontSize: "12px",
-                fontWeight: 900,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
               }}
               title="مدیریت بنرهای همگانی اپ"
             >
-              📣 بنر همگانی
+              <span aria-hidden>📣</span>
+              بنر همگانی
             </Link>
 
             {/* مدیریت ادمین‌ها */}
@@ -190,17 +214,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link
                 href="/admin/admins"
                 style={{
-                  padding: "8px 10px",
-                  borderRadius: 10,
+                  ...navBase,
                   border: "1px solid #0f766e",
                   backgroundColor: "#0f766e",
                   color: "#ecfeff",
-                  fontSize: "12px",
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
                 }}
+                title="مدیریت ادمین‌ها"
               >
+                <span aria-hidden>🛡️</span>
                 مدیریت ادمین‌ها
               </Link>
             )}
@@ -209,17 +230,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link
               href="/admin/profile"
               style={{
-                padding: "8px 10px",
-                borderRadius: 10,
+                ...navBase,
                 border: "1px solid #374151",
                 backgroundColor: "#111827",
                 color: "#e5e7eb",
-                fontSize: "12px",
-                fontWeight: 700,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
+                fontWeight: 800,
               }}
+              title="ویرایش پروفایل"
             >
+              <span aria-hidden>✏️</span>
               ویرایش پروفایل
             </Link>
 
@@ -231,7 +250,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         ) : null}
       </header>
 
-      <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>{children}</main>
+      <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
+        {children}
+      </main>
     </div>
   );
 }
