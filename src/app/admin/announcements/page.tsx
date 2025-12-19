@@ -648,7 +648,7 @@ export default function AnnouncementsPage() {
         <div style={titleRow}>
           <div>
             <h2 style={h1}>📣 بنر همگانی</h2>
-            <div style={sub}>مدیریت پیام‌های داخل اپ (بالای صفحه / زیر هدر)</div>
+            <div style={sub}>مدیریت پیام‌های داخل اپ </div>
           </div>
           <button onClick={openCreate} disabled={loading} style={btnPrimary}>
             ➕ بنر جدید
@@ -757,13 +757,13 @@ export default function AnnouncementsPage() {
 
             {!editItem ? (
               <div style={{ marginBottom: 10 }}>
-                <label style={label}>🆔 شناسه (اختیاری)</label>
+                <label style={label}>🆔 شناسه</label>
                 <input
                   value={form.id}
                   onChange={(e) => setForm({ ...form, id: e.target.value })}
                   style={input2}
                 />
-                <div style={helper}>اگر خالی بگذاری، سیستم خودش شناسه تولید می‌کند.</div>
+                <div style={helper}>اگر خالی بگذاری، سیستم خودش شناسه تولید میکنه.</div>
               </div>
             ) : (
               <div style={{ marginBottom: 10, fontSize: 13, opacity: 0.85 }}>
@@ -773,7 +773,7 @@ export default function AnnouncementsPage() {
 
             <div style={fieldRow}>
               <div>
-                <label style={label}>🧾 عنوان (اختیاری)</label>
+                <label style={label}>🧾 عنوان</label>
                 <input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -811,7 +811,7 @@ export default function AnnouncementsPage() {
                   onChange={(e) => setForm({ ...form, placement: e.target.value as AnnouncementPlacement })}
                   style={input2}
                 >
-                  <option value="top_banner">بالای صفحه (top_banner)</option>
+                  <option value="top_banner">بالای صفحه</option>
                 </select>
               </div>
 
@@ -881,7 +881,7 @@ export default function AnnouncementsPage() {
 
             <div style={{ ...fieldRow, gridTemplateColumns: "1fr 1fr" }}>
               <div>
-                <label style={label}>🕒 شروع (اختیاری) — ساعت ایران</label>
+                <label style={label}>🕒 شروع</label>
                 <input
                   type="datetime-local"
                   value={form.startAt}
@@ -892,7 +892,7 @@ export default function AnnouncementsPage() {
               </div>
 
               <div>
-                <label style={label}>🕒 پایان (اختیاری) — ساعت ایران</label>
+                <label style={label}>🕒 پایان </label>
                 <input
                   type="datetime-local"
                   value={form.endAt}
