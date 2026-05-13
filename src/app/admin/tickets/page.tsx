@@ -169,36 +169,16 @@ export default function TicketsPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        const withDisplay: Ticket[] = (data.tickets as Ticket[]).map(
-          (t: any) => {
-            const userFullName =
-  typeof t.user?.fullName === "string" && t.user.fullName.trim()
-    ? t.user.fullName.trim()
-    : null;
+        const withDisplay: Ticket[] = (data.tickets as Ticket[]).map((t: any) => {
+  const lastAt = extractLastAt(t);
+  const _lastSender = extractLastSender(t);
 
-const userPhone =
-  typeof t.user?.phone === "string" && t.user.phone.trim()
-    ? t.user.phone.trim()
-    : null;
-
-const fallbackFromContact =
-  (typeof t.contact === "object"
-    ? t.contact?.name
-    : t.contact) || t.email || t.phone || null;
-
-const displayName =
-  userFullName ||
-  (t as any).openedByName ||
-  (t as any).displayName ||
-  userPhone ||
-  fallbackFromContact ||
-  t.title ||
-  "—";
-            const lastAt = extractLastAt(t);
-            const _lastSender = extractLastSender(t);
-            return { ...(t as Ticket), displayName, lastAt, _lastSender };
-          }
-        );
+  return {
+    ...(t as Ticket),
+    lastAt,
+    _lastSender,
+  };
+});
         const filtered =
           status === "unread"
             ? withDisplay.filter((t) => t.unread)
@@ -556,13 +536,13 @@ const displayName =
 
               {/* ردیف‌ها */}
               {pagedTickets.map((t) => {
-  const freshUserName =
-  typeof t.user?.fullName === "string" ? t.user.fullName.trim() : "";
+  const u = t.user || null;
 
-const nameToShow = t.displayName || "—";
+  const nameToShow =
+    u?.fullName || t.openedByName || t.title || "کاربر";
 
-                const lastAt = t.lastAt || t.createdAt;
-                const isUnread = !!t.unread;
+  const lastAt = t.lastAt || t.createdAt;
+  const isUnread = !!t.unread;
 
                 return (
                   <div
