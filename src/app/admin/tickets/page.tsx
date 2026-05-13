@@ -187,7 +187,7 @@ const fallbackFromContact =
 
 const displayName =
   userFullName ||
-  (t as any).userName ||
+  (t as any).openedByName ||
   (t as any).displayName ||
   userPhone ||
   fallbackFromContact ||
