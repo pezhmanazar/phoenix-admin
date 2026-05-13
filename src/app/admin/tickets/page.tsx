@@ -87,6 +87,13 @@ function cleanName(v: any) {
   return s;
 }
 
+function normalizeText(v: any) {
+  return String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک");
+}
 
 // ---------- چیپ‌ها با استایل inline مثل لاگین ----------
 function StatusChip({ status }: { status: Ticket["status"] }) {
@@ -149,9 +156,7 @@ function TypeChip({ type }: { type: Ticket["type"] }) {
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<
-  "" | "open" | "pending" | "closed" | "unread"
->("");
+ const [status, setStatus] = useState<"" | "open" | "unread">("");
 const [type, setType] = useState<"" | "tech" | "therapy">("");
 const [q, setQ] = useState("");
 const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
@@ -214,13 +219,48 @@ const [page, setPage] = useState(1);
     : withDisplay;
 
 const filtered = unreadFiltered.filter((t) => {
-  if (!assignedAdminFilter) return true;
+  const matchesAdmin = (() => {
+    if (!assignedAdminFilter) return true;
 
-  if (assignedAdminFilter === "__unassigned__") {
-    return !t.assignedAdmin?.id;
-  }
+    if (assignedAdminFilter === "__unassigned__") {
+      return !t.assignedAdmin?.id;
+    }
 
-  return t.assignedAdmin?.id === assignedAdminFilter;
+    return t.assignedAdmin?.id === assignedAdminFilter;
+  })();
+
+  if (!matchesAdmin) return false;
+
+  const search = normalizeText(q);
+  if (!search) return true;
+
+  const userName =
+    cleanName(t.user?.fullName) ||
+    cleanName((t.user as any)?.full_name) ||
+    cleanName(t.displayName) ||
+    cleanName(t.userName) ||
+    cleanName(t.openedByName) ||
+    cleanName(
+      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
+    ) ||
+    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
+    cleanName(t.phone) ||
+    cleanName(t.email) ||
+    cleanName(t.title);
+
+  const haystack = [
+    userName,
+    t.title,
+    t.description,
+    t.phone,
+    t.email,
+    typeof t.contact === "string" ? t.contact : "",
+    typeof t.contact === "object" && t.contact ? t.contact.name : "",
+  ]
+    .map((item) => normalizeText(item))
+    .join(" ");
+
+  return haystack.includes(search);
 });
         const sorted = filtered.slice().sort((a, b) => {
           const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
@@ -366,8 +406,8 @@ const filtered = unreadFiltered.filter((t) => {
               <select
                 value={status}
                 onChange={(e) =>
-                  setStatus(e.target.value as "" | "open" | "pending" | "closed" | "unread")
-                }
+  setStatus(e.target.value as "" | "open" | "unread")
+}
                 style={{
                   width: "100%",
                   padding: "8px 10px",
@@ -382,8 +422,6 @@ const filtered = unreadFiltered.filter((t) => {
               >
                 <option value="">همه</option>
                 <option value="open">باز</option>
-                <option value="pending">در انتظار</option>
-                <option value="closed">بسته</option>
                 <option value="unread">خوانده‌نشده</option>
               </select>
             </div>
