@@ -559,13 +559,8 @@ const displayName =
   const freshUserName =
   typeof t.user?.fullName === "string" ? t.user.fullName.trim() : "";
 
-const nameToShow =
-  freshUserName ||
-  t.user?.phone ||
-  (typeof t.contact === "object" ? t.contact?.name : t.contact) ||
-  t.openedByName?.trim() ||
-  t.title ||
-  "—";
+const nameToShow = t.displayName || "—";
+
                 const lastAt = t.lastAt || t.createdAt;
                 const isUnread = !!t.unread;
 
