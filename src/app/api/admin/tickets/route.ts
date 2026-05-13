@@ -78,6 +78,11 @@ export async function GET(req: Request) {
       });
     }
 
+    console.log(
+  "admin tickets sample:",
+  JSON.stringify(data?.tickets?.[0] || null, null, 2)
+);
+
     return NextResponse.json(data, { status: res.status || 200 });
   } catch (e: any) {
     console.error("proxy /api/admin/tickets fatal:", e?.message || e);
