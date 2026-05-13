@@ -556,11 +556,14 @@ const displayName =
 
               {/* ردیف‌ها */}
               {pagedTickets.map((t) => {
-              const nameToShow =
-  t.user?.fullName?.trim() ||
-  t.openedByName?.trim() ||
+  const freshUserName =
+  typeof t.user?.fullName === "string" ? t.user.fullName.trim() : "";
+
+const nameToShow =
+  freshUserName ||
   t.user?.phone ||
   (typeof t.contact === "object" ? t.contact?.name : t.contact) ||
+  t.openedByName?.trim() ||
   t.title ||
   "—";
                 const lastAt = t.lastAt || t.createdAt;
