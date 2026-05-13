@@ -24,7 +24,8 @@ type Ticket = {
     role?: string | null;
   } | null;
   userName?: string | null;
-  displayName?: string | null;
+displayName?: string | null;
+openedByName?: string | null;
   contact?: string | { name?: string };
   email?: string;
   phone?: string;
@@ -555,8 +556,13 @@ const displayName =
 
               {/* ردیف‌ها */}
               {pagedTickets.map((t) => {
-                const nameToShow =
-                  t.userName || t.displayName || t.title || "—";
+              const nameToShow =
+  t.user?.fullName?.trim() ||
+  t.openedByName?.trim() ||
+  t.user?.phone ||
+  (typeof t.contact === "object" ? t.contact?.name : t.contact) ||
+  t.title ||
+  "—";
                 const lastAt = t.lastAt || t.createdAt;
                 const isUnread = !!t.unread;
 
