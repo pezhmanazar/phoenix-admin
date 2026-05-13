@@ -12,6 +12,17 @@ type Ticket = {
   createdAt: string;
   pinned?: boolean;
   unread?: boolean;
+  user?: {
+    id: string;
+    fullName?: string | null;
+    phone?: string | null;
+  } | null;
+  assignedAdmin?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | null;
   userName?: string | null;
   displayName?: string | null;
   contact?: string | { name?: string };
@@ -159,16 +170,29 @@ export default function TicketsPage() {
       if (data.ok) {
         const withDisplay: Ticket[] = (data.tickets as Ticket[]).map(
           (t: any) => {
-            const fallbackFromContact =
-              (typeof t.contact === "object"
-                ? t.contact?.name
-                : t.contact) || t.email || t.phone || null;
-            const displayName =
-              (t as any).userName ||
-              (t as any).displayName ||
-              fallbackFromContact ||
-              t.title ||
-              "—";
+            const userFullName =
+  typeof t.user?.fullName === "string" && t.user.fullName.trim()
+    ? t.user.fullName.trim()
+    : null;
+
+const userPhone =
+  typeof t.user?.phone === "string" && t.user.phone.trim()
+    ? t.user.phone.trim()
+    : null;
+
+const fallbackFromContact =
+  (typeof t.contact === "object"
+    ? t.contact?.name
+    : t.contact) || t.email || t.phone || null;
+
+const displayName =
+  userFullName ||
+  (t as any).userName ||
+  (t as any).displayName ||
+  userPhone ||
+  fallbackFromContact ||
+  t.title ||
+  "—";
             const lastAt = extractLastAt(t);
             const _lastSender = extractLastSender(t);
             return { ...(t as Ticket), displayName, lastAt, _lastSender };
