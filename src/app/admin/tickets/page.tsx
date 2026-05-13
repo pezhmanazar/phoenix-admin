@@ -463,22 +463,6 @@ const filtered = unreadFiltered.filter((t) => {
     ادمین مسئول
   </label>
 
-  <input
-    value={assignedAdminFilter}
-    onChange={(e) => setAssignedAdminFilter(e.target.value)}
-    placeholder="نام یا ایمیل ادمین..."
-    style={{
-      width: "100%",
-      padding: "8px 10px",
-      borderRadius: "8px",
-      border: "1px solid #333",
-      backgroundColor: "#000",
-      color: "#fff",
-      fontSize: "12px",
-      boxSizing: "border-box",
-      outline: "none",
-    }}
-  />
   <select
   value={assignedAdminFilter}
   onChange={(e) => {
@@ -486,12 +470,15 @@ const filtered = unreadFiltered.filter((t) => {
     setAssignedAdminFilter(e.target.value);
   }}
   style={{
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #2a3448",
-    background: "#0f172a",
-    color: "#e5e7eb",
-    minWidth: 220,
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: "8px",
+    border: "1px solid #333",
+    backgroundColor: "#000",
+    color: "#fff",
+    fontSize: "12px",
+    boxSizing: "border-box",
+    outline: "none",
   }}
 >
   <option value="">همه ادمین‌ها</option>
