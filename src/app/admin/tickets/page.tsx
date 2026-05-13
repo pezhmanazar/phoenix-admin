@@ -191,9 +191,9 @@ const [page, setPage] = useState(1);
 }, [tickets]);
 
   const query = useMemo(
-    () => buildQuery({ status, type, q }),
-    [status, type, q]
-  );
+  () => buildQuery({ status, type }),
+  [status, type]
+);
 
   async function fetchTickets() {
     try {
@@ -282,11 +282,11 @@ const filtered = unreadFiltered.filter((t) => {
   }
 
   useEffect(() => {
-    fetchTickets();
-    const t = setInterval(fetchTickets, 50000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  fetchTickets();
+  const t = setInterval(fetchTickets, 50000);
+  return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [query, assignedAdminFilter, q]);
 
   async function markReadOptimistic(ticketId: string) {
     setTickets((prev) =>
