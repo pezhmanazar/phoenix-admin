@@ -51,15 +51,19 @@ export async function GET(req: Request) {
     if (data?.ok && Array.isArray(data.tickets)) {
       data.tickets = data.tickets.map((t: any) => {
         const userNameRaw =
-          t?.user?.name ||
-          t?.user?.fullName ||
-          t?.user?.full_name ||
-          t?.createdBy?.name ||
-          t?.owner?.name ||
-          t?.profile?.fullName ||
-          t?.userName ||
-          t?.customer?.name ||
-          null;
+  t?.user?.fullName ||
+  t?.user?.full_name ||
+  t?.user?.name ||
+  t?.createdBy?.fullName ||
+  t?.createdBy?.name ||
+  t?.owner?.fullName ||
+  t?.owner?.name ||
+  t?.profile?.fullName ||
+  t?.profile?.name ||
+  t?.userName ||
+  t?.customer?.fullName ||
+  t?.customer?.name ||
+  null;
 
         const fallbackFromContact =
           t?.contact?.name ||
