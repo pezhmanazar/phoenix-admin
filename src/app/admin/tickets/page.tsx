@@ -80,6 +80,14 @@ function extractLastSender(t: any): "user" | "admin" | null {
   return null;
 }
 
+function cleanName(v: any) {
+  const s = typeof v === "string" ? v.trim() : "";
+  if (!s) return "";
+  if (s === "کاربر" || s === "—") return "";
+  return s;
+}
+
+
 // ---------- چیپ‌ها با استایل inline مثل لاگین ----------
 function StatusChip({ status }: { status: Ticket["status"] }) {
   let bg = "#1e293b";
@@ -539,7 +547,19 @@ export default function TicketsPage() {
   const u = t.user || null;
 
   const nameToShow =
-    u?.fullName || t.openedByName || t.title || "کاربر";
+    cleanName(u?.fullName) ||
+    cleanName((u as any)?.full_name) ||
+    cleanName(t.displayName) ||
+    cleanName(t.userName) ||
+    cleanName(t.openedByName) ||
+    cleanName(
+      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
+    ) ||
+    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
+    cleanName(t.phone) ||
+    cleanName(t.email) ||
+    cleanName(t.title) ||
+    "کاربر";
 
   const lastAt = t.lastAt || t.createdAt;
   const isUnread = !!t.unread;
