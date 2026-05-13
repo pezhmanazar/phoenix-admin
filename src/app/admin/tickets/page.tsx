@@ -165,6 +165,26 @@ const [page, setPage] = useState(1);
     return tickets.slice(start, start + pageSize);
   }, [tickets, page]);
 
+  const assignedAdmins = useMemo(() => {
+  const map = new Map<string, string>();
+
+  tickets.forEach((t) => {
+    if (!t.assignedAdmin?.id) return;
+
+    const label =
+      t.assignedAdmin.name?.trim() ||
+      t.assignedAdmin.email?.trim() ||
+      "ادمین بدون نام";
+
+    map.set(t.assignedAdmin.id, label);
+  });
+
+  return Array.from(map.entries()).map(([id, label]) => ({
+    id,
+    label,
+  }));
+}, [tickets]);
+
   const query = useMemo(
     () => buildQuery({ status, type, q }),
     [status, type, q]
@@ -194,16 +214,13 @@ const [page, setPage] = useState(1);
     : withDisplay;
 
 const filtered = unreadFiltered.filter((t) => {
-  if (!assignedAdminFilter.trim()) return true;
+  if (!assignedAdminFilter) return true;
 
-  const adminName =
-    t.assignedAdmin?.name?.trim() ||
-    t.assignedAdmin?.email?.trim() ||
-    "";
+  if (assignedAdminFilter === "__unassigned__") {
+    return !t.assignedAdmin?.id;
+  }
 
-  return adminName
-    .toLowerCase()
-    .includes(assignedAdminFilter.trim().toLowerCase());
+  return t.assignedAdmin?.id === assignedAdminFilter;
 });
         const sorted = filtered.slice().sort((a, b) => {
           const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
@@ -462,6 +479,29 @@ const filtered = unreadFiltered.filter((t) => {
       outline: "none",
     }}
   />
+  <select
+  value={assignedAdminFilter}
+  onChange={(e) => {
+    setPage(1);
+    setAssignedAdminFilter(e.target.value);
+  }}
+  style={{
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid #2a3448",
+    background: "#0f172a",
+    color: "#e5e7eb",
+    minWidth: 220,
+  }}
+>
+  <option value="">همه ادمین‌ها</option>
+  <option value="__unassigned__">تخصیص‌نشده</option>
+  {assignedAdmins.map((admin) => (
+    <option key={admin.id} value={admin.id}>
+      {admin.label}
+    </option>
+  ))}
+</select>
 </div>
           </div>
 
