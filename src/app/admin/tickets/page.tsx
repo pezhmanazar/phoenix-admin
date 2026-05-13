@@ -563,6 +563,11 @@ export default function TicketsPage() {
 
   const lastAt = t.lastAt || t.createdAt;
   const isUnread = !!t.unread;
+  const assignedAdminName =
+  t.assignedAdmin?.name?.trim() ||
+  t.assignedAdmin?.email?.trim() ||
+  "تخصیص نشده";
+
 
                 return (
                   <div
@@ -579,43 +584,66 @@ export default function TicketsPage() {
                     }}
                   >
                     {/* کاربر */}
-                    <div style={{ textAlign: "center" }}>
-                      <Link
-                        href={`/admin/tickets/${t.id}`}
-                        onClick={() => markReadOptimistic(t.id)}
-                        style={{
-                          color: "#fb923c",
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 6,
-                          fontWeight: isUnread ? 700 : 500,
-                        }}
-                      >
-                        {t.pinned ? (
-                          <span
-                            title="سنجاق‌شده"
-                            style={{ color: "#facc15", fontSize: "11px" }}
-                          >
-                            ★
-                          </span>
-                        ) : null}
-                        <span>{nameToShow}</span>
-                        {isUnread && (
-                          <span
-                            title="خوانده‌نشده"
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "999px",
-                              backgroundColor: "#ef4444",
-                              display: "inline-block",
-                            }}
-                          />
-                        )}
-                      </Link>
-                    </div>
+<div style={{ textAlign: "center" }}>
+  <Link
+    href={`/admin/tickets/${t.id}`}
+    onClick={() => markReadOptimistic(t.id)}
+    style={{
+      color: "#fb923c",
+      textDecoration: "none",
+      display: "inline-flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      fontWeight: isUnread ? 700 : 500,
+    }}
+  >
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+      }}
+    >
+      {t.pinned ? (
+        <span
+          title="سنجاق‌شده"
+          style={{ color: "#facc15", fontSize: "11px" }}
+        >
+          ★
+        </span>
+      ) : null}
+
+      <span>{nameToShow}</span>
+
+      {isUnread && (
+        <span
+          title="خوانده‌نشده"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "999px",
+            backgroundColor: "#ef4444",
+            display: "inline-block",
+          }}
+        />
+      )}
+    </div>
+
+    <span
+      style={{
+        fontSize: "11px",
+        color: t.assignedAdmin ? "#93c5fd" : "#6b7280",
+        fontWeight: 400,
+      }}
+    >
+      مسئول: {assignedAdminName}
+    </span>
+  </Link>
+</div>
+
 
                     {/* نوع */}
                     <div style={{ textAlign: "center" }}>
