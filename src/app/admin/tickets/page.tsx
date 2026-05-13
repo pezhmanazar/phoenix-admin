@@ -159,6 +159,7 @@ export default function TicketsPage() {
  const [status, setStatus] = useState<"" | "open" | "unread">("");
 const [type, setType] = useState<"" | "tech" | "therapy">("");
 const [q, setQ] = useState("");
+const [debouncedQ, setDebouncedQ] = useState("");
 const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
 const [page, setPage] = useState(1);
 
@@ -194,6 +195,15 @@ const [page, setPage] = useState(1);
   () => buildQuery({ status, type }),
   [status, type]
 );
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedQ(q);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [q]);
+
 
   async function fetchTickets() {
     try {
@@ -231,7 +241,7 @@ const filtered = unreadFiltered.filter((t) => {
 
   if (!matchesAdmin) return false;
 
-  const search = normalizeText(q);
+  const search = normalizeText(debouncedQ);
   if (!search) return true;
 
   const userName =
@@ -286,7 +296,7 @@ const filtered = unreadFiltered.filter((t) => {
   const t = setInterval(fetchTickets, 50000);
   return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [query, assignedAdminFilter, q]);
+}, [query, assignedAdminFilter, debouncedQ]);
 
   async function markReadOptimistic(ticketId: string) {
     setTickets((prev) =>
