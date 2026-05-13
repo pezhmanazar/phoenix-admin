@@ -150,11 +150,12 @@ export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<
-    "" | "open" | "pending" | "closed" | "unread"
-  >("");
-  const [type, setType] = useState<"" | "tech" | "therapy">("");
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
+  "" | "open" | "pending" | "closed" | "unread"
+>("");
+const [type, setType] = useState<"" | "tech" | "therapy">("");
+const [q, setQ] = useState("");
+const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
+const [page, setPage] = useState(1);
 
   const pageSize = 15;
   const totalPages = Math.max(1, Math.ceil(tickets.length / pageSize));
@@ -187,10 +188,23 @@ export default function TicketsPage() {
     _lastSender,
   };
 });
-        const filtered =
-          status === "unread"
-            ? withDisplay.filter((t) => t.unread)
-            : withDisplay;
+        const unreadFiltered =
+  status === "unread"
+    ? withDisplay.filter((t) => t.unread)
+    : withDisplay;
+
+const filtered = unreadFiltered.filter((t) => {
+  if (!assignedAdminFilter.trim()) return true;
+
+  const adminName =
+    t.assignedAdmin?.name?.trim() ||
+    t.assignedAdmin?.email?.trim() ||
+    "";
+
+  return adminName
+    .toLowerCase()
+    .includes(assignedAdminFilter.trim().toLowerCase());
+});
         const sorted = filtered.slice().sort((a, b) => {
           const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
           if (pinOrder !== 0) return pinOrder;
@@ -419,6 +433,36 @@ export default function TicketsPage() {
                 }}
               />
             </div>
+            {/* ادمین مسئول */}
+<div style={{ flex: "1 1 180px" }}>
+  <label
+    style={{
+      display: "block",
+      fontSize: "12px",
+      marginBottom: "4px",
+      opacity: 0.85,
+    }}
+  >
+    ادمین مسئول
+  </label>
+
+  <input
+    value={assignedAdminFilter}
+    onChange={(e) => setAssignedAdminFilter(e.target.value)}
+    placeholder="نام یا ایمیل ادمین..."
+    style={{
+      width: "100%",
+      padding: "8px 10px",
+      borderRadius: "8px",
+      border: "1px solid #333",
+      backgroundColor: "#000",
+      color: "#fff",
+      fontSize: "12px",
+      boxSizing: "border-box",
+      outline: "none",
+    }}
+  />
+</div>
           </div>
 
           {/* ردیف زیر فیلتر: توضیح + دکمه‌ها */}
@@ -461,6 +505,7 @@ export default function TicketsPage() {
                   setStatus("");
                   setType("");
                   setQ("");
+                  setAssignedAdminFilter("");
                 }}
                 style={{
                   padding: "8px 14px",
