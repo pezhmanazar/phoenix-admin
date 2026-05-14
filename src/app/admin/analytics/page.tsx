@@ -271,44 +271,76 @@ export default function AdminAnalyticsPage() {
 
     let completed = 0;
 
-    // growth last 7/30 days
-    const now = Date.now();
-    let new7 = 0;
-    let new30 = 0;
-    let proDaysLeftSum = 0;
-    let proDaysLeftCount = 0;
+// growth last 7/30 days
+const now = Date.now();
+let new7 = 0;
+let new30 = 0;
+let new30Pro = 0;
+let new30Users = 0;
+let new30Free = 0;
+let new30ActivePro = 0;
+let new30Expiring = 0;
+let new30Expired = 0;
+let pro0to3 = 0;
+let pro4to7 = 0;
+let pro8to30 = 0;
+let pro30plus = 0;
+
 
 
     for (const u of rows) {
-      const ps = planState(u);
-      if (ps === "pro") {
-      const dl = daysLeft(u.planExpiresAt || null);
-      if (dl !== null && dl > 0) {
-      proDaysLeftSum += dl;
-      proDaysLeftCount++;
-  }
-}
+  const ps = planState(u);
 
-      byPlan[ps]++;
+  if (ps === "pro") {
+    const dl = daysLeft(u.planExpiresAt || null);
+    if (dl !== null && dl > 0) {
 
-      const gk = genderKey(u.gender || null);
-      byGender[gk]++;
-
-      if (u.profileCompleted) completed++;
-
-      const cd = safeDate(u.createdAt || null)?.getTime() || 0;
-      if (cd) {
-        if (cd >= now - 7 * 24 * 3600 * 1000) new7++;
-        if (cd >= now - 30 * 24 * 3600 * 1000) new30++;
+      if (dl <= 3) {
+        pro0to3 += 1;
+      } else if (dl <= 7) {
+        pro4to7 += 1;
+      } else if (dl <= 30) {
+        pro8to30 += 1;
+      } else {
+        pro30plus += 1;
       }
     }
+  }
+
+  byPlan[ps]++;
+
+  const gk = genderKey(u.gender || null);
+  byGender[gk]++;
+
+  if (u.profileCompleted) completed++;
+
+  const cd = safeDate(u.createdAt || null)?.getTime() || 0;
+if (cd) {
+  if (cd >= now - 7 * 24 * 3600 * 1000) new7++;
+
+  if (cd >= now - 30 * 24 * 3600 * 1000) {
+  new30++;
+  new30Users++;
+
+  if (ps === "pro") {
+    new30Pro++;
+    new30ActivePro++;
+  } else if (ps === "expiring") {
+    new30Expiring++;
+  } else if (ps === "expired") {
+    new30Expired++;
+  } else {
+    new30Free++;
+  }
+}
+}
+}
+
 
     const completionRate = n ? Math.round((completed / n) * 100) : 0;
     const proRate = n ? Math.round((byPlan.pro / n) * 100) : 0;
     const expiringRate = n ? Math.round((byPlan.expiring / n) * 100) : 0;
     const expiredRate = n ? Math.round((byPlan.expired / n) * 100) : 0;
-    const avgProDaysLeft = proDaysLeftCount ? Math.round(proDaysLeftSum / proDaysLeftCount) : 0;
-
 
     return {
   n,
@@ -317,7 +349,18 @@ export default function AdminAnalyticsPage() {
   proRate,
   expiringRate,
   expiredRate,
-  avgProDaysLeft,
+  pro0to3,
+  pro4to7,
+  pro8to30,
+  pro30plus,
+  proExpiringSoon: pro0to3 + pro4to7,
+  new30Pro,
+  new30Users,
+  new30Free,
+  new30ActivePro,
+  new30Expiring,
+  new30Expired,
+  new30ProRate: new30Users ? Math.round((new30Pro / new30Users) * 100) : 0,
   byPlan,
   byGender,
   new7,
@@ -365,6 +408,33 @@ export default function AdminAnalyticsPage() {
           </div>
 
           <div style={statCard}>
+  <div style={statLabel}>نرخ تقریبی جذب PRO</div>
+  <div
+    style={{
+      ...statValue,
+      color:
+        stats.new30ProRate >= 20
+          ? "#22c55e"
+          : stats.new30ProRate >= 10
+          ? "#f59e0b"
+          : "#ef4444",
+    }}
+  >
+    {stats.new30ProRate}%
+  </div>
+  <div style={statHint}>
+    از {stats.new30Users} کاربر ۳۰ روز اخیر، {stats.new30Pro} نفر الان PRO هستند
+  </div>
+  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 900, color: "#94a3b8" }}>
+    {stats.new30ProRate >= 20
+      ? "وضعیت خوب"
+      : stats.new30ProRate >= 10
+      ? "نیاز به بهبود"
+      : "هشدار: جذب PRO پایین است"}
+  </div>
+</div>
+
+          <div style={statCard}>
             <div style={statLabel}>تکمیل پروفایل</div>
             <div style={statValue}>{stats.completionRate}%</div>
             <div style={statHint}>
@@ -379,6 +449,12 @@ export default function AdminAnalyticsPage() {
               نزدیک انقضا: {stats.byPlan.expiring} • منقضی: {stats.byPlan.expired}
             </div>
           </div>
+
+          <div style={statCard}>
+  <div style={statLabel}>PRO در معرض ریزش</div>
+  <div style={{ ...statValue, color: "#ef4444" }}>{stats.proExpiringSoon}</div>
+  <div style={statHint}>کاربران PRO فعالی که تا ۷ روز آینده منقضی می‌شوند</div>
+</div>
           <div style={statCard}>
   <div style={statLabel}>درصد کاربران PRO</div>
   <div style={statValue}>{stats.proRate}%</div>
@@ -397,10 +473,16 @@ export default function AdminAnalyticsPage() {
 </div>
 
 <div style={statCard}>
-  <div style={statLabel}>میانگین روز باقی‌مانده PRO</div>
-  <div style={{ ...statValue, color: "#22c55e" }}>{stats.avgProDaysLeft}</div>
-  <div style={statHint}>فقط برای کاربران PRO فعال محاسبه شده</div>
+  <div style={statLabel}>توزیع PRO فعال</div>
+  <div style={{ marginTop: 8, fontSize: 13, fontWeight: 900, lineHeight: 2 }}>
+    <div>۰ تا ۳ روز: <span style={{ color: "#f97316" }}>{stats.pro0to3}</span></div>
+    <div>۴ تا ۷ روز: <span style={{ color: "#f59e0b" }}>{stats.pro4to7}</span></div>
+    <div>۸ تا ۳۰ روز: <span style={{ color: "#22c55e" }}>{stats.pro8to30}</span></div>
+    <div>۳۰+ روز: <span style={{ color: "#38bdf8" }}>{stats.pro30plus}</span></div>
+  </div>
+  <div style={statHint}>فقط کاربران PRO فعال</div>
 </div>
+
         </div>
       </div>
 
@@ -435,7 +517,35 @@ export default function AdminAnalyticsPage() {
             </div>
           </div>
         </div>
+        <div style={card}>
+  <div style={sectionTitle}>جذب PRO در ۳۰ روز اخیر</div>
+  <div style={sectionBody}>
+    <BarRow label="FREE" value={stats.new30Free} total={stats.new30Users} />
+    <BarRow label="PRO فعال" value={stats.new30ActivePro} total={stats.new30Users} />
+    <BarRow label="نزدیک انقضا" value={stats.new30Expiring} total={stats.new30Users} />
+    <BarRow label="منقضی" value={stats.new30Expired} total={stats.new30Users} />
+
+    <div style={{ marginTop: 14, fontSize: 11, color: "#64748b", textAlign: "center", lineHeight: 1.8 }}>
+      از بین کاربران ثبت‌نام‌کرده ۳۰ روز اخیر، وضعیت فعلی پلن نمایش داده می‌شود.
+    </div>
+  </div>
+</div>
       </div>
+
+      <div style={{ marginTop: 14, ...card }}>
+  <div style={sectionTitle}>توزیع کاربران PRO فعال بر اساس روز باقی‌مانده</div>
+  <div style={sectionBody}>
+    <BarRow label="۰ تا ۳ روز" value={stats.pro0to3} total={stats.byPlan.pro} />
+    <BarRow label="۴ تا ۷ روز" value={stats.pro4to7} total={stats.byPlan.pro} />
+    <BarRow label="۸ تا ۳۰ روز" value={stats.pro8to30} total={stats.byPlan.pro} />
+    <BarRow label="۳۰+ روز" value={stats.pro30plus} total={stats.byPlan.pro} />
+
+    <div style={{ marginTop: 14, fontSize: 11, color: "#64748b", textAlign: "center", lineHeight: 1.8 }}>
+      فقط بین کاربران PRO فعال محاسبه شده، نه نزدیک انقضا و نه منقضی‌شده.
+    </div>
+  </div>
+</div>
+
 
       {/* Suggestions (Phase 2 hooks) */}
       <div style={{ marginTop: 12, ...card }}>
