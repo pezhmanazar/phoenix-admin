@@ -487,7 +487,7 @@ if (cd) {
       </div>
 
       {/* Charts */}
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
         {/* Plan breakdown */}
         <div style={card}>
           <div style={sectionTitle}>تفکیک پلن</div>
