@@ -1,7 +1,7 @@
 // src/app/admin/analytics/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type UserRow = {
   id: string;
@@ -256,10 +256,6 @@ function BarRow({
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  // Optional: allow filtering by q same as users endpoint (later you can wire UI)
-  const [q] = useState<string>("");
-
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
@@ -269,6 +265,7 @@ export default function AdminAnalyticsPage() {
   const [pelekanLoading, setPelekanLoading] = useState(false);
   const [pelekanErr, setPelekanErr] = useState<string | null>(null);
   const [pelekan, setPelekan] = useState<PelekanAnalyticsData | null>(null);
+  const refreshLockRef = useRef(false);
 
   async function loadAllUsers(): Promise<void> {
     setLoading(true);
@@ -281,7 +278,7 @@ export default function AdminAnalyticsPage() {
       let totalFromApi = 0;
 
       while (true) {
-        const url = `/api/admin/users?q=${encodeURIComponent(q || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
+        const url = `/api/admin/users?page=${p}&limit=${per}&ts=${Date.now()}`;
         const r = await fetch(url, {
           cache: "no-store",
           credentials: "include",
@@ -350,12 +347,20 @@ export default function AdminAnalyticsPage() {
 }
 
 async function handleRefresh() {
-  await Promise.all([
-    loadAllUsers(),
-    loadTicketStats(),
-    loadPelekanStats(),
-  ]);
+  if (refreshLockRef.current) return;
+
+  refreshLockRef.current = true;
+  try {
+    await Promise.all([
+      loadAllUsers(),
+      loadTicketStats(),
+      loadPelekanStats(),
+    ]);
+  } finally {
+    refreshLockRef.current = false;
+  }
 }
+
 
     async function loadPelekanStats(): Promise<void> {
     setPelekanLoading(true);
@@ -513,11 +518,11 @@ const isRefreshing = loading || pelekanLoading || ticketsLoading;
         <div>
           <h1 style={title}>آمار و تحلیل</h1>
           <div style={sub}>
-            {loading
-              ? "در حال دریافت داده‌ها…"
-              : err
-              ? `خطا: ${err}`
-              : `کل کاربران: ${stats.n}  •  آخرین بروزرسانی: ${lastUpdatedAt ? fmtFa(lastUpdatedAt) : "—"}`}
+           {isRefreshing
+  ? "در حال دریافت و بروزرسانی داده‌ها…"
+  : err
+  ? `خطا: ${err}`
+  : `کل کاربران: ${stats.n}  •  آخرین بروزرسانی: ${lastUpdatedAt ? fmtFa(lastUpdatedAt) : "—"}`}
           </div>
         </div>
 
@@ -525,11 +530,14 @@ const isRefreshing = loading || pelekanLoading || ticketsLoading;
           <button
   onClick={handleRefresh}
   disabled={isRefreshing}
+  aria-busy={isRefreshing}
+  title={isRefreshing ? "در حال بروزرسانی داده‌ها" : "دریافت مجدد آخرین آمار"}
   style={{
-  ...btnPrimary,
-  opacity: isRefreshing ? 0.6 : 1,
-  cursor: isRefreshing ? "not-allowed" : "pointer",
-}}>
+    ...btnPrimary,
+    opacity: isRefreshing ? 0.6 : 1,
+    cursor: isRefreshing ? "not-allowed" : "pointer",
+}}
+>
           {isRefreshing ? "در حال بروزرسانی..." : "بروزرسانی"}
           </button>
           <div style={{ ...btn, cursor: "default", opacity: 0.9 }}>
@@ -946,17 +954,6 @@ const isRefreshing = loading || pelekanLoading || ticketsLoading;
               </div>
             </>
           )}
-        </div>
-      </div>
-
-      {/* Suggestions (Phase 2 hooks) */}
-      <div style={{ marginTop: 12, ...card }}>
-        <div style={sectionTitle}>پیشنهادهای فاز بعد (فعلاً فقط یادداشت)</div>
-        <div style={{ padding: 12, fontSize: 12, color: "#cbd5e1", lineHeight: 2 }}>
-          <div>• قیف مراحل (۷ مرحله) + نرخ ریزش در هر مرحله</div>
-          <div>• اثر بنرها: seen/dismiss + نرخ تبدیل به PRO بعد از بنر</div>
-          <div>• Cohort retention: ۷/۱۴/۳۰ روز</div>
-          <div>• نرخ تبدیل: free → pro بر اساس روز/هفته</div>
         </div>
       </div>
     </div>
