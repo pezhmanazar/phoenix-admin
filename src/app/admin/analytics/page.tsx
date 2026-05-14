@@ -24,6 +24,28 @@ type UsersResponse = {
   users: UserRow[];
 };
 
+type PelekanStageStat = {
+  key: string;
+  title: string;
+  users: number;
+  avgDays: number;
+};
+
+type PelekanAnalyticsData = {
+  totalUsers: number;
+  activeTreatmentUsers: number;
+  completedAssessmentUsers: number;
+  inShelterNow: number;
+  inPanahNow: number;
+  reviewUsers: number;
+  stageStats: PelekanStageStat[];
+};
+
+type PelekanAnalyticsResponse = {
+  ok: boolean;
+  data?: PelekanAnalyticsData;
+};
+
 function safeDate(v?: string | null) {
   if (!v) return null;
   const d = new Date(v);
@@ -76,6 +98,51 @@ function pct(n: number, total: number) {
   if (!total) return "0%";
   return `${Math.round((n / total) * 100)}%`;
 }
+
+function fmtAvgDays(v?: number | null) {
+  if (typeof v !== "number" || !Number.isFinite(v)) return "—";
+  if (v < 0) return "0";
+  if (v > 999) return "999+";
+  return String(Math.round(v * 10) / 10);
+}
+
+function stagePercent(users: number, total: number) {
+  if (!total || total <= 0) return 0;
+  return clamp(Math.round((users / total) * 100), 0, 100);
+}
+
+function avgDaysTone(v?: number | null) {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return {
+      color: "#94a3b8",
+      bg: "transparent",
+      label: "نامشخص",
+    };
+  }
+
+  if (v >= 21) {
+    return {
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.10)",
+      label: "بحرانی",
+    };
+  }
+
+  if (v >= 10) {
+    return {
+      color: "#f59e0b",
+      bg: "rgba(245,158,11,0.10)",
+      label: "متوسط",
+    };
+  }
+
+  return {
+    color: "#22c55e",
+    bg: "rgba(34,197,94,0.10)",
+    label: "عادی",
+  };
+}
+
 
 /* -------------------- UI styles (match your admin vibe) -------------------- */
 const wrap: React.CSSProperties = { maxWidth: 1200, marginInline: "auto" };
@@ -197,8 +264,11 @@ export default function AdminAnalyticsPage() {
   const [total, setTotal] = useState<number>(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [ticketsTotal, setTicketsTotal] = useState<number>(0);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketsUnread, setTicketsUnread] = useState<number>(0);
-
+  const [pelekanLoading, setPelekanLoading] = useState(false);
+  const [pelekanErr, setPelekanErr] = useState<string | null>(null);
+  const [pelekan, setPelekan] = useState<PelekanAnalyticsData | null>(null);
 
   async function loadAllUsers(): Promise<void> {
     setLoading(true);
@@ -250,35 +320,72 @@ export default function AdminAnalyticsPage() {
     }
   }
 
-    async function loadTicketStats(): Promise<void> {
+  async function loadTicketStats(): Promise<void> {
+  setTicketsLoading(true);
+
+  try {
+    const r = await fetch(`/api/admin/tickets?ts=${Date.now()}`, {
+      cache: "no-store",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+
+    const ct = r.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) throw new Error("bad_ticket_response");
+
+    const j = await r.json();
+    if (!j?.ok || !Array.isArray(j.tickets)) throw new Error("ticket_request_failed");
+
+    const allTickets = j.tickets as Array<{ unread?: boolean }>;
+
+    setTicketsTotal(allTickets.length);
+    setTicketsUnread(allTickets.filter((t) => !!t.unread).length);
+  } catch (e) {
+    console.error("loadTicketStats failed", e);
+    setTicketsTotal(0);
+    setTicketsUnread(0);
+  } finally {
+    setTicketsLoading(false);
+  }
+}
+
+async function handleRefresh() {
+  await Promise.all([
+    loadAllUsers(),
+    loadTicketStats(),
+    loadPelekanStats(),
+  ]);
+}
+
+    async function loadPelekanStats(): Promise<void> {
+    setPelekanLoading(true);
+    setPelekanErr(null);
+
     try {
-      const r = await fetch(`/api/admin/tickets?ts=${Date.now()}`, {
+      const r = await fetch(`/api/admin/analytics/pelekan?ts=${Date.now()}`, {
         cache: "no-store",
         credentials: "include",
         headers: { Accept: "application/json" },
       });
 
       const ct = r.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) throw new Error("bad_ticket_response");
+      if (!ct.includes("application/json")) throw new Error("bad_pelekan_response");
 
-      const j = await r.json();
-      if (!j?.ok || !Array.isArray(j.tickets)) throw new Error("ticket_request_failed");
+      const j = (await r.json()) as PelekanAnalyticsResponse;
+      if (!j?.ok || !j.data) throw new Error("pelekan_request_failed");
 
-      const allTickets = j.tickets as Array<{ unread?: boolean }>;
-
-      setTicketsTotal(allTickets.length);
-      setTicketsUnread(allTickets.filter((t) => !!t.unread).length);
-    } catch (e) {
-      console.error("loadTicketStats failed", e);
-      setTicketsTotal(0);
-      setTicketsUnread(0);
+      setPelekan(j.data);
+    } catch (e: any) {
+      console.error("loadPelekanStats failed", e);
+      setPelekan(null);
+      setPelekanErr(String(e?.message || "pelekan_internal_error"));
+    } finally {
+      setPelekanLoading(false);
     }
   }
 
-
   useEffect(() => {
-  loadAllUsers();
-  loadTicketStats();
+  handleRefresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
@@ -398,6 +505,8 @@ if (cd) {
 };
   }, [rows]);
 
+const isRefreshing = loading || pelekanLoading || ticketsLoading;
+
   return (
     <div style={wrap}>
       <div style={headerRow}>
@@ -414,14 +523,14 @@ if (cd) {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
-  onClick={() => {
-    loadAllUsers();
-    loadTicketStats();
-  }}
-  disabled={loading}
-  style={btnPrimary}
->
-            بروزرسانی
+  onClick={handleRefresh}
+  disabled={isRefreshing}
+  style={{
+  ...btnPrimary,
+  opacity: isRefreshing ? 0.6 : 1,
+  cursor: isRefreshing ? "not-allowed" : "pointer",
+}}>
+          {isRefreshing ? "در حال بروزرسانی..." : "بروزرسانی"}
           </button>
           <div style={{ ...btn, cursor: "default", opacity: 0.9 }}>
             total(API): <b style={{ marginInlineStart: 6 }}>{total || stats.n}</b>
@@ -604,6 +713,241 @@ if (cd) {
   </div>
 </div>
 
+      {/* Pelekan analytics */}
+      <div style={{ marginTop: 14, ...card }}>
+        <div style={sectionTitle}>آمار پلکان درمان</div>
+        <div style={sectionBody}>
+          {pelekanLoading ? (
+            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+              در حال دریافت آمار پلکان…
+            </div>
+          ) : pelekanErr ? (
+            <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center" }}>
+              خطا در دریافت آمار پلکان: {pelekanErr}
+            </div>
+          ) : !pelekan ? (
+            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+              داده‌ای برای آمار پلکان موجود نیست.
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+                  gap: 12,
+                }}
+              >
+                <div style={statCard}>
+                  <div style={statLabel}>کل کاربران پلکان</div>
+                  <div style={statValue}>{pelekan.totalUsers}</div>
+                  <div style={statHint}>کاربرانی که وارد فرآیند درمان شده‌اند</div>
+                </div>
+
+                <div style={statCard}>
+                  <div style={statLabel}>درمان فعال</div>
+                  <div style={statValue}>{pelekan.activeTreatmentUsers}</div>
+                  <div style={statHint}>کاربران در حال طی مراحل درمان</div>
+                </div>
+
+                <div style={statCard}>
+                  <div style={statLabel}>ارزیابی تکمیل‌شده</div>
+                  <div style={statValue}>{pelekan.completedAssessmentUsers}</div>
+                  <div style={statHint}>کاربرانی که assessment را کامل کرده‌اند</div>
+                </div>
+
+                <div style={statCard}>
+                  <div style={statLabel}>پناهگاه فعال</div>
+                  <div style={statValue}>{pelekan.inShelterNow}</div>
+                  <div style={statHint}>کاربران حاضر در تب پناهگاه</div>
+                </div>
+
+                <div style={statCard}>
+                  <div style={statLabel}>پناه فعال</div>
+                  <div style={statValue}>{pelekan.inPanahNow}</div>
+                  <div style={statHint}>کاربران در ارتباط با درمانگر واقعی</div>
+                </div>
+              </div>
+
+                            <div style={{ marginTop: 12 }}>
+                {(pelekan.stageStats || []).length === 0 ? (
+                  <div
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 16,
+                      padding: "16px 12px",
+                      textAlign: "center",
+                      fontSize: 12,
+                      color: "#94a3b8",
+                    }}
+                  >
+                    هنوز داده‌ای برای مراحل پلکان ثبت نشده است.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 16,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1.2fr 0.7fr 0.7fr 1fr",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 900,
+    color: "#cbd5e1",
+  }}
+>
+  <div style={{ textAlign: "right" }}>مرحله</div>
+  <div style={{ textAlign: "center" }}>تعداد</div>
+  <div style={{ textAlign: "center" }}>میانگین روز</div>
+  <div style={{ textAlign: "center" }}>شدت</div>
+</div>
+
+                    {(pelekan.stageStats || []).map((s, index) => {
+  const sp = stagePercent(s.users, pelekan.totalUsers);
+  const tone = avgDaysTone(s.avgDays);
+  
+  return (
+    <div
+      key={s.key}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1.2fr 0.7fr 0.7fr 1fr",
+        padding: "10px 12px",
+        borderBottom:
+  index === (pelekan.stageStats || []).length - 1
+    ? "none"
+    : "1px solid rgba(255,255,255,0.06)",
+        fontSize: 12,
+        color: "#e2e8f0",
+        alignItems: "center",
+      }}
+    >
+      <div style={{ textAlign: "right", fontWeight: 900 }}>{s.title}</div>
+
+      <div style={{ textAlign: "center" }}>{s.users}</div>
+
+      <div style={{ display: "flex", justifyContent: "center" }}>
+  <div
+    style={{
+      minWidth: 72,
+      padding: "4px 8px",
+      borderRadius: 999,
+      textAlign: "center",
+      fontWeight: 900,
+      color: tone.color,
+      backgroundColor: tone.bg,
+      border: `1px solid ${tone.bg === "transparent" ? "rgba(255,255,255,0.08)" : tone.bg}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      whiteSpace: "nowrap",
+    }}
+  >
+    <span>{fmtAvgDays(s.avgDays)}</span>
+    <span style={{ fontSize: 10, opacity: 0.9 }}>{tone.label}</span>
+  </div>
+</div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            flex: 1,
+            height: 8,
+            borderRadius: 999,
+            backgroundColor: "rgba(255,255,255,0.06)",
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${sp}%`,
+              borderRadius: 999,
+              background:
+                sp >= 60
+                  ? "linear-gradient(90deg, #ef4444, #f97316)"
+                  : sp >= 30
+                  ? "linear-gradient(90deg, #f59e0b, #facc15)"
+                  : "linear-gradient(90deg, #22c55e, #38bdf8)",
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            minWidth: 38,
+            fontSize: 11,
+            fontWeight: 900,
+            color: "#cbd5e1",
+            textAlign: "left",
+          }}
+        >
+          {sp}%
+        </div>
+      </div>
+    </div>
+  );
+})}
+                  </div>
+                )}
+
+                                <div
+                  style={{
+                    marginTop: 12,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 14,
+                      padding: "10px 12px",
+                      backgroundColor: "rgba(234,88,12,0.06)",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: "#fdba74", fontWeight: 900 }}>
+                      نیازمند بررسی
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 20, fontWeight: 950, color: "#fff" }}>
+                      {pelekan.reviewUsers}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: "#94a3b8", lineHeight: 1.7 }}>
+                      کاربرانی که وضعیت پلکان آن‌ها بهتر است توسط ادمین یا درمانگر بررسی شود.
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 14,
+                      padding: "10px 12px",
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 900 }}>
+                      نکته محاسباتی
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8", lineHeight: 1.9 }}>
+                      میانگین روز هر مرحله فقط بر اساس داده‌های ثبت‌شده محاسبه می‌شود؛ اگر داده‌ای ناقص باشد، در عدد نهایی اثر مستقیم دارد.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Suggestions (Phase 2 hooks) */}
       <div style={{ marginTop: 12, ...card }}>
