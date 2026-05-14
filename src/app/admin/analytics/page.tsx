@@ -196,6 +196,9 @@ export default function AdminAnalyticsPage() {
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [ticketsTotal, setTicketsTotal] = useState<number>(0);
+  const [ticketsUnread, setTicketsUnread] = useState<number>(0);
+
 
   async function loadAllUsers(): Promise<void> {
     setLoading(true);
@@ -247,10 +250,37 @@ export default function AdminAnalyticsPage() {
     }
   }
 
+    async function loadTicketStats(): Promise<void> {
+    try {
+      const r = await fetch(`/api/admin/tickets?ts=${Date.now()}`, {
+        cache: "no-store",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
+      const ct = r.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) throw new Error("bad_ticket_response");
+
+      const j = await r.json();
+      if (!j?.ok || !Array.isArray(j.tickets)) throw new Error("ticket_request_failed");
+
+      const allTickets = j.tickets as Array<{ unread?: boolean }>;
+
+      setTicketsTotal(allTickets.length);
+      setTicketsUnread(allTickets.filter((t) => !!t.unread).length);
+    } catch (e) {
+      console.error("loadTicketStats failed", e);
+      setTicketsTotal(0);
+      setTicketsUnread(0);
+    }
+  }
+
+
   useEffect(() => {
-    loadAllUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  loadAllUsers();
+  loadTicketStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const stats = useMemo(() => {
     const n = rows.length;
@@ -383,7 +413,14 @@ if (cd) {
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={loadAllUsers} disabled={loading} style={btnPrimary}>
+          <button
+  onClick={() => {
+    loadAllUsers();
+    loadTicketStats();
+  }}
+  disabled={loading}
+  style={btnPrimary}
+>
             بروزرسانی
           </button>
           <div style={{ ...btn, cursor: "default", opacity: 0.9 }}>
@@ -482,7 +519,28 @@ if (cd) {
   </div>
   <div style={statHint}>فقط کاربران PRO فعال</div>
 </div>
+<div style={statCard}>
+  <div style={statLabel}>کل تیکت‌ها</div>
+  <div style={statValue}>{ticketsTotal}</div>
+  <div style={statHint}>تعداد کل پیام‌ها/درخواست‌های پشتیبانی ثبت‌شده</div>
+</div>
 
+<div style={statCard}>
+  <div style={statLabel}>تیکت‌های خوانده‌نشده</div>
+  <div
+    style={{
+      ...statValue,
+      color: ticketsUnread > 0 ? "#ef4444" : "#22c55e",
+    }}
+  >
+    {ticketsUnread}
+  </div>
+  <div style={statHint}>
+    {ticketsUnread > 0
+      ? "نیازمند رسیدگی فوری توسط درمانگر یا ادمین"
+      : "فعلاً مورد فوری وجود ندارد"}
+  </div>
+</div>
         </div>
       </div>
 
