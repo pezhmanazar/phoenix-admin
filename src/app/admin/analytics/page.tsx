@@ -244,6 +244,7 @@ const statCard: React.CSSProperties = {
   backgroundColor: "rgba(255,255,255,0.03)",
   padding: 14,
   minWidth: 0,
+  height: "100%",
 };
 
 const statLabel: React.CSSProperties = {
@@ -279,28 +280,6 @@ const sectionTitle: React.CSSProperties = {
 const sectionBody: React.CSSProperties = {
   padding: 12,
 };
-
-function ResponsiveGrid({
-  minWidth,
-  gap = 12,
-  children,
-}: {
-  minWidth: number;
-  gap?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(auto-fit, minmax(${minWidth}px, 1fr))`,
-        gap,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 function BarRow({
   label,
@@ -435,7 +414,7 @@ function BarRow({
 }
 
 export default function AdminAnalyticsPage() {
-  const { isMobile, isTablet } = useViewport();
+  const { isMobile, isTablet, isDesktop } = useViewport();
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -489,17 +468,10 @@ export default function AdminAnalyticsPage() {
 
       setRows(all);
       setTotal(totalFromApi || all.length);
-
-      const maxUpdated = all
-        .map((u) => safeDate(u.updatedAt || null)?.getTime() || 0)
-        .reduce((a, b) => Math.max(a, b), 0);
-
-      setLastUpdatedAt(maxUpdated ? new Date(maxUpdated).toISOString() : null);
     } catch (e: any) {
       setErr(String(e?.message || "internal_error"));
       setRows([]);
       setTotal(0);
-      setLastUpdatedAt(null);
     } finally {
       setLoading(false);
     }
@@ -568,6 +540,7 @@ export default function AdminAnalyticsPage() {
     refreshLockRef.current = true;
     try {
       await Promise.all([loadAllUsers(), loadTicketStats(), loadPelekanStats()]);
+      setLastUpdatedAt(new Date().toISOString());
     } finally {
       refreshLockRef.current = false;
     }
@@ -690,6 +663,60 @@ export default function AdminAnalyticsPage() {
 
   const isRefreshing = loading || pelekanLoading || ticketsLoading;
 
+  const topCardsGridStyle: React.CSSProperties = isDesktop
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : isTablet
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : {
+        display: "grid",
+        gridTemplateColumns: "1fr",
+        gap: 12,
+      };
+
+  const pelekanStatsGridStyle: React.CSSProperties = isDesktop
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : isTablet
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : {
+        display: "grid",
+        gridTemplateColumns: "1fr",
+        gap: 12,
+      };
+
+  const bottomInfoGridStyle: React.CSSProperties = isDesktop
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : isTablet
+    ? {
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 12,
+      }
+    : {
+        display: "grid",
+        gridTemplateColumns: "1fr",
+        gap: 12,
+      };
+
   return (
     <div
       style={{
@@ -777,7 +804,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <ResponsiveGrid minWidth={isMobile ? 140 : isTablet ? 220 : 240}>
+        <div style={topCardsGridStyle}>
           <div style={statCard}>
             <div style={statLabel}>کل کاربران</div>
             <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{stats.n}</div>
@@ -934,11 +961,21 @@ export default function AdminAnalyticsPage() {
                 : "فعلاً مورد فوری وجود ندارد"}
             </div>
           </div>
-        </ResponsiveGrid>
+        </div>
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <ResponsiveGrid minWidth={isMobile ? 260 : 320}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isDesktop
+              ? "repeat(3, minmax(0, 1fr))"
+              : isTablet
+              ? "repeat(2, minmax(0, 1fr))"
+              : "1fr",
+            gap: 12,
+          }}
+        >
           <div style={card}>
             <div style={sectionTitle}>تفکیک پلن</div>
             <div style={sectionBody}>
@@ -1049,16 +1086,36 @@ export default function AdminAnalyticsPage() {
               </div>
             </div>
           </div>
-        </ResponsiveGrid>
+        </div>
       </div>
 
       <div style={{ marginTop: 14, ...card }}>
         <div style={sectionTitle}>توزیع کاربران PRO فعال بر اساس روز باقی‌مانده</div>
         <div style={sectionBody}>
-          <BarRow label="۰ تا ۳ روز" value={stats.pro0to3} total={stats.byPlan.pro} mobile={isMobile} />
-          <BarRow label="۴ تا ۷ روز" value={stats.pro4to7} total={stats.byPlan.pro} mobile={isMobile} />
-          <BarRow label="۸ تا ۳۰ روز" value={stats.pro8to30} total={stats.byPlan.pro} mobile={isMobile} />
-          <BarRow label="۳۰+ روز" value={stats.pro30plus} total={stats.byPlan.pro} mobile={isMobile} />
+          <BarRow
+            label="۰ تا ۳ روز"
+            value={stats.pro0to3}
+            total={stats.byPlan.pro}
+            mobile={isMobile}
+          />
+          <BarRow
+            label="۴ تا ۷ روز"
+            value={stats.pro4to7}
+            total={stats.byPlan.pro}
+            mobile={isMobile}
+          />
+          <BarRow
+            label="۸ تا ۳۰ روز"
+            value={stats.pro8to30}
+            total={stats.byPlan.pro}
+            mobile={isMobile}
+          />
+          <BarRow
+            label="۳۰+ روز"
+            value={stats.pro30plus}
+            total={stats.byPlan.pro}
+            mobile={isMobile}
+          />
 
           <div
             style={{
@@ -1091,7 +1148,7 @@ export default function AdminAnalyticsPage() {
             </div>
           ) : (
             <>
-              <ResponsiveGrid minWidth={isMobile ? 220 : 260}>
+              <div style={pelekanStatsGridStyle}>
                 <div style={statCard}>
                   <div style={statLabel}>ورود به درمان</div>
                   <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
@@ -1178,16 +1235,18 @@ export default function AdminAnalyticsPage() {
                     کاربرانی که baseline را شروع کرده‌اند اما کامل نکرده‌اند
                   </div>
                 </div>
-              </ResponsiveGrid>
+              </div>
 
               <div style={{ marginTop: 12 }}>
-                <ResponsiveGrid minWidth={isMobile ? 260 : 360}>
+                <div style={bottomInfoGridStyle}>
                   <div
                     style={{
                       border: "1px solid rgba(255,255,255,0.08)",
                       borderRadius: 16,
                       padding: 14,
                       backgroundColor: "rgba(255,255,255,0.03)",
+                      minWidth: 0,
+                      height: "100%",
                     }}
                   >
                     <div
@@ -1252,6 +1311,8 @@ export default function AdminAnalyticsPage() {
                       borderRadius: 16,
                       padding: 14,
                       backgroundColor: "rgba(255,255,255,0.03)",
+                      minWidth: 0,
+                      height: "100%",
                     }}
                   >
                     <div
@@ -1306,7 +1367,57 @@ export default function AdminAnalyticsPage() {
                       mobile={isMobile}
                     />
                   </div>
-                </ResponsiveGrid>
+
+                  <div
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 14,
+                      padding: "10px 12px",
+                      backgroundColor: "rgba(234,88,12,0.06)",
+                      minWidth: 0,
+                      height: "100%",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, color: "#fdba74", fontWeight: 900 }}>
+                      کاربران گیرکرده در درمان
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: 20,
+                        fontWeight: 950,
+                        color: "#fff",
+                      }}
+                    >
+                      {pelekan.stuck.treatmentOver7d}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 11,
+                        color: "#94a3b8",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      تعداد کاربران فعالی که بیش از ۷ روز در مرحله فعلی درمان مانده‌اند.
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 14,
+                        paddingTop: 10,
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                        fontSize: 12,
+                        color: "#94a3b8",
+                        lineHeight: 1.9,
+                      }}
+                    >
+                      توزیع مراحل فقط کاربران فعال درمان را نشان می‌دهد. شاخص «منتظر خرید
+                      اشتراک» بر اساس کاربران FREE محاسبه می‌شود که ویس شروع پلکان را کامل
+                      کرده‌اند اما هنوز PRO نشده‌اند.
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div style={{ marginTop: 12 }}>
@@ -1447,68 +1558,6 @@ export default function AdminAnalyticsPage() {
                     </div>
                   </div>
                 )}
-
-                <div style={{ marginTop: 12 }}>
-                  <ResponsiveGrid minWidth={isMobile ? 260 : 320} gap={10}>
-                    <div
-                      style={{
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 14,
-                        padding: "10px 12px",
-                        backgroundColor: "rgba(234,88,12,0.06)",
-                      }}
-                    >
-                      <div style={{ fontSize: 11, color: "#fdba74", fontWeight: 900 }}>
-                        کاربران گیرکرده در درمان
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 6,
-                          fontSize: 20,
-                          fontWeight: 950,
-                          color: "#fff",
-                        }}
-                      >
-                        {pelekan.stuck.treatmentOver7d}
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 4,
-                          fontSize: 11,
-                          color: "#94a3b8",
-                          lineHeight: 1.7,
-                        }}
-                      >
-                        تعداد کاربران فعالی که بیش از ۷ روز در مرحله فعلی درمان مانده‌اند.
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 14,
-                        padding: "10px 12px",
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                      }}
-                    >
-                      <div style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 900 }}>
-                        نکته محاسباتی
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 6,
-                          fontSize: 12,
-                          color: "#94a3b8",
-                          lineHeight: 1.9,
-                        }}
-                      >
-                        توزیع مراحل فقط کاربران فعال درمان را نشان می‌دهد. شاخص «منتظر خرید
-                        اشتراک» بر اساس کاربران FREE محاسبه می‌شود که ویس شروع پلکان را کامل
-                        کرده‌اند اما هنوز PRO نشده‌اند.
-                      </div>
-                    </div>
-                  </ResponsiveGrid>
-                </div>
               </div>
             </>
           )}
