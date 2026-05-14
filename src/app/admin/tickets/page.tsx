@@ -1,434 +1,856 @@
-// src/app/admin/analytics/page.tsx
+// src/app/admin/tickets/page.tsx
 "use client";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
-import React, { useEffect, useMemo, useState } from "react";
-
-type UserRow = {
+type Ticket = {
   id: string;
-  phone: string;
-  fullName: string;
-  gender?: string | null;
-  birthDate?: string | null;
-  plan: "free" | "pro" | string;
-  planExpiresAt?: string | null;
-  profileCompleted?: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  title: string;
+  description: string;
+  status: "open" | "pending" | "closed";
+  type: "tech" | "therapy";
+  createdAt: string;
+  pinned?: boolean;
+  unread?: boolean;
+  user?: {
+    id: string;
+    fullName?: string | null;
+    phone?: string | null;
+  } | null;
+  assignedAdmin?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | null;
+  userName?: string | null;
+displayName?: string | null;
+openedByName?: string | null;
+  contact?: string | { name?: string };
+  email?: string;
+  phone?: string;
+  updatedAt?: string;
+  messages?: Array<{ id: string; createdAt: string; sender?: "user" | "admin" }>;
+  lastAt?: string;
+  _lastSender?: "user" | "admin" | null;
 };
 
-type UsersResponse = {
-  ok: true;
-  page: number;
-  limit: number;
-  total: number;
-  users: UserRow[];
-};
-
-function safeDate(v?: string | null) {
-  if (!v) return null;
-  const d = new Date(v);
-  return Number.isFinite(d.getTime()) ? d : null;
+function buildQuery(params: Record<string, string | undefined>) {
+  const usp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v && v.trim()) usp.set(k, v.trim());
+  });
+  return usp.toString() ? `?${usp.toString()}` : "";
 }
 
-function daysLeft(expiresAt?: string | null) {
-  const d = safeDate(expiresAt);
-  if (!d) return null;
-  const ms = d.getTime() - Date.now();
-  return Math.ceil(ms / (24 * 3600 * 1000));
+function relativeDate(iso: string) {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const s = Math.floor(diffMs / 1000);
+  if (s < 60) return `${s} ثانیه پیش`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} دقیقه پیش`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ساعت پیش`;
+  const day = Math.floor(h / 24);
+  if (day < 7) return `${day} روز پیش`;
+  return d.toLocaleString("fa-IR");
 }
 
-function planState(u: UserRow) {
-  if (u.plan !== "pro") return "free" as const;
-  const dl = daysLeft(u.planExpiresAt || null);
-  if (dl === null) return "pro" as const;
-  if (dl <= 0) return "expired" as const;
-  if (dl <= 3) return "expiring" as const;
-  return "pro" as const;
+function extractLastAt(t: any): string {
+  const fromUpdated =
+    t?.updatedAt && !isNaN(Date.parse(t.updatedAt)) ? t.updatedAt : null;
+  const lastMsgAt =
+    Array.isArray(t?.messages) && t.messages.length
+      ? t.messages[t.messages.length - 1]?.createdAt
+      : null;
+  const fromCreated = t?.createdAt;
+  const iso =
+    (lastMsgAt && !isNaN(Date.parse(lastMsgAt)) && lastMsgAt) ||
+    (fromUpdated && fromUpdated) ||
+    fromCreated;
+  return iso;
 }
 
-function genderKey(g?: string | null) {
-  const x = String(g || "").toLowerCase();
-  if (x === "male" || x === "m") return "male" as const;
-  if (x === "female" || x === "f") return "female" as const;
-  if (!x) return "unknown" as const;
-  return "other" as const;
-}
-
-function fmtFa(v?: string | null) {
-  const d = safeDate(v);
-  if (!d) return "—";
-  try {
-    return new Intl.DateTimeFormat("fa-IR", {
-      timeZone: "Asia/Tehran",
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(d);
-  } catch {
-    return d.toISOString();
+function extractLastSender(t: any): "user" | "admin" | null {
+  if (Array.isArray(t?.messages) && t.messages.length) {
+    const s = t.messages[t.messages.length - 1]?.sender;
+    if (s === "user" || s === "admin") return s as "user" | "admin";
   }
+  return null;
 }
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
+function cleanName(v: any) {
+  const s = typeof v === "string" ? v.trim() : "";
+  if (!s) return "";
+  if (s === "کاربر" || s === "—") return "";
+  return s;
 }
 
-function pct(n: number, total: number) {
-  if (!total) return "0%";
-  return `${Math.round((n / total) * 100)}%`;
+function normalizeText(v: any) {
+  return String(v ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک");
 }
 
-/* -------------------- UI styles (match your admin vibe) -------------------- */
-const wrap: React.CSSProperties = { maxWidth: 1200, marginInline: "auto" };
-
-const card: React.CSSProperties = {
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 18,
-  backgroundColor: "rgba(255,255,255,0.03)",
-  overflow: "hidden",
-};
-
-const headerRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "flex-end",
-  justifyContent: "space-between",
-  gap: 12,
-  flexWrap: "wrap",
-};
-
-const title: React.CSSProperties = { margin: 0, fontSize: 22, fontWeight: 950 };
-
-const sub: React.CSSProperties = { marginTop: 6, fontSize: 12, color: "#94a3b8" };
-
-const btn: React.CSSProperties = {
-  padding: "9px 12px",
-  borderRadius: 12,
-  border: "1px solid #334155",
-  backgroundColor: "#0b1220",
-  color: "#e2e8f0",
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-};
-
-const btnPrimary: React.CSSProperties = {
-  ...btn,
-  border: "1px solid #7c2d12",
-  backgroundColor: "#ea580c",
-  color: "#fff",
-};
-
-const grid: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-  gap: 12,
-};
-
-const statCard: React.CSSProperties = {
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 18,
-  backgroundColor: "rgba(255,255,255,0.03)",
-  padding: 14,
-};
-
-const statLabel: React.CSSProperties = { fontSize: 12, color: "#94a3b8", fontWeight: 800 };
-const statValue: React.CSSProperties = { marginTop: 6, fontSize: 24, fontWeight: 950 };
-const statHint: React.CSSProperties = { marginTop: 6, fontSize: 11, color: "#64748b", lineHeight: 1.6 };
-
-const sectionTitle: React.CSSProperties = {
-  padding: "10px 12px",
-  borderBottom: "1px solid rgba(255,255,255,0.06)",
-  color: "#cbd5e1",
-  fontSize: 13,
-  fontWeight: 900,
-  textAlign: "center",
-};
-
-const sectionBody: React.CSSProperties = { padding: 12 };
-
-function BarRow({
-  label,
-  value,
-  total,
-}: {
-  label: string;
-  value: number;
-  total: number;
-}) {
-  const p = total ? (value / total) * 100 : 0;
-  const w = clamp(p, 0, 100);
-
+// ---------- چیپ‌ها با استایل inline مثل لاگین ----------
+function StatusChip({ status }: { status: Ticket["status"] }) {
+  let bg = "#1e293b";
+  let color = "#bfdbfe";
+  let label = "باز";
+  if (status === "pending") {
+    bg = "#422006";
+    color = "#facc15";
+    label = "در انتظار";
+  }
+  if (status === "closed") {
+    bg = "#022c22";
+    color = "#bbf7d0";
+    label = "بسته";
+  }
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 70px", gap: 10, alignItems: "center", marginTop: 10 }}>
-      <div style={{ fontSize: 12, fontWeight: 900, color: "#e2e8f0", textAlign: "right" }}>{label}</div>
-      <div
-        style={{
-          height: 10,
-          borderRadius: 999,
-          backgroundColor: "rgba(255,255,255,0.06)",
-          overflow: "hidden",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${w}%`,
-            borderRadius: 999,
-            background: "linear-gradient(90deg, rgba(234,88,12,0.35), rgba(124,58,237,0.35))",
-          }}
-        />
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 900, color: "#cbd5e1", textAlign: "left" }}>
-        {value} <span style={{ opacity: 0.7 }}>({pct(value, total)})</span>
-      </div>
-    </div>
+    <span
+      style={{
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: "11px",
+        fontWeight: 700,
+        backgroundColor: bg,
+        color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
   );
 }
 
-export default function AdminAnalyticsPage() {
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+function TypeChip({ type }: { type: Ticket["type"] }) {
+  let bg = "#0f172a";
+  let color = "#7dd3fc";
+  let label = "پشتیبانی فنی";
+  if (type === "therapy") {
+    bg = "#1e1b4b";
+    color = "#e9d5ff";
+    label = "ارتباط با درمانگر";
+  }
+  return (
+    <span
+      style={{
+        padding: "4px 8px",
+        borderRadius: 999,
+        fontSize: "11px",
+        fontWeight: 700,
+        backgroundColor: bg,
+        color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
-  // Optional: allow filtering by q same as users endpoint (later you can wire UI)
-  const [q] = useState<string>("");
+export default function TicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+ const [status, setStatus] = useState<"" | "open" | "unread">("");
+const [type, setType] = useState<"" | "tech" | "therapy">("");
+const [q, setQ] = useState("");
+const [debouncedQ, setDebouncedQ] = useState("");
+const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
+const [page, setPage] = useState(1);
 
-  const [rows, setRows] = useState<UserRow[]>([]);
-  const [total, setTotal] = useState<number>(0);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(tickets.length / pageSize));
 
-  async function loadAllUsers(): Promise<void> {
-    setLoading(true);
-    setErr(null);
+  const pagedTickets = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return tickets.slice(start, start + pageSize);
+  }, [tickets, page]);
 
+  const assignedAdmins = useMemo(() => {
+  const map = new Map<string, string>();
+
+  tickets.forEach((t) => {
+    if (!t.assignedAdmin?.id) return;
+
+    const label =
+      t.assignedAdmin.name?.trim() ||
+      t.assignedAdmin.email?.trim() ||
+      "ادمین بدون نام";
+
+    map.set(t.assignedAdmin.id, label);
+  });
+
+  return Array.from(map.entries()).map(([id, label]) => ({
+    id,
+    label,
+  }));
+}, [tickets]);
+
+  const query = useMemo(
+  () => buildQuery({ status, type }),
+  [status, type]
+);
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedQ(q);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [q]);
+
+
+  async function fetchTickets() {
     try {
-      const all: UserRow[] = [];
-      let p = 1;
-      const per = 200; // keep it safe
-      let totalFromApi = 0;
+      setLoading(true);
+      const res = await fetch(`/api/admin/tickets${query}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const withDisplay: Ticket[] = (data.tickets as Ticket[]).map((t: any) => {
+  const lastAt = extractLastAt(t);
+  const _lastSender = extractLastSender(t);
 
-      while (true) {
-        const url = `/api/admin/users?q=${encodeURIComponent(q || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
-        const r = await fetch(url, {
-          cache: "no-store",
-          credentials: "include",
-          headers: { Accept: "application/json" },
+  return {
+    ...(t as Ticket),
+    lastAt,
+    _lastSender,
+  };
+});
+        const unreadFiltered =
+  status === "unread"
+    ? withDisplay.filter((t) => t.unread)
+    : withDisplay;
+
+const filtered = unreadFiltered.filter((t) => {
+  const matchesAdmin = (() => {
+    if (!assignedAdminFilter) return true;
+
+    if (assignedAdminFilter === "__unassigned__") {
+      return !t.assignedAdmin?.id;
+    }
+
+    return t.assignedAdmin?.id === assignedAdminFilter;
+  })();
+
+  if (!matchesAdmin) return false;
+
+  const search = normalizeText(debouncedQ);
+  if (!search) return true;
+
+  const userName =
+    cleanName(t.user?.fullName) ||
+    cleanName((t.user as any)?.full_name) ||
+    cleanName(t.displayName) ||
+    cleanName(t.userName) ||
+    cleanName(t.openedByName) ||
+    cleanName(
+      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
+    ) ||
+    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
+    cleanName(t.phone) ||
+    cleanName(t.email) ||
+    cleanName(t.title);
+
+  const haystack = [
+    userName,
+    t.title,
+    t.description,
+    t.phone,
+    t.email,
+    typeof t.contact === "string" ? t.contact : "",
+    typeof t.contact === "object" && t.contact ? t.contact.name : "",
+  ]
+    .map((item) => normalizeText(item))
+    .join(" ");
+
+  return haystack.includes(search);
+});
+        const sorted = filtered.slice().sort((a, b) => {
+          const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
+          if (pinOrder !== 0) return pinOrder;
+          const aTime = new Date(a.lastAt || a.createdAt).getTime();
+          const bTime = new Date(b.lastAt || b.createdAt).getTime();
+          return bTime - aTime;
         });
-        const ct = r.headers.get("content-type") || "";
-        if (!ct.includes("application/json")) throw new Error("bad_response");
-        const j = (await r.json()) as UsersResponse;
-        if (!j?.ok) throw new Error("request_failed");
-
-        totalFromApi = j.total || totalFromApi;
-        all.push(...(j.users || []));
-
-        if ((j.users || []).length === 0) break;
-        if (all.length >= (j.total || 0)) break;
-
-        p++;
-        if (p > 200) break; // safety
+        setTickets(sorted);
+        setPage(1);
+      } else {
+        console.error("API Error:", data.error);
       }
-
-      setRows(all);
-      setTotal(totalFromApi || all.length);
-
-      // last updated: max(updatedAt)
-      const maxUpdated = all
-        .map((u) => safeDate(u.updatedAt || null)?.getTime() || 0)
-        .reduce((a, b) => Math.max(a, b), 0);
-      setLastUpdatedAt(maxUpdated ? new Date(maxUpdated).toISOString() : null);
-    } catch (e: any) {
-      setErr(String(e?.message || "internal_error"));
-      setRows([]);
-      setTotal(0);
-      setLastUpdatedAt(null);
+    } catch (e) {
+      console.error("Fetch failed:", e);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadAllUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  fetchTickets();
+  const t = setInterval(fetchTickets, 50000);
+  return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [query, assignedAdminFilter, debouncedQ]);
 
-  const stats = useMemo(() => {
-    const n = rows.length;
-
-    const byPlan = {
-      free: 0,
-      pro: 0,
-      expiring: 0,
-      expired: 0,
-    };
-
-    const byGender = {
-      male: 0,
-      female: 0,
-      other: 0,
-      unknown: 0,
-    };
-
-    let completed = 0;
-
-    // growth last 7/30 days
-    const now = Date.now();
-    let new7 = 0;
-    let new30 = 0;
-
-    for (const u of rows) {
-      const ps = planState(u);
-      byPlan[ps]++;
-
-      const gk = genderKey(u.gender || null);
-      byGender[gk]++;
-
-      if (u.profileCompleted) completed++;
-
-      const cd = safeDate(u.createdAt || null)?.getTime() || 0;
-      if (cd) {
-        if (cd >= now - 7 * 24 * 3600 * 1000) new7++;
-        if (cd >= now - 30 * 24 * 3600 * 1000) new30++;
-      }
+  async function markReadOptimistic(ticketId: string) {
+    setTickets((prev) =>
+      prev.map((t) => (t.id === ticketId ? { ...t, unread: false } : t))
+    );
+    try {
+      await fetch(`/api/admin/tickets/${ticketId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unread: false }),
+      });
+    } catch (err) {
+      console.error("markRead failed:", err);
     }
-
-    const completionRate = n ? Math.round((completed / n) * 100) : 0;
-    const proRate = n ? Math.round((byPlan.pro / n) * 100) : 0;
-    const expiringRate = n ? Math.round((byPlan.expiring / n) * 100) : 0;
-    const expiredRate = n ? Math.round((byPlan.expired / n) * 100) : 0;
-
-
-    return {
-  n,
-  completed,
-  completionRate,
-  proRate,
-  expiringRate,
-  expiredRate,
-  byPlan,
-  byGender,
-  new7,
-  new30,
-};
-  }, [rows]);
-
+  }
+  // ---------- UI شبیه لاگین: container وسط صفحه با کارت ----------
   return (
-    <div style={wrap}>
-      <div style={headerRow}>
-        <div>
-          <h1 style={title}>آمار و تحلیل</h1>
-          <div style={sub}>
-            {loading
-              ? "در حال دریافت داده‌ها…"
-              : err
-              ? `خطا: ${err}`
-              : `کل کاربران: ${stats.n}  •  آخرین بروزرسانی: ${lastUpdatedAt ? fmtFa(lastUpdatedAt) : "—"}`}
+    <div
+      style={{
+        minHeight: "calc(100vh - 64px)", // زیر هدر layout
+        backgroundColor: "#000",
+        color: "#fff",
+        display: "flex",
+        justifyContent: "center",
+        padding: "32px 16px",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "1080px",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* هدر صفحه */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            alignItems: "center",
+            marginBottom: "12px",
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: 800,
+                marginBottom: "4px",
+              }}
+            >
+              🎫 لیست تیکت‌ها
+            </h1>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#9ca3af",
+              }}
+            >
+              اینجا تمام تیکت‌های کاربران را می‌بینی و می‌توانی آن‌ها را مدیریت کنی.
+            </p>
           </div>
+          <span
+            style={{
+              borderRadius: 999,
+              border: "1px solid #333",
+              backgroundColor: "#0b0b0b",
+              padding: "4px 10px",
+              fontSize: "11px",
+              color: "#e5e7eb",
+              whiteSpace: "nowrap",
+            }}
+          >
+            مجموع تیکت‌ها:{" "}
+            <span style={{ color: "#fb923c", fontWeight: 700 }}>
+              {tickets.length}
+            </span>
+          </span>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={loadAllUsers} disabled={loading} style={btnPrimary}>
-            بروزرسانی
-          </button>
-          <div style={{ ...btn, cursor: "default", opacity: 0.9 }}>
-            total(API): <b style={{ marginInlineStart: 6 }}>{total || stats.n}</b>
-          </div>
-        </div>
-      </div>
+        {/* کارت فیلتر + لیست */}
+        <div
+          style={{
+            width: "100%",
+            padding: "20px 20px 16px",
+            borderRadius: "18px",
+            border: "1px solid #222",
+            backgroundColor: "#050505",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.65)",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* فیلترها */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "10px",
+            }}
+          >
+            {/* وضعیت */}
+            <div style={{ minWidth: "150px", flex: "1 1 120px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                وضعیت
+              </label>
+              <select
+                value={status}
+                onChange={(e) =>
+  setStatus(e.target.value as "" | "open" | "unread")
+}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              >
+                <option value="">همه</option>
+                <option value="open">باز</option>
+                <option value="unread">خوانده‌نشده</option>
+              </select>
+            </div>
 
-      {/* Stat cards */}
-      <div style={{ marginTop: 14 }}>
-        <div style={grid}>
-          <div style={statCard}>
-            <div style={statLabel}>کل کاربران</div>
-            <div style={statValue}>{stats.n}</div>
-            <div style={statHint}>نمایش بر اساس لیست کاربران (paginate)</div>
+            {/* نوع */}
+            <div style={{ minWidth: "150px", flex: "1 1 120px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                نوع
+              </label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as "" | "tech" | "therapy")}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              >
+                <option value="">همه</option>
+                <option value="tech">پشتیبانی فنی</option>
+                <option value="therapy">ارتباط با درمانگر</option>
+              </select>
+            </div>
+
+            {/* جستجو */}
+            <div style={{ flex: "2 1 200px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                جستجو
+              </label>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="نام کاربر، توضیح یا راه ارتباط…"
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              />
+            </div>
+            {/* ادمین مسئول */}
+<div style={{ flex: "1 1 180px" }}>
+  <label
+    style={{
+      display: "block",
+      fontSize: "12px",
+      marginBottom: "4px",
+      opacity: 0.85,
+    }}
+  >
+    ادمین مسئول
+  </label>
+
+  <select
+  value={assignedAdminFilter}
+  onChange={(e) => {
+    setPage(1);
+    setAssignedAdminFilter(e.target.value);
+  }}
+  style={{
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: "8px",
+    border: "1px solid #333",
+    backgroundColor: "#000",
+    color: "#fff",
+    fontSize: "12px",
+    boxSizing: "border-box",
+    outline: "none",
+  }}
+>
+  <option value="">همه ادمین‌ها</option>
+  <option value="__unassigned__">تخصیص‌نشده</option>
+  {assignedAdmins.map((admin) => (
+    <option key={admin.id} value={admin.id}>
+      {admin.label}
+    </option>
+  ))}
+</select>
+</div>
           </div>
 
-          <div style={statCard}>
-            <div style={statLabel}>کاربران جدید</div>
-            <div style={statValue}>{stats.new7}</div>
-            <div style={statHint}>۷ روز اخیر • ۳۰ روز اخیر: {stats.new30}</div>
-          </div>
-
-          <div style={statCard}>
-            <div style={statLabel}>تکمیل پروفایل</div>
-            <div style={statValue}>{stats.completionRate}%</div>
-            <div style={statHint}>
-              کامل: {stats.completed} • ناقص: {Math.max(0, stats.n - stats.completed)}
+          {/* ردیف زیر فیلتر: توضیح + دکمه‌ها */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "11px",
+                color: "#9ca3af",
+              }}
+            >
+              ردیف‌های سنجاق‌شده همیشه بالاتر از بقیه نمایش داده می‌شوند.
+            </span>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={fetchTickets}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "9px",
+                  border: "none",
+                  backgroundColor: "#ea580c",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                اعمال فیلتر
+              </button>
+              <button
+                onClick={() => {
+                  setStatus("");
+                  setType("");
+                  setQ("");
+                  setAssignedAdminFilter("");
+                }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "9px",
+                  border: "1px solid #333",
+                  backgroundColor: "#111827",
+                  color: "#e5e7eb",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                پاک‌سازی
+              </button>
             </div>
           </div>
 
-          <div style={statCard}>
-            <div style={statLabel}>کاربران PRO (فعال)</div>
-            <div style={statValue}>{stats.byPlan.pro}</div>
-            <div style={statHint}>
-              نزدیک انقضا: {stats.byPlan.expiring} • منقضی: {stats.byPlan.expired}
+          {/* خط جداکننده */}
+          <div
+            style={{
+              height: "1px",
+              width: "100%",
+              background:
+                "linear-gradient(90deg, transparent, #374151, transparent)",
+              marginBottom: "10px",
+            }}
+          />
+
+          {/* محتوا */}
+          {loading ? (
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#e5e7eb",
+                textAlign: "center",
+                padding: "10px 0",
+              }}
+            >
+              ⏳ در حال بارگذاری...
+            </p>
+          ) : tickets.length === 0 ? (
+            <div
+              style={{
+                padding: "20px 12px",
+                borderRadius: "12px",
+                border: "1px dashed #374151",
+                backgroundColor: "#020617",
+                fontSize: "12px",
+                color: "#e5e7eb",
+                textAlign: "center",
+              }}
+            >
+              هیچ تیکتی پیدا نشد.
             </div>
-          </div>
-          <div style={statCard}>
-  <div style={statLabel}>درصد کاربران PRO</div>
-  <div style={statValue}>{stats.proRate}%</div>
-  <div style={statHint}>از کل {stats.n} کاربر</div>
+          ) : (
+            <div
+              style={{
+                borderRadius: "12px",
+                border: "1px solid #1f2933",
+                backgroundColor: "#020617",
+                maxHeight: "520px",
+                overflowY: "auto",
+              }}
+            >
+              {/* هدر لیست */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "3fr 1.5fr 1.5fr 2fr",
+                  gap: "8px",
+                  padding: "10px 12px",
+                  borderBottom: "1px solid #111827",
+                  fontSize: "11px",
+                  color: "#9ca3af",
+                }}
+              >
+                <div style={{ textAlign: "center" }}>کاربر</div>
+                <div style={{ textAlign: "center" }}>نوع</div>
+                <div style={{ textAlign: "center" }}>وضعیت</div>
+                <div style={{ textAlign: "center" }}>آخرین فعالیت</div>
+              </div>
+
+              {/* ردیف‌ها */}
+              {pagedTickets.map((t) => {
+  const u = t.user || null;
+
+  const nameToShow =
+    cleanName(u?.fullName) ||
+    cleanName((u as any)?.full_name) ||
+    cleanName(t.displayName) ||
+    cleanName(t.userName) ||
+    cleanName(t.openedByName) ||
+    cleanName(
+      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
+    ) ||
+    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
+    cleanName(t.phone) ||
+    cleanName(t.email) ||
+    cleanName(t.title) ||
+    "کاربر";
+
+  const lastAt = t.lastAt || t.createdAt;
+  const isUnread = !!t.unread;
+  const assignedAdminName =
+  t.assignedAdmin?.name?.trim() ||
+  t.assignedAdmin?.email?.trim() ||
+  "تخصیص نشده";
+
+
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "3fr 1.5fr 1.5fr 2fr",
+                      gap: "8px",
+                      padding: "9px 12px",
+                      borderBottom: "1px solid #111827",
+                      backgroundColor: isUnread ? "#020617" : "transparent",
+                      alignItems: "center",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {/* کاربر */}
+<div style={{ textAlign: "center" }}>
+  <Link
+    href={`/admin/tickets/${t.id}`}
+    onClick={() => markReadOptimistic(t.id)}
+    style={{
+      color: "#fb923c",
+      textDecoration: "none",
+      display: "inline-flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      fontWeight: isUnread ? 700 : 500,
+    }}
+  >
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+      }}
+    >
+      {t.pinned ? (
+        <span
+          title="سنجاق‌شده"
+          style={{ color: "#facc15", fontSize: "11px" }}
+        >
+          ★
+        </span>
+      ) : null}
+
+      <span>{nameToShow}</span>
+
+      {isUnread && (
+        <span
+          title="خوانده‌نشده"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "999px",
+            backgroundColor: "#ef4444",
+            display: "inline-block",
+          }}
+        />
+      )}
+    </div>
+
+    <span
+      style={{
+        fontSize: "11px",
+        color: t.assignedAdmin ? "#93c5fd" : "#6b7280",
+        fontWeight: 400,
+      }}
+    >
+      مسئول: {assignedAdminName}
+    </span>
+  </Link>
 </div>
 
-<div style={statCard}>
-  <div style={statLabel}>نزدیک انقضا</div>
-  <div style={{ ...statValue, color: "#f59e0b" }}>{stats.byPlan.expiring}</div>
-  <div style={statHint}>{stats.expiringRate}% از کل کاربران</div>
-</div>
 
-<div style={statCard}>
-  <div style={statLabel}>منقضی‌شده</div>
-  <div style={{ ...statValue, color: "#f43f5e" }}>{stats.byPlan.expired}</div>
-  <div style={statHint}>{stats.expiredRate}% از کل کاربران</div>
-</div>
+                    {/* نوع */}
+                    <div style={{ textAlign: "center" }}>
+                      <TypeChip type={t.type} />
+                    </div>
 
-        </div>
-      </div>
+                    {/* وضعیت */}
+                    <div style={{ textAlign: "center" }}>
+                      <StatusChip status={t.status} />
+                    </div>
 
-      {/* Charts */}
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Plan breakdown */}
-        <div style={card}>
-          <div style={sectionTitle}>تفکیک پلن</div>
-          <div style={sectionBody}>
-            <BarRow label="FREE" value={stats.byPlan.free} total={stats.n} />
-            <BarRow label="PRO" value={stats.byPlan.pro} total={stats.n} />
-            <BarRow label="نزدیک انقضا" value={stats.byPlan.expiring} total={stats.n} />
-            <BarRow label="منقضی" value={stats.byPlan.expired} total={stats.n} />
-
-            <div style={{ marginTop: 14, fontSize: 11, color: "#64748b", textAlign: "center", lineHeight: 1.8 }}>
-             {"تعریف‌ها: expiring = ۳ روز آخر • expired = ≤ 0 روز • pro = فعال"}
+                    {/* آخرین فعالیت */}
+                    <div
+                      style={{
+                        textAlign: "center",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
+                      <span style={{ opacity: 0.85 }}>
+                        {new Date(lastAt).toLocaleString("fa-IR")}
+                      </span>
+                      <span
+                        style={{
+                          opacity: 0.6,
+                          fontSize: "11px",
+                        }}
+                      >
+                        {relativeDate(lastAt)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          )}
+        </div>
+
+        {/* صفحه‌بندی */}
+        {tickets.length > 0 && (
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "12px",
+            }}
+          >
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor: page === 1 ? "#111827" : "#1f2937",
+                color: "#e5e7eb",
+                cursor: page === 1 ? "default" : "pointer",
+                opacity: page === 1 ? 0.4 : 1,
+              }}
+            >
+              قبلی
+            </button>
+            <span style={{ color: "#9ca3af" }}>
+              صفحه {page} از {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "8px",
+                border: "1px solid #333",
+                backgroundColor:
+                  page === totalPages ? "#111827" : "#1f2937",
+                color: "#e5e7eb",
+                cursor: page === totalPages ? "default" : "pointer",
+                opacity: page === totalPages ? 0.4 : 1,
+              }}
+            >
+              بعدی
+            </button>
           </div>
-        </div>
-
-        {/* Gender breakdown */}
-        <div style={card}>
-          <div style={sectionTitle}>تفکیک جنسیت</div>
-          <div style={sectionBody}>
-            <BarRow label="مرد" value={stats.byGender.male} total={stats.n} />
-            <BarRow label="زن" value={stats.byGender.female} total={stats.n} />
-            <BarRow label="سایر" value={stats.byGender.other} total={stats.n} />
-            <BarRow label="نامشخص" value={stats.byGender.unknown} total={stats.n} />
-
-            <div style={{ marginTop: 14, fontSize: 11, color: "#64748b", textAlign: "center", lineHeight: 1.8 }}>
-              اگر gender خالی باشد: «نامشخص» حساب می‌شود.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Suggestions (Phase 2 hooks) */}
-      <div style={{ marginTop: 12, ...card }}>
-        <div style={sectionTitle}>پیشنهادهای فاز بعد (فعلاً فقط یادداشت)</div>
-        <div style={{ padding: 12, fontSize: 12, color: "#cbd5e1", lineHeight: 2 }}>
-          <div>• قیف مراحل (۷ مرحله) + نرخ ریزش در هر مرحله</div>
-          <div>• اثر بنرها: seen/dismiss + نرخ تبدیل به PRO بعد از بنر</div>
-          <div>• Cohort retention: ۷/۱۴/۳۰ روز</div>
-          <div>• نرخ تبدیل: free → pro بر اساس روز/هفته</div>
-        </div>
+        )}
       </div>
     </div>
   );
