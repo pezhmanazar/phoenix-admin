@@ -4,17 +4,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+type BaselineLevel = "manageable" | "moderate" | "severe" | "unknown";
+
 type UserRow = {
   id: string;
   phone: string;
   fullName: string;
   gender?: string | null;
   birthDate?: string | null;
-  plan: "free" | "pro" | string;
+  plan: "free" | "pro" | "vip" | string;
   planExpiresAt?: string | null;
   profileCompleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
+
+  baselineScore?: number | null;
+  baselineLevel?: BaselineLevel | null;
+  treatmentStartedAt?: string | null;
+  currentStageCode?: string | null;
+  currentStageTitle?: string | null;
 };
 
 type UsersResponse = {
@@ -63,14 +71,17 @@ function fmtFaDate(v?: string | null) {
   const d = safeDate(v);
   if (!d) return "—";
   try {
-    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(d);
+    return new Intl.DateTimeFormat("fa-IR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
   } catch {
     return d.toISOString();
   }
 }
 
 function planState(u: UserRow) {
-  if (u.plan !== "pro") return "free";
+  if (u.plan !== "pro" && u.plan !== "vip") return "free";
   const dl = daysLeft(u.planExpiresAt || null);
   if (dl === null) return "pro";
   if (dl <= 0) return "expired";
@@ -78,7 +89,37 @@ function planState(u: UserRow) {
   return "pro";
 }
 
-function Pill({ text, bg, border, color }: { text: string; bg: string; border: string; color: string }) {
+function baselineLevelFa(level?: BaselineLevel | null) {
+  if (level === "manageable") return "خفیف";
+  if (level === "moderate") return "متوسط";
+  if (level === "severe") return "شدید";
+  return "نامشخص";
+}
+
+function baselineLevelColor(level?: BaselineLevel | null) {
+  if (level === "manageable") {
+    return { bg: "#052e16", border: "#16a34a", color: "#bbf7d0" };
+  }
+  if (level === "moderate") {
+    return { bg: "#3b2a0a", border: "#f59e0b", color: "#fde68a" };
+  }
+  if (level === "severe") {
+    return { bg: "#3f0a0a", border: "#ef4444", color: "#fecaca" };
+  }
+  return { bg: "#0b1220", border: "#475569", color: "#cbd5e1" };
+}
+
+function Pill({
+  text,
+  bg,
+  border,
+  color,
+}: {
+  text: string;
+  bg: string;
+  border: string;
+  color: string;
+}) {
   return (
     <span
       style={{
@@ -102,10 +143,21 @@ function Pill({ text, bg, border, color }: { text: string; bg: string; border: s
 
 function PlanBadge({ u }: { u: UserRow }) {
   const st = planState(u);
-  if (st === "pro") return <Pill text="PRO" bg="#052e16" border="#16a34a" color="#bbf7d0" />;
-  if (st === "expiring") return <Pill text="نزدیک انقضا" bg="#3b1d0a" border="#f97316" color="#ffedd5" />;
-  if (st === "expired") return <Pill text="منقضی" bg="#3f0a0a" border="#ef4444" color="#fecaca" />;
+  if (st === "pro") {
+    return <Pill text={u.plan === "vip" ? "VIP" : "PRO"} bg="#052e16" border="#16a34a" color="#bbf7d0" />;
+  }
+  if (st === "expiring") {
+    return <Pill text="نزدیک انقضا" bg="#3b1d0a" border="#f97316" color="#ffedd5" />;
+  }
+  if (st === "expired") {
+    return <Pill text="منقضی" bg="#3f0a0a" border="#ef4444" color="#fecaca" />;
+  }
   return <Pill text="FREE" bg="#0b1220" border="#374151" color="#e5e7eb" />;
+}
+
+function BaselineBadge({ level }: { level?: BaselineLevel | null }) {
+  const c = baselineLevelColor(level);
+  return <Pill text={baselineLevelFa(level)} bg={c.bg} border={c.border} color={c.color} />;
 }
 
 function buildCsv(rows: UserRow[]) {
@@ -118,6 +170,10 @@ function buildCsv(rows: UserRow[]) {
     "plan",
     "planExpiresAt",
     "daysLeft",
+    "baselineScore",
+    "baselineLevel",
+    "treatmentStartedAt",
+    "currentStageTitle",
     "profileCompleted",
     "createdAt",
     "updatedAt",
@@ -141,6 +197,10 @@ function buildCsv(rows: UserRow[]) {
         planState(u),
         u.planExpiresAt || "",
         daysLeft(u.planExpiresAt || null) ?? "",
+        u.baselineScore ?? "",
+        baselineLevelFa(u.baselineLevel || "unknown"),
+        u.treatmentStartedAt || "",
+        u.currentStageTitle || "",
         u.profileCompleted ? "true" : "false",
         u.createdAt || "",
         u.updatedAt || "",
@@ -149,6 +209,7 @@ function buildCsv(rows: UserRow[]) {
         .join(",")
     ),
   ];
+
   return lines.join("\n");
 }
 
@@ -160,16 +221,26 @@ export default function AdminUsersPage() {
   const page0 = Number(sp.get("page") || "1") || 1;
   const limit0 = Number(sp.get("limit") || "30") || 30;
 
+  const filter0 = (sp.get("filter") as "all" | "pro" | "free" | "expired" | "expiring") || "all";
+  const sort0 =
+    (sp.get("sort") as "created_desc" | "created_asc" | "expires_asc" | "expires_desc") || "created_desc";
+
+  const baselineLevel0 = (sp.get("baselineLevel") as BaselineLevel | "all") || "all";
+  const hasBaseline0 = (sp.get("hasBaseline") as "all" | "true" | "false") || "all";
+  const hasTreatment0 = (sp.get("hasTreatment") as "all" | "true" | "false") || "all";
+  const currentStageCode0 = sp.get("currentStageCode") || "";
+
   const [q, setQ] = useState(q0);
   const [page, setPage] = useState(page0);
   const [limit, setLimit] = useState(limit0);
 
-  const [filter, setFilter] = useState<"all" | "pro" | "free" | "expired" | "expiring">(
-    (sp.get("filter") as any) || "all"
-  );
-  const [sort, setSort] = useState<"created_desc" | "created_asc" | "expires_asc" | "expires_desc">(
-    (sp.get("sort") as any) || "created_desc"
-  );
+  const [filter, setFilter] = useState<"all" | "pro" | "free" | "expired" | "expiring">(filter0);
+  const [sort, setSort] = useState<"created_desc" | "created_asc" | "expires_asc" | "expires_desc">(sort0);
+
+  const [baselineLevel, setBaselineLevel] = useState<BaselineLevel | "all">(baselineLevel0);
+  const [hasBaseline, setHasBaseline] = useState<"all" | "true" | "false">(hasBaseline0);
+  const [hasTreatment, setHasTreatment] = useState<"all" | "true" | "false">(hasTreatment0);
+  const [currentStageCode, setCurrentStageCode] = useState(currentStageCode0);
 
   const [data, setData] = useState<UsersResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -179,13 +250,30 @@ export default function AdminUsersPage() {
   const [modal, setModal] = useState<null | { user: UserRow }>(null);
   const [days, setDays] = useState<number>(30);
 
-  function syncUrl(next?: Partial<{ q: string; page: number; limit: number; filter: string; sort: string }>) {
+  function syncUrl(
+    next?: Partial<{
+      q: string;
+      page: number;
+      limit: number;
+      filter: string;
+      sort: string;
+      baselineLevel: string;
+      hasBaseline: string;
+      hasTreatment: string;
+      currentStageCode: string;
+    }>
+  ) {
     const params = new URLSearchParams(sp.toString());
+
     const nq = next?.q ?? q;
     const np = next?.page ?? page;
     const nl = next?.limit ?? limit;
     const nf = next?.filter ?? filter;
     const ns = next?.sort ?? sort;
+    const nbl = next?.baselineLevel ?? baselineLevel;
+    const nhb = next?.hasBaseline ?? hasBaseline;
+    const nht = next?.hasTreatment ?? hasTreatment;
+    const nsc = next?.currentStageCode ?? currentStageCode;
 
     if (nq) params.set("q", nq);
     else params.delete("q");
@@ -199,6 +287,18 @@ export default function AdminUsersPage() {
     if (ns && ns !== "created_desc") params.set("sort", ns);
     else params.delete("sort");
 
+    if (nbl && nbl !== "all") params.set("baselineLevel", nbl);
+    else params.delete("baselineLevel");
+
+    if (nhb && nhb !== "all") params.set("hasBaseline", nhb);
+    else params.delete("hasBaseline");
+
+    if (nht && nht !== "all") params.set("hasTreatment", nht);
+    else params.delete("hasTreatment");
+
+    if (nsc) params.set("currentStageCode", nsc);
+    else params.delete("currentStageCode");
+
     router.replace(`/admin/users?${params.toString()}`);
   }
 
@@ -211,11 +311,36 @@ export default function AdminUsersPage() {
   async function load() {
     setLoading(true);
     setErr(null);
+
     try {
-      const url = `/api/admin/users?q=${encodeURIComponent(q0 || "")}&page=${page0}&limit=${limit0}&ts=${Date.now()}`;
-      const r = await fetch(url, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
+      const params = new URLSearchParams();
+      if (q0) params.set("q", q0);
+      params.set("page", String(page0));
+      params.set("limit", String(limit0));
+
+      if (filter0 !== "all") {
+        if (filter0 === "pro" || filter0 === "free" || filter0 === "expired") {
+          params.set("plan", filter0);
+        }
+      }
+
+      if (baselineLevel0 !== "all") params.set("baselineLevel", baselineLevel0);
+      if (hasBaseline0 !== "all") params.set("hasBaseline", hasBaseline0);
+      if (hasTreatment0 !== "all") params.set("hasTreatment", hasTreatment0);
+      if (currentStageCode0) params.set("currentStageCode", currentStageCode0);
+
+      params.set("ts", String(Date.now()));
+
+      const url = `/api/admin/users?${params.toString()}`;
+      const r = await fetch(url, {
+        cache: "no-store",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) throw new Error("bad_response");
+
       const j = (await r.json()) as UsersResponse;
       if (!j?.ok) throw new Error("request_failed");
       setData(j);
@@ -231,39 +356,59 @@ export default function AdminUsersPage() {
     setQ(q0);
     setPage(page0);
     setLimit(limit0);
+    setFilter(filter0);
+    setSort(sort0);
+    setBaselineLevel(baselineLevel0);
+    setHasBaseline(hasBaseline0);
+    setHasTreatment(hasTreatment0);
+    setCurrentStageCode(currentStageCode0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q0, page0, limit0]);
+  }, [q0, page0, limit0, filter0, sort0, baselineLevel0, hasBaseline0, hasTreatment0, currentStageCode0]);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q0, page0, limit0]);
+  }, [q0, page0, limit0, filter0, baselineLevel0, hasBaseline0, hasTreatment0, currentStageCode0]);
 
   const view = useMemo(() => {
     const rows = data?.users || [];
 
     let filtered = rows;
-    if (filter !== "all") {
-      filtered = rows.filter((u) => planState(u) === filter);
+
+    if (filter === "expiring") {
+      filtered = filtered.filter((u) => planState(u) === "expiring");
     }
 
-    const sortKey = sort;
     const sorted = [...filtered].sort((a, b) => {
-      if (sortKey === "created_desc" || sortKey === "created_asc") {
+      if (sort === "created_desc" || sort === "created_asc") {
         const da = safeDate(a.createdAt || null)?.getTime() || 0;
         const db = safeDate(b.createdAt || null)?.getTime() || 0;
-        return sortKey === "created_desc" ? db - da : da - db;
+        return sort === "created_desc" ? db - da : da - db;
       }
-      if (sortKey === "expires_asc" || sortKey === "expires_desc") {
+
+      if (sort === "expires_asc" || sort === "expires_desc") {
         const da = safeDate(a.planExpiresAt || null)?.getTime() ?? Number.POSITIVE_INFINITY;
         const db = safeDate(b.planExpiresAt || null)?.getTime() ?? Number.POSITIVE_INFINITY;
-        return sortKey === "expires_asc" ? da - db : db - da;
+        return sort === "expires_asc" ? da - db : db - da;
       }
+
       return 0;
     });
 
     return sorted;
   }, [data, filter, sort]);
+
+  const stageOptions = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const u of data?.users || []) {
+      if (u.currentStageCode && u.currentStageTitle) {
+        map.set(u.currentStageCode, u.currentStageTitle);
+      }
+    }
+
+    return Array.from(map.entries()).map(([code, title]) => ({ code, title }));
+  }, [data]);
 
   async function setPlan(userId: string, plan: "pro" | "free", daysVal?: number) {
     setBusy((m) => ({ ...m, [userId]: true }));
@@ -292,6 +437,7 @@ export default function AdminUsersPage() {
 
   async function deleteUser(userId: string) {
     if (!confirm("حذف کامل کاربر؟ این عمل برگشت‌پذیر نیست.")) return;
+
     setBusy((m) => ({ ...m, [userId]: true }));
     try {
       const r = await fetch(`/api/admin/users/${userId}`, {
@@ -299,10 +445,13 @@ export default function AdminUsersPage() {
         headers: { Accept: "application/json" },
         credentials: "include",
       });
+
       const ct = r.headers.get("content-type") || "";
       if (!ct.includes("application/json")) throw new Error("bad_response");
+
       const j = await r.json().catch(() => null);
       if (!r.ok || !j?.ok) throw new Error(j?.error || "request_failed");
+
       await load();
     } catch (e: any) {
       alert(String(e?.message || "internal_error"));
@@ -318,16 +467,49 @@ export default function AdminUsersPage() {
       const per = 100;
 
       while (true) {
-        const url = `/api/admin/users?q=${encodeURIComponent(q0 || "")}&page=${p}&limit=${per}&ts=${Date.now()}`;
-        const r = await fetch(url, { cache: "no-store", credentials: "include", headers: { Accept: "application/json" } });
+        const params = new URLSearchParams();
+        if (q0) params.set("q", q0);
+        params.set("page", String(p));
+        params.set("limit", String(per));
+
+        if (filter0 !== "all") {
+          if (filter0 === "pro" || filter0 === "free" || filter0 === "expired") {
+            params.set("plan", filter0);
+          }
+        }
+
+        if (baselineLevel0 !== "all") params.set("baselineLevel", baselineLevel0);
+        if (hasBaseline0 !== "all") params.set("hasBaseline", hasBaseline0);
+        if (hasTreatment0 !== "all") params.set("hasTreatment", hasTreatment0);
+        if (currentStageCode0) params.set("currentStageCode", currentStageCode0);
+
+        params.set("ts", String(Date.now()));
+
+        const url = `/api/admin/users?${params.toString()}`;
+        const r = await fetch(url, {
+          cache: "no-store",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        });
+
         const ct = r.headers.get("content-type") || "";
         if (!ct.includes("application/json")) throw new Error("bad_response");
+
         const j = (await r.json()) as UsersResponse;
         if (!j?.ok) throw new Error("request_failed");
-        all.push(...(j.users || []));
-        if (all.length >= (j.total || 0) || (j.users || []).length === 0) break;
-        p++;
+
+        let batch = j.users || [];
+        if (filter0 === "expiring") {
+          batch = batch.filter((u) => planState(u) === "expiring");
+        }
+
+        all.push(...batch);
+
+        if ((j.users || []).length === 0) break;
+        if (p * per >= (j.total || 0)) break;
         if (p > 200) break;
+
+        p++;
       }
 
       const csv = buildCsv(all);
@@ -346,8 +528,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1200, marginInline: "auto" }}>
-      {/* ✅ Search bar (moved from header to here) */}
+    <div style={{ maxWidth: 1480, marginInline: "auto" }}>
       <div
         style={{
           marginBottom: 14,
@@ -440,13 +621,13 @@ export default function AdminUsersPage() {
               whiteSpace: "nowrap",
             }}
           >
-            دانلود اکسل (CSV)
+            دانلود CSV
           </button>
 
           <select
             value={filter}
             onChange={(e) => {
-              const v = e.target.value as any;
+              const v = e.target.value as "all" | "pro" | "free" | "expired" | "expiring";
               setFilter(v);
               setPage(1);
               syncUrl({ filter: v, page: 1 });
@@ -462,17 +643,119 @@ export default function AdminUsersPage() {
               outline: "none",
             }}
           >
-            <option value="all">همه</option>
-            <option value="pro">PRO فعال</option>
+            <option value="all">همه پلن‌ها</option>
+            <option value="pro">PRO/VIP فعال</option>
             <option value="expiring">نزدیک انقضا</option>
             <option value="expired">منقضی</option>
             <option value="free">FREE</option>
           </select>
 
           <select
+            value={baselineLevel}
+            onChange={(e) => {
+              const v = e.target.value as BaselineLevel | "all";
+              setBaselineLevel(v);
+              setPage(1);
+              syncUrl({ baselineLevel: v, page: 1 });
+            }}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              backgroundColor: "#0b1220",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontWeight: 800,
+              outline: "none",
+            }}
+          >
+            <option value="all">همه شدت‌ها</option>
+            <option value="manageable">خفیف</option>
+            <option value="moderate">متوسط</option>
+            <option value="severe">شدید</option>
+            <option value="unknown">نامشخص</option>
+          </select>
+
+          <select
+            value={hasBaseline}
+            onChange={(e) => {
+              const v = e.target.value as "all" | "true" | "false";
+              setHasBaseline(v);
+              setPage(1);
+              syncUrl({ hasBaseline: v, page: 1 });
+            }}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              backgroundColor: "#0b1220",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontWeight: 800,
+              outline: "none",
+            }}
+          >
+            <option value="all">همه baselineها</option>
+            <option value="true">دارای baseline</option>
+            <option value="false">بدون baseline</option>
+          </select>
+
+          <select
+            value={hasTreatment}
+            onChange={(e) => {
+              const v = e.target.value as "all" | "true" | "false";
+              setHasTreatment(v);
+              setPage(1);
+              syncUrl({ hasTreatment: v, page: 1 });
+            }}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              backgroundColor: "#0b1220",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontWeight: 800,
+              outline: "none",
+            }}
+          >
+            <option value="all">همه وضعیت‌های درمان</option>
+            <option value="true">درمان شروع شده</option>
+            <option value="false">درمان شروع نشده</option>
+          </select>
+
+          <select
+            value={currentStageCode}
+            onChange={(e) => {
+              const v = e.target.value;
+              setCurrentStageCode(v);
+              setPage(1);
+              syncUrl({ currentStageCode: v, page: 1 });
+            }}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              backgroundColor: "#0b1220",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontWeight: 800,
+              outline: "none",
+              minWidth: 160,
+            }}
+          >
+            <option value="">همه مرحله‌ها</option>
+            {stageOptions.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={sort}
             onChange={(e) => {
-              const v = e.target.value as any;
+              const v = e.target.value as "created_desc" | "created_asc" | "expires_asc" | "expires_desc";
               setSort(v);
               setPage(1);
               syncUrl({ sort: v, page: 1 });
@@ -544,11 +827,31 @@ export default function AdminUsersPage() {
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1380 }}>
             <thead>
               <tr style={{ backgroundColor: "rgba(255,255,255,0.02)" }}>
-                {["نام", "شماره", "سن", "جنسیت", "پلن", "انقضا", "اقدامات"].map((h) => (
-                  <th key={h} style={{ textAlign: "center", padding: "12px 12px", fontSize: 12, color: "#cbd5e1" }}>
+                {[
+                  "نام",
+                  "شماره",
+                  "سن",
+                  "جنسیت",
+                  "پلن",
+                  "انقضا",
+                  "baseline",
+                  "شدت baseline",
+                  "شروع درمان",
+                  "مرحله فعلی",
+                  "اقدامات",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: "center",
+                      padding: "12px 12px",
+                      fontSize: 12,
+                      color: "#cbd5e1",
+                    }}
+                  >
                     {h}
                   </th>
                 ))}
@@ -569,14 +872,33 @@ export default function AdminUsersPage() {
 
                     <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{u.phone}</td>
 
-                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{calcAge(u.birthDate || null)}</td>
-                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>{genderFa(u.gender || null)}</td>
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>
+                      {calcAge(u.birthDate || null)}
+                    </td>
+
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center" }}>
+                      {genderFa(u.gender || null)}
+                    </td>
 
                     <td style={{ padding: "12px 12px", textAlign: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <PlanBadge u={u} />
-                        {u.plan === "pro" && dl !== null ? (
-                          <span style={{ fontSize: 12, color: st === "expired" ? "#fca5a5" : st === "expiring" ? "#fdba74" : "#a7f3d0" }}>
+                        {(u.plan === "pro" || u.plan === "vip") && dl !== null ? (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color:
+                                st === "expired" ? "#fca5a5" : st === "expiring" ? "#fdba74" : "#a7f3d0",
+                            }}
+                          >
                             {dl <= 0 ? "0" : dl} روز
                           </span>
                         ) : null}
@@ -587,8 +909,41 @@ export default function AdminUsersPage() {
                       {u.planExpiresAt ? fmtFaDate(u.planExpiresAt) : "—"}
                     </td>
 
+                    <td style={{ padding: "12px 12px", fontSize: 13, textAlign: "center", fontWeight: 800 }}>
+                      {u.baselineScore ?? "—"}
+                    </td>
+
                     <td style={{ padding: "12px 12px", textAlign: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                      <BaselineBadge level={u.baselineLevel || "unknown"} />
+                    </td>
+
+                    <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1", textAlign: "center" }}>
+                      {u.treatmentStartedAt ? fmtFaDate(u.treatmentStartedAt) : "—"}
+                    </td>
+
+                    <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
+                      {u.currentStageTitle ? (
+                        <div>
+                          <div style={{ color: "#e2e8f0", fontWeight: 800 }}>{u.currentStageTitle}</div>
+                          {u.currentStageCode ? (
+                            <div style={{ marginTop: 4, color: "#64748b", fontSize: 11 }}>{u.currentStageCode}</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+
+                    <td style={{ padding: "12px 12px", textAlign: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <button
                           disabled={isBusy}
                           onClick={() => {
@@ -653,7 +1008,7 @@ export default function AdminUsersPage() {
 
               {!loading && view.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
+                  <td colSpan={11} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
                     موردی پیدا نشد.
                   </td>
                 </tr>
@@ -662,7 +1017,6 @@ export default function AdminUsersPage() {
           </table>
         </div>
 
-        {/* Pagination */}
         <div
           style={{
             display: "flex",
@@ -673,7 +1027,10 @@ export default function AdminUsersPage() {
           }}
         >
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
-            نمایش {data ? `${Math.min(data.total, (page - 1) * limit + 1)} تا ${Math.min(data.total, page * limit)} از ${data.total}` : "—"}
+            نمایش{" "}
+            {data
+              ? `${Math.min(data.total, (page - 1) * limit + 1)} تا ${Math.min(data.total, page * limit)} از ${data.total}`
+              : "—"}
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
@@ -698,6 +1055,7 @@ export default function AdminUsersPage() {
             >
               قبلی
             </button>
+
             <button
               disabled={!!data && page * limit >= data.total}
               onClick={() => {
@@ -723,7 +1081,6 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Modal: PRO days */}
       {modal ? (
         <div
           role="dialog"
@@ -796,6 +1153,7 @@ export default function AdminUsersPage() {
               >
                 بستن
               </button>
+
               <button
                 onClick={async () => {
                   const id = modal.user.id;
