@@ -293,16 +293,23 @@ export default function AdminAnalyticsPage() {
     }
 
     const completionRate = n ? Math.round((completed / n) * 100) : 0;
+    const proRate = n ? Math.round((byPlan.pro / n) * 100) : 0;
+    const expiringRate = n ? Math.round((byPlan.expiring / n) * 100) : 0;
+    const expiredRate = n ? Math.round((byPlan.expired / n) * 100) : 0;
+
 
     return {
-      n,
-      completed,
-      completionRate,
-      byPlan,
-      byGender,
-      new7,
-      new30,
-    };
+  n,
+  completed,
+  completionRate,
+  proRate,
+  expiringRate,
+  expiredRate,
+  byPlan,
+  byGender,
+  new7,
+  new30,
+};
   }, [rows]);
 
   return (
@@ -359,6 +366,23 @@ export default function AdminAnalyticsPage() {
               نزدیک انقضا: {stats.byPlan.expiring} • منقضی: {stats.byPlan.expired}
             </div>
           </div>
+          <div style={statCard}>
+  <div style={statLabel}>درصد کاربران PRO</div>
+  <div style={statValue}>{stats.proRate}%</div>
+  <div style={statHint}>از کل {stats.n} کاربر</div>
+</div>
+<div style={statCard}>
+  <div style={statLabel}>نزدیک انقضا</div>
+  <div style={{ ...statValue, color: "#f59e0b" }}>{stats.byPlan.expiring}</div>
+  <div style={statHint}>{stats.expiringRate}% از کل کاربران</div>
+</div>
+
+<div style={statCard}>
+  <div style={statLabel}>منقضی‌شده</div>
+  <div style={{ ...statValue, color: "#f43f5e" }}>{stats.byPlan.expired}</div>
+  <div style={statHint}>{stats.expiredRate}% از کل کاربران</div>
+</div>
+
         </div>
       </div>
 
