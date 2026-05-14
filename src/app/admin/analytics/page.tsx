@@ -275,9 +275,20 @@ export default function AdminAnalyticsPage() {
     const now = Date.now();
     let new7 = 0;
     let new30 = 0;
+    let proDaysLeftSum = 0;
+    let proDaysLeftCount = 0;
+
 
     for (const u of rows) {
       const ps = planState(u);
+      if (ps === "pro") {
+      const dl = daysLeft(u.planExpiresAt || null);
+      if (dl !== null && dl > 0) {
+      proDaysLeftSum += dl;
+      proDaysLeftCount++;
+  }
+}
+
       byPlan[ps]++;
 
       const gk = genderKey(u.gender || null);
@@ -296,6 +307,7 @@ export default function AdminAnalyticsPage() {
     const proRate = n ? Math.round((byPlan.pro / n) * 100) : 0;
     const expiringRate = n ? Math.round((byPlan.expiring / n) * 100) : 0;
     const expiredRate = n ? Math.round((byPlan.expired / n) * 100) : 0;
+    const avgProDaysLeft = proDaysLeftCount ? Math.round(proDaysLeftSum / proDaysLeftCount) : 0;
 
 
     return {
@@ -305,6 +317,7 @@ export default function AdminAnalyticsPage() {
   proRate,
   expiringRate,
   expiredRate,
+  avgProDaysLeft,
   byPlan,
   byGender,
   new7,
@@ -383,6 +396,11 @@ export default function AdminAnalyticsPage() {
   <div style={statHint}>{stats.expiredRate}% از کل کاربران</div>
 </div>
 
+<div style={statCard}>
+  <div style={statLabel}>میانگین روز باقی‌مانده PRO</div>
+  <div style={{ ...statValue, color: "#22c55e" }}>{stats.avgProDaysLeft}</div>
+  <div style={statHint}>فقط برای کاربران PRO فعال محاسبه شده</div>
+</div>
         </div>
       </div>
 
