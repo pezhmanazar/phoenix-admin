@@ -529,7 +529,7 @@ export default function AdminUsersPage() {
       }
 
       const csv = buildCsv(all);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
