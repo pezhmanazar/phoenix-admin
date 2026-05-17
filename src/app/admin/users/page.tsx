@@ -577,15 +577,15 @@ export default function AdminUsersPage() {
     <div style={{ maxWidth: 1480, marginInline: "auto" }}>
       <div
         style={{
-          marginBottom: 14,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
+  marginBottom: 14,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 12,
+}}
       >
-        <div style={{ minWidth: 280 }}>
+        <div style={{ minWidth: 280, textAlign: "center" }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>مدیریت کاربران</h1>
           <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
             {data ? `مجموع: ${data.total} (صفحه ${data.page})` : "—"}
@@ -916,7 +916,7 @@ export default function AdminUsersPage() {
                   "انقضا",
                   "نمره آزمون",
                   "شدت آزمون ",
-                  "مرحله شروع",
+                  "منتظر خرید پرو",
                   "شروع درمان",
                   "مرحله فعلی",
                   "اقدامات",
