@@ -878,9 +878,10 @@ export default function AdminUsersPage() {
                   "پلن",
                   "انقضا",
                   "نمره آزمون",
-                 "مرحله شروع",
-                 "شروع درمان",
-                 "مرحله فعلی",
+                  "شدت آزمون ",
+                  "مرحله شروع",
+                  "شروع درمان",
+                  "مرحله فعلی",
                   "اقدامات",
                 ].map((h) => (
                   <th
@@ -956,6 +957,7 @@ export default function AdminUsersPage() {
                     <td style={{ padding: "12px 12px", textAlign: "center" }}>
                       <BaselineBadge level={u.baselineLevel || "unknown"} />
                     </td>
+
 
                     <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
                       {u.introAudioCompletedAt ? (
