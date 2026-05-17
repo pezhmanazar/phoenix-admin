@@ -21,6 +21,8 @@ type UserRow = {
   baselineScore?: number | null;
   baselineLevel?: BaselineLevel | null;
   treatmentStartedAt?: string | null;
+  introAudioCompletedAt?: string | null;
+  waitingForPro?: boolean;
   currentStageCode?: string | null;
   currentStageTitle?: string | null;
 };
@@ -173,6 +175,8 @@ function buildCsv(rows: UserRow[]) {
     "baselineScore",
     "baselineLevel",
     "treatmentStartedAt",
+    "introAudioCompletedAt",
+    "waitingForPro",
     "currentStageTitle",
     "profileCompleted",
     "createdAt",
@@ -200,6 +204,8 @@ function buildCsv(rows: UserRow[]) {
         u.baselineScore ?? "",
         baselineLevelFa(u.baselineLevel || "unknown"),
         u.treatmentStartedAt || "",
+        u.introAudioCompletedAt || "",
+        u.waitingForPro ? "true" : "false",
         u.currentStageTitle || "",
         u.profileCompleted ? "true" : "false",
         u.createdAt || "",
@@ -229,6 +235,7 @@ export default function AdminUsersPage() {
   const hasBaseline0 = (sp.get("hasBaseline") as "all" | "true" | "false") || "all";
   const hasTreatment0 = (sp.get("hasTreatment") as "all" | "true" | "false") || "all";
   const currentStageCode0 = sp.get("currentStageCode") || "";
+  const waitingForPro0 = (sp.get("waitingForPro") as "all" | "true" | "false") || "all";
 
   const [q, setQ] = useState(q0);
   const [page, setPage] = useState(page0);
@@ -241,6 +248,7 @@ export default function AdminUsersPage() {
   const [hasBaseline, setHasBaseline] = useState<"all" | "true" | "false">(hasBaseline0);
   const [hasTreatment, setHasTreatment] = useState<"all" | "true" | "false">(hasTreatment0);
   const [currentStageCode, setCurrentStageCode] = useState(currentStageCode0);
+  const [waitingForPro, setWaitingForPro] = useState<"all" | "true" | "false">(waitingForPro0);
 
   const [data, setData] = useState<UsersResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -260,7 +268,8 @@ export default function AdminUsersPage() {
       baselineLevel: string;
       hasBaseline: string;
       hasTreatment: string;
-      currentStageCode: string;
+      waitingForPro: string;
+      currentStageCode: string;   
     }>
   ) {
     const params = new URLSearchParams(sp.toString());
@@ -273,6 +282,7 @@ export default function AdminUsersPage() {
     const nbl = next?.baselineLevel ?? baselineLevel;
     const nhb = next?.hasBaseline ?? hasBaseline;
     const nht = next?.hasTreatment ?? hasTreatment;
+    const nwp = next?.waitingForPro ?? waitingForPro;
     const nsc = next?.currentStageCode ?? currentStageCode;
 
     if (nq) params.set("q", nq);
@@ -295,6 +305,9 @@ export default function AdminUsersPage() {
 
     if (nht && nht !== "all") params.set("hasTreatment", nht);
     else params.delete("hasTreatment");
+
+    if (nwp && nwp !== "all") params.set("waitingForPro", nwp);
+    else params.delete("waitingForPro");
 
     if (nsc) params.set("currentStageCode", nsc);
     else params.delete("currentStageCode");
@@ -327,6 +340,7 @@ export default function AdminUsersPage() {
       if (baselineLevel0 !== "all") params.set("baselineLevel", baselineLevel0);
       if (hasBaseline0 !== "all") params.set("hasBaseline", hasBaseline0);
       if (hasTreatment0 !== "all") params.set("hasTreatment", hasTreatment0);
+      if (waitingForPro0 !== "all") params.set("waitingForPro", waitingForPro0);
       if (currentStageCode0) params.set("currentStageCode", currentStageCode0);
 
       params.set("ts", String(Date.now()));
@@ -361,14 +375,15 @@ export default function AdminUsersPage() {
     setBaselineLevel(baselineLevel0);
     setHasBaseline(hasBaseline0);
     setHasTreatment(hasTreatment0);
+    setWaitingForPro(waitingForPro0);
     setCurrentStageCode(currentStageCode0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q0, page0, limit0, filter0, sort0, baselineLevel0, hasBaseline0, hasTreatment0, currentStageCode0]);
+  }, [q0, page0, limit0, filter0, sort0, baselineLevel0, hasBaseline0, hasTreatment0, waitingForPro0, currentStageCode0]);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q0, page0, limit0, filter0, baselineLevel0, hasBaseline0, hasTreatment0, currentStageCode0]);
+  }, [q0, page0, limit0, filter0, baselineLevel0, hasBaseline0, hasTreatment0, waitingForPro0, currentStageCode0]);
 
   const view = useMemo(() => {
     const rows = data?.users || [];
@@ -481,6 +496,7 @@ export default function AdminUsersPage() {
         if (baselineLevel0 !== "all") params.set("baselineLevel", baselineLevel0);
         if (hasBaseline0 !== "all") params.set("hasBaseline", hasBaseline0);
         if (hasTreatment0 !== "all") params.set("hasTreatment", hasTreatment0);
+        if (waitingForPro0 !== "all") params.set("waitingForPro", waitingForPro0);
         if (currentStageCode0) params.set("currentStageCode", currentStageCode0);
 
         params.set("ts", String(Date.now()));
@@ -725,6 +741,30 @@ export default function AdminUsersPage() {
           </select>
 
           <select
+            value={waitingForPro}
+            onChange={(e) => {
+              const v = e.target.value as "all" | "true" | "false";
+              setWaitingForPro(v);
+              setPage(1);
+              syncUrl({ waitingForPro: v, page: 1 });
+            }}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              backgroundColor: "#0b1220",
+              color: "#e2e8f0",
+              fontSize: 12,
+              fontWeight: 800,
+              outline: "none",
+            }}
+          >
+            <option value="all">همه Free Passها</option>
+            <option value="true">ویس اینترو کامل + هنوز FREE</option>
+            <option value="false">سایر</option>
+          </select>
+
+          <select
             value={currentStageCode}
             onChange={(e) => {
               const v = e.target.value;
@@ -840,6 +880,7 @@ export default function AdminUsersPage() {
                   "baseline",
                   "شدت baseline",
                   "شروع درمان",
+                  "ویس اینترو",
                   "مرحله فعلی",
                   "اقدامات",
                 ].map((h) => (
@@ -919,6 +960,19 @@ export default function AdminUsersPage() {
 
                     <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1", textAlign: "center" }}>
                       {u.treatmentStartedAt ? fmtFaDate(u.treatmentStartedAt) : "—"}
+                    </td>
+
+                    <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
+                      {u.introAudioCompletedAt ? (
+                        <div>
+                          <div style={{ color: "#86efac", fontWeight: 800 }}>تکمیل شده</div>
+                          <div style={{ marginTop: 4, color: "#64748b", fontSize: 11 }}>
+                            {fmtFaDate(u.introAudioCompletedAt)}
+                          </div>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>
 
                     <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
@@ -1008,7 +1062,7 @@ export default function AdminUsersPage() {
 
               {!loading && view.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
+                  <td colSpan={12} style={{ padding: "18px 12px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
                     موردی پیدا نشد.
                   </td>
                 </tr>
