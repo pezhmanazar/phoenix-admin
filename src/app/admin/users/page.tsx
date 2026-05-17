@@ -878,10 +878,9 @@ export default function AdminUsersPage() {
                   "پلن",
                   "انقضا",
                   "نمره آزمون",
-                  "شدت آزمون ",
-                  "مرحله شروع",
-                  "شروع درمان",
-                  "مرحله فعلی",
+                 "مرحله شروع",
+                 "شروع درمان",
+                 "مرحله فعلی",
                   "اقدامات",
                 ].map((h) => (
                   <th
@@ -958,10 +957,6 @@ export default function AdminUsersPage() {
                       <BaselineBadge level={u.baselineLevel || "unknown"} />
                     </td>
 
-                    <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1", textAlign: "center" }}>
-                      {u.treatmentStartedAt ? fmtFaDate(u.treatmentStartedAt) : "—"}
-                    </td>
-
                     <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
                       {u.introAudioCompletedAt ? (
                         <div>
@@ -973,6 +968,10 @@ export default function AdminUsersPage() {
                       ) : (
                         "—"
                       )}
+                    </td>
+
+                    <td style={{ padding: "12px 12px", fontSize: 12, color: "#cbd5e1", textAlign: "center" }}>
+                      {u.treatmentStartedAt ? fmtFaDate(u.treatmentStartedAt) : "—"}
                     </td>
 
                     <td style={{ padding: "12px 12px", fontSize: 12, textAlign: "center" }}>
