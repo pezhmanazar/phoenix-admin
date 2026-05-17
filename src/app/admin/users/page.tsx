@@ -585,15 +585,15 @@ export default function AdminUsersPage() {
   gap: 12,
 }}
       >
-        <div style={{ minWidth: 280, textAlign: "center" }}>
+        <div style={{ width: "100%", minWidth: 280, textAlign: "right" }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900 }}>مدیریت کاربران</h1>
           <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
             {data ? `مجموع: ${data.total} (صفحه ${data.page})` : "—"}
           </div>
         </div>
 
-        <div style={{ flex: 1, minWidth: 320, display: "flex", justifyContent: "center" }}>
-          <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 560 }}>
+        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 760 }}>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
