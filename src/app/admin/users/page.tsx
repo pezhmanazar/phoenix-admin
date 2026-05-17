@@ -72,15 +72,31 @@ function daysLeft(expiresAt?: string | null) {
 function fmtFaDate(v?: string | null) {
   const d = safeDate(v);
   if (!d) return "—";
+
   try {
-    return new Intl.DateTimeFormat("fa-IR", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(d);
+    const parts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+
+    const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    const year = get("year");
+    const month = get("month");
+    const day = get("day");
+    const hour = get("hour");
+    const minute = get("minute");
+
+    return `${year}/${month}/${day} ${hour}:${minute}`;
   } catch {
     return d.toISOString();
   }
 }
+
+
 
 function planState(u: UserRow) {
   if (u.plan !== "pro" && u.plan !== "vip") return "free";
@@ -164,29 +180,42 @@ function BaselineBadge({ level }: { level?: BaselineLevel | null }) {
 
 function buildCsv(rows: UserRow[]) {
   const headers = [
-    "id",
-    "phone",
-    "fullName",
-    "gender",
-    "age",
-    "plan",
-    "planExpiresAt",
-    "daysLeft",
-    "baselineScore",
-    "baselineLevel",
-    "treatmentStartedAt",
-    "introAudioCompletedAt",
-    "waitingForPro",
-    "currentStageTitle",
-    "profileCompleted",
-    "createdAt",
-    "updatedAt",
+    "شناسه",
+    "شماره",
+    "نام",
+    "جنسیت",
+    "سن",
+    "پلن",
+    "تاریخ انقضای پلن",
+    "روزهای باقی‌مانده",
+    "نمره آزمون",
+    "شدت آزمون",
+    "شروع درمان",
+    "اتمام ویس اینترو",
+    "منتظر خرید پرو",
+    "مرحله فعلی",
+    "پروفایل تکمیل شده",
+    "تاریخ عضویت",
+    "آخرین بروزرسانی",
   ];
 
   const escape = (v: any) => {
     const s = String(v ?? "");
-    if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+    if (s.includes('"') || s.includes(",") || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
     return s;
+  };
+
+  const boolFa = (v?: boolean) => (v ? "بله" : "خیر");
+
+  const planFa = (u: UserRow) => {
+    const st = planState(u);
+    if (u.plan === "vip" && st === "pro") return "VIP";
+    if (st === "pro") return "PRO";
+    if (st === "expiring") return "نزدیک انقضا";
+    if (st === "expired") return "منقضی";
+    return "FREE";
   };
 
   const lines = [
@@ -198,18 +227,18 @@ function buildCsv(rows: UserRow[]) {
         u.fullName || "",
         genderFa(u.gender || null),
         calcAge(u.birthDate || null),
-        planState(u),
-        u.planExpiresAt || "",
+        planFa(u),
+        fmtFaDate(u.planExpiresAt || null),
         daysLeft(u.planExpiresAt || null) ?? "",
         u.baselineScore ?? "",
         baselineLevelFa(u.baselineLevel || "unknown"),
-        u.treatmentStartedAt || "",
-        u.introAudioCompletedAt || "",
-        u.waitingForPro ? "true" : "false",
+        fmtFaDate(u.treatmentStartedAt || null),
+        fmtFaDate(u.introAudioCompletedAt || null),
+        boolFa(!!u.waitingForPro),
         u.currentStageTitle || "",
-        u.profileCompleted ? "true" : "false",
-        u.createdAt || "",
-        u.updatedAt || "",
+        boolFa(!!u.profileCompleted),
+        fmtFaDate(u.createdAt || null),
+        fmtFaDate(u.updatedAt || null),
       ]
         .map(escape)
         .join(",")
@@ -218,6 +247,7 @@ function buildCsv(rows: UserRow[]) {
 
   return lines.join("\n");
 }
+
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -622,8 +652,15 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <button
+        <div
+  style={{
+    display: "flex",
+    gap: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>          <button
             onClick={exportCsv}
             style={{
               padding: "9px 12px",
