@@ -13,6 +13,8 @@ export type Message = {
   ts?: string;
   type?: "text" | "voice" | "image" | "file";
   fileUrl?: string | null;
+  signedUrl?: string | null;
+  fileSignedUrl?: string | null;
   mime?: string | null;
   durationSec?: number | null;
 };
@@ -143,13 +145,16 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          const fullUrl = buildFullUrl(m.fileUrl) || "";
+          const fullUrl = m.signedUrl || m.fileSignedUrl || buildFullUrl(m.fileUrl) || "";
           console.log("ADMIN_MEDIA_DEBUG", {
   messageId: m.id,
   type: m.type,
   fileUrl: m.fileUrl,
+  signedUrl: m.signedUrl,
+  fileSignedUrl: m.fileSignedUrl,
   fullUrl,
 });
+
 
           const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
