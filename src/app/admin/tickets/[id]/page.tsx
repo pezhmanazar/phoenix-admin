@@ -1,3 +1,5 @@
+//phoenix-admin\src\app\admin\tickets\[id]\page.tsx
+
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import ReplyBar from "./ReplyBar.client";
@@ -176,11 +178,16 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const ticket = await fetchTicket(id);
   if (!ticket) return notFound();
 
-  const backendMediaBase =
-    normalizeBase(process.env.NEXT_PUBLIC_UPLOAD_BASE) ||
-    normalizeBase(process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE) ||
-    normalizeBase(process.env.BACKEND_PUBLIC_URL) ||
-    "";
+  // const backendMediaBase =
+  //   normalizeBase(process.env.NEXT_PUBLIC_UPLOAD_BASE) ||
+  //   normalizeBase(process.env.NEXT_PUBLIC_BACKEND_MEDIA_BASE) ||
+  //   normalizeBase(process.env.BACKEND_PUBLIC_URL) ||
+  //   "";
+  const backendMediaBase = "https://c904966.parspack.net/c904966";
+    console.log("TICKET_PAGE_MEDIA_BASE", {
+    backendMediaBase,
+  });
+
 
   const u = ticket.user || null;
 
