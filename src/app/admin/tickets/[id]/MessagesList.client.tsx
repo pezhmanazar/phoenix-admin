@@ -103,41 +103,19 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
 
   // helper: url ساختن
     const buildFullUrl = (fileUrl?: string | null) => {
-    const rel = (fileUrl || "").trim();
-    if (!rel) return null;
+  const rel = (fileUrl || "").trim();
+  if (!rel) return null;
 
-    if (rel.startsWith("http://") || rel.startsWith("https://")) {
-      return rel;
-    }
-
-    const base = backendBase?.trim().replace(/\/+$/, "") || "";
-
-    console.log("BUILD_FULL_URL_DEBUG", {
-      backendBase,
-      base,
-      rel,
-    });
-
-    if (!base) return null;
-
-    return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
-  };
-
-
-
-  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-  const next: Record<string, string> = {};
-
-  for (const m of messages || []) {
-    const url = buildFullUrl(m.fileUrl);
-    if (url) next[m.id] = url;
+  if (rel.startsWith("http://") || rel.startsWith("https://")) {
+    return rel;
   }
 
-  setResolvedUrls(next);
-}, [messages, backendBase]);
+  const base = backendBase?.trim().replace(/\/+$/, "") || "";
 
+  if (!base) return null;
+
+  return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
+};
 
   const bumpMediaTick = () => {
     // اگر چند مدیا پشت هم لود شد، tick را افزایش بده
@@ -165,7 +143,7 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          const fullUrl = resolvedUrls[m.id] || "";
+          const fullUrl = buildFullUrl(m.fileUrl) || "";
           console.log("ADMIN_MEDIA_DEBUG", {
   messageId: m.id,
   type: m.type,
