@@ -219,6 +219,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     showSubscription ||
     showTreatmentStart;
 
+    const adminToken = (await cookies()).get("admin_token")?.value || "";
+
   return (
     <div
       style={{
@@ -469,7 +471,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
-              <MessagesList messages={ticket.messages} userName={userName} backendBase={backendMediaBase} />
+              <MessagesList
+  messages={ticket.messages}
+  userName={userName}
+  backendBase={backendMediaBase}
+  adminToken={adminToken}
+/>
             </div>
 
             <div style={{ borderTop: "1px solid rgba(148,163,184,0.18)", paddingTop: 8 }}>
