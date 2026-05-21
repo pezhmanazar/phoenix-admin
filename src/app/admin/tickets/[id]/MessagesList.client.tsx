@@ -45,9 +45,11 @@ function safePersianDate(when?: string) {
 export default function MessagesList({ messages, userName, backendBase, adminToken }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-
-  // base نهایی مدیا
-  const [mediaBase, setMediaBase] = useState<string>("");
+  
+    console.log("MESSAGES_LIST_PROPS", {
+    backendBase,
+    messagesCount: messages?.length,
+  });
 
   // برای تریگر کردن اسکرول بعد از لود مدیا
   const [mediaTick, setMediaTick] = useState(0);
@@ -62,24 +64,6 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
     // روش قابل اعتماد: ته لیست را scrollIntoView کن
     bottomRef.current?.scrollIntoView({ behavior, block: "end" });
   };
-
-  useEffect(() => {
-  const fromProp = backendBase?.trim();
-  if (fromProp) {
-    setMediaBase(fromProp.replace(/\/+$/, ""));
-    return;
-  }
-
-  const fromEnv = process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim();
-  if (fromEnv) {
-    setMediaBase(fromEnv.replace(/\/+$/, ""));
-    return;
-  }
-
-  if (typeof window !== "undefined") {
-    setMediaBase(window.location.origin.replace(/\/+$/, ""));
-  }
-}, [backendBase]);
 
   // اسکرول وقتی پیام جدید میاد
   useEffect(() => {
@@ -118,7 +102,7 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   }, []);
 
   // helper: url ساختن
-   const buildFullUrl = (fileUrl?: string | null) => {
+    const buildFullUrl = (fileUrl?: string | null) => {
     const rel = (fileUrl || "").trim();
     if (!rel) return null;
 
@@ -126,13 +110,19 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
       return rel;
     }
 
-    // لاگ اضافه کن تا بفهمیم مدیا بیس چیست
-    console.log("DEBUG_MEDIA_BASE_CHECK", { mediaBase, rel });
+    const base = backendBase?.trim().replace(/\/+$/, "") || "";
 
-    if (!mediaBase) return null;
+    console.log("BUILD_FULL_URL_DEBUG", {
+      backendBase,
+      base,
+      rel,
+    });
 
-    return rel.startsWith("/") ? `${mediaBase}${rel}` : `${mediaBase}/${rel}`;
+    if (!base) return null;
+
+    return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
   };
+
 
 
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
@@ -146,7 +136,7 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   }
 
   setResolvedUrls(next);
-}, [messages, mediaBase]);
+}, [messages, backendBase]);
 
 
   const bumpMediaTick = () => {
