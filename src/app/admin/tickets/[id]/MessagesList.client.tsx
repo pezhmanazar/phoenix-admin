@@ -118,90 +118,25 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   }, []);
 
   // helper: url ساختن
-  const buildFullUrl = (fileUrl?: string | null, messageId?: string) => {
+  const buildFullUrl = (fileUrl?: string | null) => {
   const rel = (fileUrl || "").toString().trim();
   if (!rel) return null;
-
   if (rel.startsWith("http://") || rel.startsWith("https://")) return rel;
-
-  if (messageId) {
-    const base = mediaBase || "";
-    return `${base}/api/admin/tickets/messages/${messageId}/file`;
-  }
-
-  const base = mediaBase || "";
-  if (!base) return rel.startsWith("/") ? rel : `/${rel}`;
-  return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
+  return null;
 };
 
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    let cancelled = false;
-    const objectUrls: string[] = [];
+  const next: Record<string, string> = {};
 
-    async function loadProtectedMedia() {
-      const mediaMessages = (messages || []).filter(
-        (m) =>
-          !!m.id &&
-          !!m.fileUrl &&
-          (m.type === "image" || m.type === "voice" || m.type === "file")
-      );
+  for (const m of messages || []) {
+    const url = buildFullUrl(m.fileUrl);
+    if (url) next[m.id] = url;
+  }
 
-      if (!mediaMessages.length) {
-        setResolvedUrls({});
-        return;
-      }
-
-      const entries = await Promise.all(
-        mediaMessages.map(async (m) => {
-          const directUrl = buildFullUrl(m.fileUrl, m.id);
-          if (!directUrl) return [m.id, ""] as const;
-
-          try {
-            const res = await fetch(directUrl, {
-              headers: {
-                "x-admin-token": adminToken,
-              },
-              credentials: "include",
-            });
-
-            if (!res.ok) {
-              console.log("ADMIN_MEDIA_FETCH_FAILED", {
-                messageId: m.id,
-                status: res.status,
-                url: directUrl,
-              });
-              return [m.id, ""] as const;
-            }
-
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            objectUrls.push(blobUrl);
-            return [m.id, blobUrl] as const;
-          } catch (err) {
-            console.log("ADMIN_MEDIA_FETCH_ERROR", {
-              messageId: m.id,
-              url: directUrl,
-              err,
-            });
-            return [m.id, ""] as const;
-          }
-        })
-      );
-
-      if (!cancelled) {
-        setResolvedUrls(Object.fromEntries(entries));
-      }
-    }
-
-    loadProtectedMedia();
-
-    return () => {
-      cancelled = true;
-      objectUrls.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [messages, adminToken, mediaBase]);
+  setResolvedUrls(next);
+}, [messages]);
 
 
   const bumpMediaTick = () => {
