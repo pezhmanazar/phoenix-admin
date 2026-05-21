@@ -62,22 +62,23 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
     bottomRef.current?.scrollIntoView({ behavior, block: "end" });
   };
 
-  // محاسبه mediaBase (یا از prop یا از window.location)
   useEffect(() => {
-    if (backendBase && backendBase.trim()) {
-      setMediaBase(backendBase.trim().replace(/\/+$/, ""));
-      return;
-    }
-    if (typeof window !== "undefined") {
-      const { protocol, host } = window.location;
-      let finalHost = host;
-      if (/^admin\./i.test(finalHost)) {
-        finalHost = finalHost.replace(/^admin\./i, "");
-      }
-      const base = `${protocol}//${finalHost}`.replace(/\/+$/, "");
-      setMediaBase(base);
-    }
-  }, [backendBase]);
+  const fromProp = backendBase?.trim();
+  if (fromProp) {
+    setMediaBase(fromProp.replace(/\/+$/, ""));
+    return;
+  }
+
+  const fromEnv = process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim();
+  if (fromEnv) {
+    setMediaBase(fromEnv.replace(/\/+$/, ""));
+    return;
+  }
+
+  if (typeof window !== "undefined") {
+    setMediaBase(window.location.origin.replace(/\/+$/, ""));
+  }
+}, [backendBase]);
 
   // اسکرول وقتی پیام جدید میاد
   useEffect(() => {
@@ -123,10 +124,13 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
   if (rel.startsWith("http://") || rel.startsWith("https://")) return rel;
 
   if (messageId) {
-    return `/api/public/tickets/messages/${messageId}/file`;
+    const base = mediaBase || "";
+    return `${base}/api/public/tickets/messages/${messageId}/file`;
   }
 
-  return rel.startsWith("/") ? rel : `/${rel}`;
+  const base = mediaBase || "";
+  if (!base) return rel.startsWith("/") ? rel : `/${rel}`;
+  return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
 };
 
   const bumpMediaTick = () => {
