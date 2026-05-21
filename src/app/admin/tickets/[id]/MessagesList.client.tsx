@@ -119,10 +119,16 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
 
   // helper: url ساختن
   const buildFullUrl = (fileUrl?: string | null) => {
-  const rel = (fileUrl || "").toString().trim();
+  const rel = (fileUrl || "").trim();
   if (!rel) return null;
-  if (rel.startsWith("http://") || rel.startsWith("https://")) return rel;
-  return null;
+
+  if (rel.startsWith("http://") || rel.startsWith("https://")) {
+    return rel;
+  }
+
+  if (!mediaBase) return null;
+
+  return `${mediaBase}/${rel}`;
 };
 
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
