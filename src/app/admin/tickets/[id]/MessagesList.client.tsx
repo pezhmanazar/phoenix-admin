@@ -20,7 +20,8 @@ export type Message = {
 type Props = {
   messages: Message[];
   userName: string;
-  backendBase: string; // اختیاری؛ اگر خالی باشد، از window.location محاسبه می‌کنیم
+  backendBase: string;
+  adminToken: string;
 };
 
 function safePersianDate(when?: string) {
@@ -41,7 +42,7 @@ function safePersianDate(when?: string) {
   }
 }
 
-export default function MessagesList({ messages, userName, backendBase }: Props) {
+export default function MessagesList({ messages, userName, backendBase, adminToken }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -133,6 +134,76 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
   return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
 };
 
+  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function loadProtectedMedia() {
+      const mediaMessages = (messages || []).filter(
+        (m) =>
+          !!m.id &&
+          !!m.fileUrl &&
+          (m.type === "image" || m.type === "voice" || m.type === "file")
+      );
+
+      if (!mediaMessages.length) {
+        setResolvedUrls({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        mediaMessages.map(async (m) => {
+          const directUrl = buildFullUrl(m.fileUrl, m.id);
+          if (!directUrl) return [m.id, ""] as const;
+
+          try {
+            const res = await fetch(directUrl, {
+              headers: {
+                "x-admin-token": adminToken,
+              },
+              credentials: "include",
+            });
+
+            if (!res.ok) {
+              console.log("ADMIN_MEDIA_FETCH_FAILED", {
+                messageId: m.id,
+                status: res.status,
+                url: directUrl,
+              });
+              return [m.id, ""] as const;
+            }
+
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            objectUrls.push(blobUrl);
+            return [m.id, blobUrl] as const;
+          } catch (err) {
+            console.log("ADMIN_MEDIA_FETCH_ERROR", {
+              messageId: m.id,
+              url: directUrl,
+              err,
+            });
+            return [m.id, ""] as const;
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setResolvedUrls(Object.fromEntries(entries));
+      }
+    }
+
+    loadProtectedMedia();
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [messages, adminToken, mediaBase]);
+
+
   const bumpMediaTick = () => {
     // اگر چند مدیا پشت هم لود شد، tick را افزایش بده
     setMediaTick((x) => x + 1);
@@ -159,7 +230,7 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          const fullUrl = buildFullUrl(m.fileUrl, m.id);
+          const fullUrl = resolvedUrls[m.id] || "";
           console.log("ADMIN_MEDIA_DEBUG", {
   messageId: m.id,
   type: m.type,
@@ -213,52 +284,59 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
                 </div>
               ) : null}
 
-              {type === "image" && fullUrl ? (
-                <img
-                  src={fullUrl}
-                  alt="image"
-                  loading="lazy"
-                  onLoad={bumpMediaTick}
-                  onError={() => {
-  console.log("ADMIN_IMAGE_ERROR", {
-    messageId: m.id,
-    fileUrl: m.fileUrl,
-    fullUrl,
-  });
-  bumpMediaTick();
-}}
-                  style={{
-                    maxHeight: "280px",
-                    borderRadius: "10px",
-                    border: "1px solid #374151",
-                    marginTop: m.text ? 6 : 0,
-                    display: "block",
-                  }}
-                />
-              ) : type === "voice" && fullUrl ? (
-                <div style={{ marginTop: 4 }} onLoadCapture={bumpMediaTick}>
-                  <VoicePlayer src={fullUrl} />
-                </div>
-              ) : type === "file" && fullUrl ? (
-                <a
-                  href={fullUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => {
-                    // کلیک روی فایل شاید رندر را تغییر ندهد، ولی اگر چیزی لود شود مشکلی نیست
-                    // همینجا کاری لازم نداریم
-                  }}
-                  style={{
-                    display: "inline-block",
-                    marginTop: 4,
-                    fontSize: "12px",
-                    color: "rgba(255,255,255,0.9)",
-                    textDecoration: "underline",
-                  }}
-                >
-                  دانلود فایل
-                </a>
-              ) : null}
+              {type === "image" ? (
+  fullUrl ? (
+    <img
+      src={fullUrl}
+      alt="image"
+      loading="lazy"
+      onLoad={bumpMediaTick}
+      onError={() => {
+        console.log("ADMIN_IMAGE_ERROR", {
+          messageId: m.id,
+          fileUrl: m.fileUrl,
+          fullUrl,
+        });
+        bumpMediaTick();
+      }}
+      style={{
+        maxHeight: "280px",
+        borderRadius: "10px",
+        border: "1px solid #374151",
+        marginTop: m.text ? 6 : 0,
+        display: "block",
+      }}
+    />
+  ) : (
+    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال بارگذاری تصویر...</div>
+  )
+) : type === "voice" ? (
+  fullUrl ? (
+    <div style={{ marginTop: 4 }} onLoadCapture={bumpMediaTick}>
+      <VoicePlayer src={fullUrl} />
+    </div>
+  ) : (
+    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال بارگذاری ویس...</div>
+  )
+) : type === "file" ? (
+  fullUrl ? (
+    <a
+      href={fullUrl}
+      download
+      style={{
+        display: "inline-block",
+        marginTop: 4,
+        fontSize: "12px",
+        color: "rgba(255,255,255,0.9)",
+        textDecoration: "underline",
+      }}
+    >
+      دانلود فایل
+    </a>
+  ) : (
+    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال آماده‌سازی فایل...</div>
+  )
+) : null}
             </div>
           );
         })
