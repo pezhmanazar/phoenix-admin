@@ -156,6 +156,13 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
           const when = m.createdAt || m.ts || undefined;
 
           const fullUrl = buildFullUrl(m.fileUrl, m.id);
+          console.log("ADMIN_MEDIA_DEBUG", {
+  messageId: m.id,
+  type: m.type,
+  fileUrl: m.fileUrl,
+  fullUrl,
+});
+
           const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
@@ -208,7 +215,14 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
                   alt="image"
                   loading="lazy"
                   onLoad={bumpMediaTick}
-                  onError={bumpMediaTick}
+                  onError={() => {
+  console.log("ADMIN_IMAGE_ERROR", {
+    messageId: m.id,
+    fileUrl: m.fileUrl,
+    fullUrl,
+  });
+  bumpMediaTick();
+}}
                   style={{
                     maxHeight: "280px",
                     borderRadius: "10px",
