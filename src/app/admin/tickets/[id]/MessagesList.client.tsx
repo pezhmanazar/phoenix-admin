@@ -116,13 +116,18 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
   }, []);
 
   // helper: url ساختن
-  const buildFullUrl = (fileUrl?: string | null) => {
-    const rel = (fileUrl || "").toString();
-    if (!rel) return null;
-    if (rel.startsWith("http://") || rel.startsWith("https://")) return rel;
-    if (rel.startsWith("/")) return mediaBase ? `${mediaBase}${rel}` : rel;
-    return mediaBase ? `${mediaBase}/${rel}` : `/${rel}`;
-  };
+  const buildFullUrl = (fileUrl?: string | null, messageId?: string) => {
+  const rel = (fileUrl || "").toString().trim();
+  if (!rel) return null;
+
+  if (rel.startsWith("http://") || rel.startsWith("https://")) return rel;
+
+  if (messageId) {
+    return `/api/public/tickets/messages/${messageId}/file`;
+  }
+
+  return rel.startsWith("/") ? rel : `/${rel}`;
+};
 
   const bumpMediaTick = () => {
     // اگر چند مدیا پشت هم لود شد، tick را افزایش بده
@@ -150,7 +155,7 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          const fullUrl = buildFullUrl(m.fileUrl);
+          const fullUrl = buildFullUrl(m.fileUrl, m.id);
           const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
