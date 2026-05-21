@@ -125,7 +125,7 @@ export default function MessagesList({ messages, userName, backendBase }: Props)
 
   if (messageId) {
     const base = mediaBase || "";
-    return `${base}/api/public/tickets/messages/${messageId}/file`;
+    return `${base}/api/tickets/messages/${messageId}/file`;
   }
 
   const base = mediaBase || "";
