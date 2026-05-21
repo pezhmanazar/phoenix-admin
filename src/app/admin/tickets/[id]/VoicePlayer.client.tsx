@@ -48,19 +48,22 @@ export default function VoicePlayer({ src }: { src: string }) {
       </button>
 
       <audio
-        ref={audioRef}
-        controls
-        src={src}
-        onPlay={() => {
-          if (audioRef.current) {
-            audioRef.current.playbackRate = rate;
-          }
-        }}
-        style={{
-          flex: 1,
-          outline: "none",
-        }}
-      />
+  ref={audioRef}
+  controls
+  src={src}
+  onPlay={() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = rate;
+    }
+  }}
+  onError={() => {
+    console.log("ADMIN_AUDIO_ERROR", { src });
+  }}
+  style={{
+    flex: 1,
+    outline: "none",
+  }}
+/>
     </div>
   );
 }
