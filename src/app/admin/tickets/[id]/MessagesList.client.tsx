@@ -128,6 +128,10 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
 
   if (!mediaBase) return null;
 
+  if (rel.startsWith("/")) {
+    return `${mediaBase}${rel}`;
+  }
+
   return `${mediaBase}/${rel}`;
 };
 
@@ -142,7 +146,7 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   }
 
   setResolvedUrls(next);
-}, [messages]);
+}, [messages, mediaBase]);
 
 
   const bumpMediaTick = () => {
