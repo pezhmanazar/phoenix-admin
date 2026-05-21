@@ -118,22 +118,22 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   }, []);
 
   // helper: url ساختن
-  const buildFullUrl = (fileUrl?: string | null) => {
-  const rel = (fileUrl || "").trim();
-  if (!rel) return null;
+   const buildFullUrl = (fileUrl?: string | null) => {
+    const rel = (fileUrl || "").trim();
+    if (!rel) return null;
 
-  if (rel.startsWith("http://") || rel.startsWith("https://")) {
-    return rel;
-  }
+    if (rel.startsWith("http://") || rel.startsWith("https://")) {
+      return rel;
+    }
 
-  if (!mediaBase) return null;
+    // لاگ اضافه کن تا بفهمیم مدیا بیس چیست
+    console.log("DEBUG_MEDIA_BASE_CHECK", { mediaBase, rel });
 
-  if (rel.startsWith("/")) {
-    return `${mediaBase}${rel}`;
-  }
+    if (!mediaBase) return null;
 
-  return `${mediaBase}/${rel}`;
-};
+    return rel.startsWith("/") ? `${mediaBase}${rel}` : `${mediaBase}/${rel}`;
+  };
+
 
   const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
 
