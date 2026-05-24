@@ -111,7 +111,7 @@ export default function VoicePlayer({ src }: { src: string }) {
             cursor: isLoading ? "default" : "pointer",
           }}
         >
-          {isLoading ? "در حال بارگذاری ویس..." : "▶ پخش ویس"}
+          {isLoading ? "در حال بارگذاری ویس..." : "▶"}
         </button>
       ) : null}
 
