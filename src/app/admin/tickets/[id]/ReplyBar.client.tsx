@@ -341,11 +341,15 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
   };
 
   const sendBtn: React.CSSProperties = {
-    ...iconBtn,
-    background: "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
-    border: "none",
-    fontSize: 16,
-  };
+  ...iconBtn,
+  background: sending
+    ? "linear-gradient(135deg, rgba(75,85,99,0.95), rgba(55,65,81,1))"
+    : "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
+  border: "none",
+  fontSize: 16,
+  cursor: sending ? "wait" : "pointer",
+  opacity: sending ? 0.85 : 1,
+};
 
   const textareaStyle: React.CSSProperties = {
     flex: 1,
@@ -406,10 +410,15 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
         >
           🎤
         </button>
-
-        <button type="button" onClick={onSend} style={sendBtn} disabled={sending || (!text.trim() && !file && !recordBlobUrl)} title="ارسال">
-          ◀
-        </button>
+<button
+  type="button"
+  onClick={onSend}
+  style={sendBtn}
+  disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
+  title={sending ? "در حال ارسال..." : "ارسال"}
+>
+  {sending ? "⏳" : "◀"}
+</button>
       </div>
 
       <div style={infoRow}>
