@@ -6,39 +6,58 @@ import { useEffect, useRef, useState } from "react";
 export default function VoicePlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [rate, setRate] = useState(1);
-  const [isReady, setIsReady] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const toggleRate = () => {
     const next = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
     setRate(next);
+
     if (audioRef.current) {
       audioRef.current.playbackRate = next;
     }
   };
 
   useEffect(() => {
-    setIsReady(false);
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+
+    setActivated(false);
     setIsLoading(false);
   }, [src]);
 
   const handleFirstPlay = async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !src) return;
 
     try {
-      if (!isReady) {
-        setIsLoading(true);
+      setIsLoading(true);
+
+      if (!activated) {
         audio.src = src;
+        audio.preload = "metadata";
         audio.load();
-        setIsReady(true);
+        setActivated(true);
       }
 
-      await audio.play();
       audio.playbackRate = rate;
+
+      // کمی فرصت بده src واقعاً به audio بچسبد
+      setTimeout(async () => {
+        try {
+          await audio.play();
+        } catch (err) {
+          console.log("ADMIN_AUDIO_PLAY_ERROR", { src, err });
+        } finally {
+          setIsLoading(false);
+        }
+      }, 50);
     } catch (err) {
-      console.log("ADMIN_AUDIO_PLAY_ERROR", { src, err });
-    } finally {
+      console.log("ADMIN_AUDIO_PREPARE_ERROR", { src, err });
       setIsLoading(false);
     }
   };
@@ -75,7 +94,7 @@ export default function VoicePlayer({ src }: { src: string }) {
         ×{rate}
       </button>
 
-      {!isReady ? (
+      {!activated ? (
         <button
           type="button"
           onClick={handleFirstPlay}
@@ -93,37 +112,37 @@ export default function VoicePlayer({ src }: { src: string }) {
         >
           {isLoading ? "در حال بارگذاری ویس..." : "▶ پخش ویس"}
         </button>
-      ) : (
-        <audio
-          ref={audioRef}
-          controls
-          preload="none"
-          onPlay={() => {
-            if (audioRef.current) {
-              audioRef.current.playbackRate = rate;
-            }
-          }}
-          onError={() => {
-            console.log("ADMIN_AUDIO_ERROR", { src });
-          }}
-          style={{
-            flex: 1,
-            outline: "none",
-          }}
-        />
-      )}
+      ) : null}
 
-      {!isReady && (
-        <audio
-          ref={audioRef}
-          preload="none"
-          style={{ display: "none" }}
-          onError={() => {
-            console.log("ADMIN_AUDIO_ERROR", { src });
-            setIsLoading(false);
-          }}
-        />
-      )}
+      <audio
+        ref={audioRef}
+        controls
+        preload="none"
+        onPlay={() => {
+          if (audioRef.current) {
+            audioRef.current.playbackRate = rate;
+          }
+        }}
+        onCanPlay={() => {
+          setIsLoading(false);
+        }}
+        onLoadedMetadata={() => {
+          setIsLoading(false);
+        }}
+        onError={() => {
+          console.log("ADMIN_AUDIO_ERROR", {
+            src,
+            error: audioRef.current?.error,
+          });
+          setIsLoading(false);
+        }}
+        style={{
+          display: activated ? "block" : "none",
+          flex: 1,
+          outline: "none",
+          width: "100%",
+        }}
+      />
     </div>
   );
 }
