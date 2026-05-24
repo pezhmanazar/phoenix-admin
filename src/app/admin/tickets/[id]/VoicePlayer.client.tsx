@@ -50,14 +50,12 @@ export default function VoicePlayer({ src }: { src: string }) {
       setTimeout(async () => {
         try {
           await audio.play();
-        } catch (err) {
-          console.log("ADMIN_AUDIO_PLAY_ERROR", { src, err });
+        } catch {
         } finally {
           setIsLoading(false);
         }
       }, 50);
     } catch (err) {
-      console.log("ADMIN_AUDIO_PREPARE_ERROR", { src, err });
       setIsLoading(false);
     }
   };
@@ -131,10 +129,6 @@ export default function VoicePlayer({ src }: { src: string }) {
           setIsLoading(false);
         }}
         onError={() => {
-          console.log("ADMIN_AUDIO_ERROR", {
-            src,
-            error: audioRef.current?.error,
-          });
           setIsLoading(false);
         }}
         style={{
