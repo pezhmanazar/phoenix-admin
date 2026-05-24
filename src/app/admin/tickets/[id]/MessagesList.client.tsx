@@ -50,11 +50,6 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   const stableVoiceUrlsRef = useRef<Record<string, string>>({});
   const didInitialScrollRef = useRef(false);
 
-    console.log("MESSAGES_LIST_PROPS", {
-    backendBase,
-    messagesCount: messages?.length,
-  });
-
   // برای تریگر کردن اسکرول بعد از لود مدیا
   const [mediaTick, setMediaTick] = useState(0);
 
@@ -197,18 +192,7 @@ const getStableMediaUrl = (m: Message) => {
         messages.map((m) => {
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
-
           const fullUrl = getStableMediaUrl(m);
-          console.log("ADMIN_MEDIA_DEBUG", {
-  messageId: m.id,
-  type: m.type,
-  fileUrl: m.fileUrl,
-  signedUrl: m.signedUrl,
-  fileSignedUrl: m.fileSignedUrl,
-  fullUrl,
-});
-
-
           const type: Message["type"] = m.type || "text";
           const senderLabel = mine ? "پشتیبانی ققنوس" : userName;
 
@@ -263,13 +247,9 @@ const getStableMediaUrl = (m: Message) => {
       loading="lazy"
       onLoad={bumpMediaTick}
       onError={() => {
-        console.log("ADMIN_IMAGE_ERROR", {
-          messageId: m.id,
-          fileUrl: m.fileUrl,
-          fullUrl,
-        });
         bumpMediaTick();
       }}
+
       style={{
         maxHeight: "280px",
         borderRadius: "10px",
