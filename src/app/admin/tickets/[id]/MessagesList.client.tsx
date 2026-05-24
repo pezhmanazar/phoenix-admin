@@ -47,6 +47,7 @@ function safePersianDate(when?: string) {
 export default function MessagesList({ messages, userName, backendBase, adminToken }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const stableVoiceUrlsRef = useRef<Record<string, string>>({});
   
     console.log("MESSAGES_LIST_PROPS", {
     backendBase,
@@ -119,6 +120,28 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
 };
 
+const getStableMediaUrl = (m: Message) => {
+  const rawUrl = m.signedUrl || m.fileSignedUrl || buildFullUrl(m.fileUrl) || "";
+
+  if (!rawUrl) return "";
+
+  // فقط برای ویس URL را ثابت نگه می‌داریم
+  // چون audio با تغییر src وسط لود، request را cancel می‌کند
+  if (m.type === "voice") {
+    const existing = stableVoiceUrlsRef.current[m.id];
+
+    if (existing) {
+      return existing;
+    }
+
+    stableVoiceUrlsRef.current[m.id] = rawUrl;
+    return rawUrl;
+  }
+
+  return rawUrl;
+};
+
+
   const bumpMediaTick = () => {
     // اگر چند مدیا پشت هم لود شد، tick را افزایش بده
     setMediaTick((x) => x + 1);
@@ -145,7 +168,7 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
           const mine = m.sender === "admin";
           const when = m.createdAt || m.ts || undefined;
 
-          const fullUrl = m.signedUrl || m.fileSignedUrl || buildFullUrl(m.fileUrl) || "";
+          const fullUrl = getStableMediaUrl(m);
           console.log("ADMIN_MEDIA_DEBUG", {
   messageId: m.id,
   type: m.type,
