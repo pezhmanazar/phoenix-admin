@@ -48,7 +48,8 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const stableVoiceUrlsRef = useRef<Record<string, string>>({});
-  
+  const didInitialScrollRef = useRef(false);
+
     console.log("MESSAGES_LIST_PROPS", {
     backendBase,
     messagesCount: messages?.length,
@@ -68,24 +69,51 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
     bottomRef.current?.scrollIntoView({ behavior, block: "end" });
   };
 
-  // اسکرول وقتی پیام جدید میاد
-  useEffect(() => {
-    scrollToBottom("auto");
-    // یک بار هم با تاخیر کوتاه (برای رندر اولیه)
-    const t = setTimeout(() => scrollToBottom("auto"), 50);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages?.length]);
+  const isNearBottom = () => {
+  const el = scrollRef.current;
+  if (!el) return true;
 
-  // اسکرول وقتی مدیا لود شد (tick تغییر می‌کنه)
-  useEffect(() => {
-    if (!mediaCount) return;
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+  return distanceFromBottom < 120;
+};
+
+// فقط ورود اولیه را ببر آخر پیام‌ها
+// بعد از آن فقط اگر کاربر نزدیک پایین بود، auto-scroll کن
+useEffect(() => {
+  if (!didInitialScrollRef.current) {
+    didInitialScrollRef.current = true;
+
     scrollToBottom("auto");
-    // یک بار هم با تاخیر برای مواردی که لود/decoding طول می‌کشه
-    const t = setTimeout(() => scrollToBottom("auto"), 80);
+    const t = setTimeout(() => scrollToBottom("auto"), 50);
+
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mediaTick]);
+  }
+
+  if (isNearBottom()) {
+    scrollToBottom("auto");
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [messages?.length]);
+
+// وقتی مدیا لود شد، فقط اگر کاربر نزدیک پایین است اسکرول کن
+useEffect(() => {
+  if (!mediaCount) return;
+  if (!isNearBottom()) return;
+
+  scrollToBottom("auto");
+
+  const t = setTimeout(() => {
+    if (isNearBottom()) {
+      scrollToBottom("auto");
+    }
+  }, 80);
+
+  return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [mediaTick]);
+
 
   // اسکرول وقتی ارتفاع کانتینر تغییر کرد (مثلا بعد از لود تصاویر)
   useEffect(() => {
@@ -96,8 +124,10 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
     if (typeof ResizeObserver === "undefined") return;
 
     const ro = new ResizeObserver(() => {
-      scrollToBottom("auto");
-    });
+  if (isNearBottom()) {
+    scrollToBottom("auto");
+  }
+});
 
     ro.observe(el);
     return () => ro.disconnect();
