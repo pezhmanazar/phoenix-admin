@@ -257,74 +257,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
           ) : null}
         </div>
-
-        <style jsx>{`
-          .admin-header-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-          }
-
-          .admin-header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-            flex: 1;
-          }
-
-          .admin-user-chip {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-            max-width: 320px;
-          }
-
-          .admin-header-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            justify-content: flex-end;
-            flex-wrap: wrap;
-          }
-
-          @media (max-width: 768px) {
-            .admin-header-wrap {
-              gap: 10px;
-            }
-
-            .admin-header-left {
-              width: 100%;
-              justify-content: space-between;
-            }
-
-            .admin-user-chip {
-              max-width: 110px;
-            }
-
-            .admin-header-actions {
-              width: 100%;
-              flex-wrap: nowrap;
-              overflow-x: auto;
-              padding-bottom: 2px;
-              -webkit-overflow-scrolling: touch;
-            }
-
-            .admin-header-actions > a,
-            .admin-header-actions > div {
-              flex: 0 0 auto;
-            }
-
-            .hide-mobile-text {
-              display: none;
-            }
-          }
-        `}</style>
       </header>
-
 
       <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
         {children}
