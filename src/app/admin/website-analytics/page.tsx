@@ -145,7 +145,7 @@ export default function WebsiteAnalyticsPage() {
               ) : (
                 <div className="flex items-end justify-between h-44 gap-2 pb-2 border-b border-white/10 dir-ltr">
                   {dailyChartData.map((d, index) => {
-                    const percentHeight = (d.views / maxDayViews) * 100;
+                    const percentHeight = Math.max((d.views / maxDayViews) * 100, 10); // حداقل ۱۰ درصد ارتفاع داشته باشه
 
                     return (
                       <div
@@ -154,7 +154,7 @@ export default function WebsiteAnalyticsPage() {
                         title={`${d.date}: ${d.views} بازدید`}
                       >
                         <div
-                          className="w-full max-w-[36px] bg-orange-500 hover:bg-orange-400 rounded-t-lg transition-all duration-300"
+                          className="w-full max-w-[36px] bg-sky-500 rounded-t-lg transition-all duration-300"
                           style={{ height: `${Math.max(percentHeight, 6)}%` }}
                         />
                         <span className="text-[10px] text-slate-500 mt-2 whitespace-nowrap">
