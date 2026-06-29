@@ -139,32 +139,34 @@ export default function WebsiteAnalyticsPage() {
               <h2 className="text-sm font-bold mb-5 text-slate-300">روند بازدید روزانه</h2>
               
               {dailyChartData.length === 0 ? (
-                <div className="h-44 flex items-center justify-center text-sm text-slate-500 border border-dashed border-white/10 rounded-xl">
-                  داده‌ای برای نمایش نمودار وجود ندارد
-                </div>
-              ) : (
-                <div className="flex items-end justify-between h-44 gap-2 pb-2 border-b border-white/10 dir-ltr">
-                  {dailyChartData.map((d, index) => {
-                    const percentHeight = Math.max((d.views / maxDayViews) * 100, 10); // حداقل ۱۰ درصد ارتفاع داشته باشه
-
-                    return (
-                      <div
-                        key={index}
-                        className="flex-1 flex flex-col items-center h-full justify-end"
-                        title={`${d.date}: ${d.views} بازدید`}
-                      >
-                        <div
-                          className="w-full max-w-[36px] bg-sky-500 rounded-t-lg transition-all duration-300"
-                          style={{ height: `${Math.max(percentHeight, 6)}%` }}
-                        />
-                        <span className="text-[10px] text-slate-500 mt-2 whitespace-nowrap">
-                          {toPersianDate(d.date)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+  <div className="h-44 flex items-center justify-center text-sm text-slate-500 border border-dashed border-white/10 rounded-xl">
+    داده‌ای برای نمایش نمودار وجود ندارد
+  </div>
+) : (
+  <div className="flex items-end justify-between h-44 gap-2 pb-2 border-b border-white/10 dir-ltr bg-red-900/20">
+    {dailyChartData.map((d, index) => {
+      // محاسبه ارتفاع (حداقل ۱۰ درصد)
+      const heightVal = Math.max((d.views / maxDayViews) * 100, 10);
+      
+      return (
+        <div
+          key={index}
+          className="flex-1 flex flex-col items-center justify-end h-full"
+          title={`${d.date}: ${d.views} بازدید`}
+        >
+          {/* این خودِ ستون است */}
+          <div
+            className="w-full bg-sky-400 rounded-t-sm"
+            style={{ height: `${heightVal}%` }}
+          />
+          <span className="text-[9px] text-slate-400 mt-1">
+            {toPersianDate(d.date)}
+          </span>
+        </div>
+      );
+    })}
+  </div>
+)}
             </div>
 
             {/* جدول بازدید صفحات */}
