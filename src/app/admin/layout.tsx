@@ -179,6 +179,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               مدیریت کاربران
             </Link>
 
+            {/* ✅ آمار سایت */}
+            <Link
+              href="/admin/analytics"
+              style={{
+                ...navBase,
+                border: "1px solid #f97316",
+                backgroundColor: "#1c1917",
+                color: "#fed7aa",
+              }}
+              title="آمار و تحلیل بازدید سایت"
+            >
+              <span aria-hidden>📊</span>
+              آمار سایت
+            </Link>
+
             {/* ✅ مدیریت تیکت‌ها (کنار مدیریت کاربران) */}
             <Link
               href="/admin/tickets"
