@@ -87,6 +87,14 @@ const navBase: React.CSSProperties = {
   lineHeight: 1,
 };
 
+const iconOnlyOnMobile = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "100%",
+} as const;
+
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await fetchMe();
 
@@ -102,169 +110,221 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     >
       <header
         style={{
-          padding: "10px 18px",
+          padding: "10px 12px",
           borderBottom: "1px solid #111827",
           backgroundColor: "#020617",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center", // این رو از space-between به center تغییر دادیم که در موبایل زیباتر باشه
-          flexWrap: "wrap",         // این مهم‌ترین بخش است که اجازه شکستن خط رو میده
           boxSizing: "border-box",
-          gap: "8px",               // فاصله رو کمی کمتر کردیم که بهتر جا بشه
         }}
       >
-        {/* راست: عنوان + اسم + نقش */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 280 }}>
-          {/* ✅ کلیک روی این باید برگرده صفحه اصلی = آنالیتیکس */}
-          <Link
-            href="/admin/analytics"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              borderRadius: 9999,
-              border: "1px solid #374151",
-              backgroundColor: "#020617",
-              padding: "9px 14px", // کمی همسان‌تر با بقیه
-              fontSize: "13px",
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.92)",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              lineHeight: 1,
-            }}
-            title="بازگشت به صفحه اصلی پنل (آمار و تحلیل)"
-          >
-            <span aria-hidden>📊</span>
-            <span>پنل مدیریت ققنوس</span>
-          </Link>
+        <div className="admin-header-wrap">
+          <div className="admin-header-left">
+            <Link
+              href="/admin/analytics"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 9999,
+                border: "1px solid #374151",
+                backgroundColor: "#020617",
+                padding: "9px 14px",
+                fontSize: "13px",
+                fontWeight: 900,
+                color: "rgba(255,255,255,0.92)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                lineHeight: 1,
+                maxWidth: "100%",
+              }}
+              title="بازگشت به صفحه اصلی پنل"
+            >
+              <span aria-hidden>📊</span>
+              <span className="hide-mobile-text">پنل مدیریت ققنوس</span>
+            </Link>
+
+            {me ? (
+              <div className="admin-user-chip">
+                <span
+                  style={{
+                    fontSize: "13px",
+                    opacity: 0.9,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: 190,
+                  }}
+                  title={me.email}
+                >
+                  {me.name || me.email}
+                </span>
+                <RoleBadge role={me.role} />
+              </div>
+            ) : null}
+          </div>
 
           {me ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 320 }}>
-              <span
+            <div className="admin-header-actions">
+              <Link
+                href="/admin/users"
                 style={{
-                  fontSize: "13px",
-                  opacity: 0.9,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: 190,
+                  ...navBase,
+                  border: "1px solid #7c3aed",
+                  backgroundColor: "#2e1065",
+                  color: "#f5f3ff",
                 }}
-                title={me.email}
+                title="مدیریت کاربران"
               >
-                {me.name || me.email}
-              </span>
-              <RoleBadge role={me.role} />
+                <span aria-hidden>👥</span>
+                <span className="hide-mobile-text">مدیریت کاربران</span>
+              </Link>
+
+              <Link
+                href="/admin/website-analytics"
+                style={{
+                  ...navBase,
+                  border: "1px solid #f97316",
+                  backgroundColor: "#1c1917",
+                  color: "#fed7aa",
+                }}
+                title="آمار و تحلیل بازدید سایت"
+              >
+                <span aria-hidden>📊</span>
+                <span className="hide-mobile-text">آمار سایت</span>
+              </Link>
+
+              <Link
+                href="/admin/tickets"
+                style={{
+                  ...navBase,
+                  border: "1px solid #22c55e",
+                  backgroundColor: "#064e3b",
+                  color: "#dcfce7",
+                }}
+                title="مدیریت تیکت‌ها"
+              >
+                <span aria-hidden>🎫</span>
+                <span className="hide-mobile-text">مدیریت تیکت‌ها</span>
+              </Link>
+
+              <Link
+                href="/admin/announcements"
+                style={{
+                  ...navBase,
+                  border: "1px solid #ea580c",
+                  backgroundColor: "#7c2d12",
+                  color: "#ffedd5",
+                }}
+                title="مدیریت بنرهای همگانی اپ"
+              >
+                <span aria-hidden>📣</span>
+                <span className="hide-mobile-text">بنر همگانی</span>
+              </Link>
+
+              {me.role === "owner" && (
+                <Link
+                  href="/admin/admins"
+                  style={{
+                    ...navBase,
+                    border: "1px solid #0f766e",
+                    backgroundColor: "#0f766e",
+                    color: "#ecfeff",
+                  }}
+                  title="مدیریت ادمین‌ها"
+                >
+                  <span aria-hidden>🛡️</span>
+                  <span className="hide-mobile-text">مدیریت ادمین‌ها</span>
+                </Link>
+              )}
+
+              <Link
+                href="/admin/profile"
+                style={{
+                  ...navBase,
+                  border: "1px solid #374151",
+                  backgroundColor: "#111827",
+                  color: "#e5e7eb",
+                  fontWeight: 800,
+                }}
+                title="ویرایش پروفایل"
+              >
+                <span aria-hidden>✏️</span>
+                <span className="hide-mobile-text">ویرایش پروفایل</span>
+              </Link>
+
+              <div>
+                <LogoutButton />
+              </div>
             </div>
           ) : null}
         </div>
 
-        {/* وسط: (خالی) */}
-        <div style={{ flex: 1 }} />
+        <style jsx>{`
+          .admin-header-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
 
-        {/* چپ: دکمه‌ها */}
-        {me ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-            {/* ✅ مدیریت کاربران */}
-            <Link
-              href="/admin/users"
-              style={{
-                ...navBase,
-                border: "1px solid #7c3aed",
-                backgroundColor: "#2e1065",
-                color: "#f5f3ff",
-              }}
-              title="مدیریت کاربران"
-            >
-              <span aria-hidden>👥</span>
-              مدیریت کاربران
-            </Link>
+          .admin-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+          }
 
-            {/* ✅ آمار سایت */}
-            <Link
-              href="/admin/website-analytics"
-              style={{
-                ...navBase,
-                border: "1px solid #f97316",
-                backgroundColor: "#1c1917",
-                color: "#fed7aa",
-              }}
-              title="آمار و تحلیل بازدید سایت"
-            >
-              <span aria-hidden>📊</span>
-              آمار سایت
-            </Link>
+          .admin-user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            max-width: 320px;
+          }
 
-            {/* ✅ مدیریت تیکت‌ها (کنار مدیریت کاربران) */}
-            <Link
-              href="/admin/tickets"
-              style={{
-                ...navBase,
-                border: "1px solid #22c55e",
-                backgroundColor: "#064e3b",
-                color: "#dcfce7",
-              }}
-              title="مدیریت تیکت‌ها"
-            >
-              <span aria-hidden>🎫</span>
-              مدیریت تیکت‌ها
-            </Link>
+          .admin-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+          }
 
-            {/* بنر همگانی */}
-            <Link
-              href="/admin/announcements"
-              style={{
-                ...navBase,
-                border: "1px solid #ea580c",
-                backgroundColor: "#7c2d12",
-                color: "#ffedd5",
-              }}
-              title="مدیریت بنرهای همگانی اپ"
-            >
-              <span aria-hidden>📣</span>
-              بنر همگانی
-            </Link>
+          @media (max-width: 768px) {
+            .admin-header-wrap {
+              gap: 10px;
+            }
 
-            {/* مدیریت ادمین‌ها */}
-            {me.role === "owner" && (
-              <Link
-                href="/admin/admins"
-                style={{
-                  ...navBase,
-                  border: "1px solid #0f766e",
-                  backgroundColor: "#0f766e",
-                  color: "#ecfeff",
-                }}
-                title="مدیریت ادمین‌ها"
-              >
-                <span aria-hidden>🛡️</span>
-                مدیریت ادمین‌ها
-              </Link>
-            )}
+            .admin-header-left {
+              width: 100%;
+              justify-content: space-between;
+            }
 
-            {/* ویرایش پروفایل */}
-            <Link
-              href="/admin/profile"
-              style={{
-                ...navBase,
-                border: "1px solid #374151",
-                backgroundColor: "#111827",
-                color: "#e5e7eb",
-                fontWeight: 800,
-              }}
-              title="ویرایش پروفایل"
-            >
-              <span aria-hidden>✏️</span>
-              ویرایش پروفایل
-            </Link>
+            .admin-user-chip {
+              max-width: 110px;
+            }
 
-            {/* خروج */}
-            <div>
-              <LogoutButton />
-            </div>
-          </div>
-        ) : null}
+            .admin-header-actions {
+              width: 100%;
+              flex-wrap: nowrap;
+              overflow-x: auto;
+              padding-bottom: 2px;
+              -webkit-overflow-scrolling: touch;
+            }
+
+            .admin-header-actions > a,
+            .admin-header-actions > div {
+              flex: 0 0 auto;
+            }
+
+            .hide-mobile-text {
+              display: none;
+            }
+          }
+        `}</style>
       </header>
+
 
       <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
         {children}
