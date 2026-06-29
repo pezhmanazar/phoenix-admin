@@ -107,9 +107,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           backgroundColor: "#020617",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: "center", // این رو از space-between به center تغییر دادیم که در موبایل زیباتر باشه
+          flexWrap: "wrap",         // این مهم‌ترین بخش است که اجازه شکستن خط رو میده
           boxSizing: "border-box",
-          gap: "12px",
+          gap: "8px",               // فاصله رو کمی کمتر کردیم که بهتر جا بشه
         }}
       >
         {/* راست: عنوان + اسم + نقش */}
