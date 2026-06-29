@@ -48,9 +48,10 @@ export default function WebsiteAnalyticsPage() {
         throw new Error(result.error || "خطا در دریافت اطلاعات");
       }
       setData(result.data);
-    } catch (err: any) {
-      setError(err.message || "مشکلی پیش آمده");
-    } finally {
+    } catch (err: unknown) {
+  const message = err instanceof Error ? err.message : "مشکلی پیش آمده";
+  setError(message);
+} finally {
       setLoading(false);
     }
   }
@@ -59,23 +60,12 @@ export default function WebsiteAnalyticsPage() {
     fetchStats(days);
   }, [days]);
 
-  const dailyChartData: DailyChartItem[] = React.useMemo(() => {
-    const grouped: Record<string, number> = {};
-
-    (data?.chartData ?? []).forEach((item) => {
-      const dateKey = item.date;
-      grouped[dateKey] = (grouped[dateKey] || 0) + (item.views || 0);
-    });
-
-    return Object.entries(grouped)
-      .map(([date, views]) => ({ date, views }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [data]);
-
-
-  const maxDayViews = dailyChartData.length
-    ? Math.max(...dailyChartData.map((d) => d.views), 1)
-    : 1;
+  const dailyChartData: DailyChartItem[] = (data?.chartData ?? [])
+  .map((item) => ({
+    date: item.date,
+    views: item.views || 0
+  }))
+  .sort((a, b) => a.date.localeCompare(b.date));
 
   function toPersianDate(dateStr?: string | null) {
   if (!dateStr) return "-";
@@ -145,8 +135,6 @@ export default function WebsiteAnalyticsPage() {
 ) : (
   <div className="flex items-end justify-around h-44 gap-2 pb-2 border-b border-white/10 dir-ltr bg-red-900/20">
     {dailyChartData.map((d, index) => {
-      // محاسبه ارتفاع (حداقل ۱۰ درصد)
-      const heightVal = Math.max((d.views / maxDayViews) * 100, 10);
       
       return (
         <div
@@ -156,8 +144,7 @@ export default function WebsiteAnalyticsPage() {
         >
           {/* این خودِ ستون است */}
           <div
-  className="w-6 bg-sky-400 rounded-t-md"
-  style={{ height: `${heightVal}%`, minHeight: "10px" }}
+  className="w-6 bg-sky-400 rounded-t-md h-[10px]"
 />
           <span className="text-[9px] text-slate-400 mt-1">
             {toPersianDate(d.date)}
