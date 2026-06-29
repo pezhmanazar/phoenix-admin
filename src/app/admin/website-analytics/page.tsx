@@ -143,7 +143,7 @@ export default function WebsiteAnalyticsPage() {
     داده‌ای برای نمایش نمودار وجود ندارد
   </div>
 ) : (
-  <div className="flex items-end justify-between h-44 gap-2 pb-2 border-b border-white/10 dir-ltr bg-red-900/20">
+  <div className="flex items-end justify-around h-44 gap-2 pb-2 border-b border-white/10 dir-ltr bg-red-900/20">
     {dailyChartData.map((d, index) => {
       // محاسبه ارتفاع (حداقل ۱۰ درصد)
       const heightVal = Math.max((d.views / maxDayViews) * 100, 10);
@@ -156,9 +156,9 @@ export default function WebsiteAnalyticsPage() {
         >
           {/* این خودِ ستون است */}
           <div
-            className="w-full bg-sky-400 rounded-t-sm"
-            style={{ height: `${heightVal}%` }}
-          />
+  className="w-6 bg-sky-400 rounded-t-md"
+  style={{ height: `${heightVal}%`, minHeight: "10px" }}
+/>
           <span className="text-[9px] text-slate-400 mt-1">
             {toPersianDate(d.date)}
           </span>
