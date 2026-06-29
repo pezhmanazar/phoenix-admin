@@ -181,7 +181,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
             {/* ✅ آمار سایت */}
             <Link
-              href="/admin/analytics"
+              href="/admin/website-analytics"
               style={{
                 ...navBase,
                 border: "1px solid #f97316",
