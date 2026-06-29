@@ -539,7 +539,6 @@ const sortedPathStats = useMemo(() => {
                     <thead>
                       <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                         <th style={{ padding: 12, color: "#94a3b8", fontWeight: 800 }}>ردیف</th>
-                        <th style={{ padding: 12, color: "#94a3b8", fontWeight: 800 }}>رتبه</th>
                         <th style={{ padding: 12, color: "#94a3b8", fontWeight: 800 }}>آدرس مسیر</th>
                         <th style={{ padding: 12, color: "#94a3b8", fontWeight: 800 }}>کل بازدیدها</th>
                         <th style={{ padding: 12, color: "#94a3b8", fontWeight: 800 }}>بازدیدکننده یکتا</th>
@@ -547,44 +546,35 @@ const sortedPathStats = useMemo(() => {
                       </tr>
                     </thead>
                     <tbody>
-  {sortedPathStats.map((item, idx) => (
-    <tr
-      key={`${item.path}-${idx}`}
-      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-    >
-      <td style={{ padding: 12, color: "#94a3b8" }}>{fmtNum(idx + 1)}</td>
-
-      <td style={{ padding: 12, color: "#cbd5e1", fontWeight: 800 }}>
-        {idx + 1}
-      </td>
-
-      <td
-        style={{
-          padding: 12,
-          fontFamily: "monospace",
-          direction: "ltr",
-          color: "#e2e8f0",
-          wordBreak: "break-all",
-        }}
-      >
-        {item.path}
-      </td>
-
-      <td style={{ padding: 12, color: "#f59e0b", fontWeight: 800 }}>
-        {fmtNum(item.totalViews || 0)}
-      </td>
-
-      <td style={{ padding: 12, color: "#38bdf8", fontWeight: 800 }}>
-        {fmtNum(item.uniqueVisitors || 0)}
-      </td>
-
-      <td style={{ padding: 12, color: "#cbd5e1", fontWeight: 700 }}>
-        {pct(item.totalViews || 0, totalViews)}
-      </td>
-    </tr>
-  ))}
-</tbody>
-
+                      {sortedPathStats.map((item, idx) => (
+                        <tr
+                          key={`${item.path}-${idx}`}
+                          style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                        >
+                          <td style={{ padding: 12, color: "#94a3b8" }}>{fmtNum(idx + 1)}</td>
+                          <td
+                            style={{
+                              padding: 12,
+                              fontFamily: "monospace",
+                              direction: "ltr",
+                              color: "#e2e8f0",
+                              wordBreak: "break-all",
+                            }}
+                          >
+                            {item.path}
+                          </td>
+                          <td style={{ padding: 12, color: "#f59e0b", fontWeight: 800 }}>
+                            {fmtNum(item.totalViews || 0)}
+                          </td>
+                          <td style={{ padding: 12, color: "#38bdf8", fontWeight: 800 }}>
+                            {fmtNum(item.uniqueVisitors || 0)}
+                          </td>
+                          <td style={{ padding: 12, color: "#cbd5e1", fontWeight: 700 }}>
+                            {pct(item.totalViews || 0, totalViews)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               </div>
