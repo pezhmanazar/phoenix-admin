@@ -117,7 +117,7 @@ export default function WebsiteAnalyticsPage() {
               <h2 className="text-sm font-bold mb-5 text-slate-300">روند بازدید روزانه</h2>
               
               <div className="flex items-end justify-between h-44 gap-1 pb-2 border-b border-white/10 dir-ltr">
-                {data.chartData.map((d, index) => {
+                {(data.chartData ?? []).map((d, index) => {
                   const percentHeight = (d.views / maxDayViews) * 100;
                   return (
                     <div key={index} className="flex-1 flex flex-col items-center h-full justify-end" title={`${d.date}: ${d.views} بازدید`}>
@@ -148,7 +148,7 @@ export default function WebsiteAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.byPath.map((item, idx) => (
+                    {(data.byPath ?? []).map((item, idx) => (
                       <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
                         <td className="p-3 text-slate-500">{(idx + 1).toLocaleString("fa-IR")}</td>
                         <td className="p-3 text-left dir-ltr font-mono text-slate-200">{item.path}</td>
