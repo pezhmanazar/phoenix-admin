@@ -101,7 +101,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         flexDirection: "column",
       }}
     >
-      <header
+<header
   style={{
     padding: "10px 12px",
     borderBottom: "1px solid #111827",
@@ -112,7 +112,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     flexWrap: "wrap",
     boxSizing: "border-box",
     gap: "8px",
-    overflow: "hidden",
+    overflow: "visible",
   }}
 >
         {/* راست: عنوان + اسم + نقش */}
