@@ -2,7 +2,7 @@
 import Link from "next/link";
 import React from "react";
 import { cookies } from "next/headers";
-import LogoutButton from "./LogoutButton.client";
+import AdminHeaderActions from "./AdminHeaderActions.client";
 
 export const dynamic = "force-dynamic";
 
@@ -169,125 +169,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
           ) : null}
         </div>
-
         {/* وسط: (خالی) */}
         <div style={{ flex: 1 }} />
 
-        {/* چپ: دکمه‌ها */}
-        {me ? (
-          <div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    justifyContent: "flex-start",
-    flexWrap: "nowrap",
-    overflowX: "auto",
-    overflowY: "hidden",
-    maxWidth: "100%",
-    paddingBottom: 2,
-    WebkitOverflowScrolling: "touch",
-  }}
->
-            {/* ✅ مدیریت کاربران */}
-            <Link
-              href="/admin/users"
-              style={{
-                ...navBase,
-                border: "1px solid #7c3aed",
-                backgroundColor: "#2e1065",
-                color: "#f5f3ff",
-              }}
-              title="مدیریت کاربران"
-            >
-              <span aria-hidden>👥</span>
-              مدیریت کاربران
-            </Link>
-
-            {/* ✅ آمار سایت */}
-            <Link
-              href="/admin/website-analytics"
-              style={{
-                ...navBase,
-                border: "1px solid #f97316",
-                backgroundColor: "#1c1917",
-                color: "#fed7aa",
-              }}
-              title="آمار و تحلیل بازدید سایت"
-            >
-              <span aria-hidden>📊</span>
-              آمار سایت
-            </Link>
-
-            {/* ✅ مدیریت تیکت‌ها (کنار مدیریت کاربران) */}
-            <Link
-              href="/admin/tickets"
-              style={{
-                ...navBase,
-                border: "1px solid #22c55e",
-                backgroundColor: "#064e3b",
-                color: "#dcfce7",
-              }}
-              title="مدیریت تیکت‌ها"
-            >
-              <span aria-hidden>🎫</span>
-              مدیریت تیکت‌ها
-            </Link>
-
-            {/* بنر همگانی */}
-            <Link
-              href="/admin/announcements"
-              style={{
-                ...navBase,
-                border: "1px solid #ea580c",
-                backgroundColor: "#7c2d12",
-                color: "#ffedd5",
-              }}
-              title="مدیریت بنرهای همگانی اپ"
-            >
-              <span aria-hidden>📣</span>
-              بنر همگانی
-            </Link>
-
-            {/* مدیریت ادمین‌ها */}
-            {me.role === "owner" && (
-              <Link
-                href="/admin/admins"
-                style={{
-                  ...navBase,
-                  border: "1px solid #0f766e",
-                  backgroundColor: "#0f766e",
-                  color: "#ecfeff",
-                }}
-                title="مدیریت ادمین‌ها"
-              >
-                <span aria-hidden>🛡️</span>
-                مدیریت ادمین‌ها
-              </Link>
-            )}
-
-            {/* ویرایش پروفایل */}
-            <Link
-              href="/admin/profile"
-              style={{
-                ...navBase,
-                border: "1px solid #374151",
-                backgroundColor: "#111827",
-                color: "#e5e7eb",
-                fontWeight: 800,
-              }}
-              title="ویرایش پروفایل"
-            >
-              <span aria-hidden>✏️</span>
-              ویرایش پروفایل
-            </Link>
-
-            {/* خروج */}
-            <div>
-              <LogoutButton />
-            </div>
-          </div>
-        ) : null}
+        {/* چپ: دکمه‌ها / همبرگری موبایل */}
+        {me ? <AdminHeaderActions role={me.role} /> : null}
       </header>
 
       <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
