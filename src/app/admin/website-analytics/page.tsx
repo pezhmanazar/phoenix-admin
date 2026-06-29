@@ -4,19 +4,21 @@ import React, { useEffect, useState } from "react";
 
 type PathStat = {
   path: string;
-  _sum: {
-    totalViews: number;
-  };
+  totalViews: number;
+  uniqueVisitors: number;
 };
 
 type DailyStat = {
   date: string;
+  path: string;
   views: number;
+  visitors: number;
 };
 
 type AnalyticsData = {
+  daysRange: number;
   totalViews: number;
-  byPath: PathStat[];
+  pathStats: PathStat[];
   chartData: DailyStat[];
 };
 
@@ -106,7 +108,7 @@ export default function WebsiteAnalyticsPage() {
             </div>
             <div className="border border-white/10 rounded-2xl bg-white/5 p-5">
               <div className="text-xs text-slate-400 font-bold">صفحات فعال بازدید شده</div>
-              <div className="mt-2 text-3xl font-black text-sky-400">{(data.byPath?.length ?? 0).toLocaleString("fa-IR")}</div>
+              <div className="mt-2 text-3xl font-black text-sky-400">{(data.pathStats?.length ?? 0).toLocaleString("fa-IR")}</div>
             </div>
           </div>
 
@@ -148,11 +150,11 @@ export default function WebsiteAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(data.byPath ?? []).map((item, idx) => (
+                    {(data.pathStats ?? []).map((item, idx) => (
                       <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
                         <td className="p-3 text-slate-500">{(idx + 1).toLocaleString("fa-IR")}</td>
                         <td className="p-3 text-left dir-ltr font-mono text-slate-200">{item.path}</td>
-                        <td className="p-3 text-left font-bold text-amber-400">{(item._sum?.totalViews ?? 0).toLocaleString("fa-IR")}</td>
+                        <td className="p-3 text-left font-bold text-amber-400">{(item.totalViews ?? 0).toLocaleString("fa-IR")}</td>
                       </tr>
                     ))}
                   </tbody>
