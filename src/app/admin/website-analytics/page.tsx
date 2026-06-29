@@ -55,14 +55,12 @@ export default function WebsiteAnalyticsPage() {
     ? Math.max(...data.chartData.map((d) => d.views), 1)
     : 1;
 
-  function toPersianDate(dateStr: string) {
-    try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("fa-IR", { month: "short", day: "numeric" }).format(date);
-    } catch {
-      return dateStr;
-    }
-  }
+  function toPersianDate(dateStr?: string | null) {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("fa-IR", { month: "short", day: "numeric" }).format(date);
+}
 
   return (
     <div className="max-w-6xl mx-auto p-5 text-slate-200 dir-rtl">
@@ -99,16 +97,16 @@ export default function WebsiteAnalyticsPage() {
       ) : !data ? (
         <div className="text-center py-16 text-slate-400">داده‌ای یافت نشد.</div>
       ) : (
-        <>
-          {/* کارت‌های آمار */}
+        <>         
+         {/* کارت‌های آمار */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div className="border border-white/10 rounded-2xl bg-white/5 p-5">
               <div className="text-xs text-slate-400 font-bold">کل بازدیدهای ثبت شده ({days} روز اخیر)</div>
-              <div className="mt-2 text-3xl font-black text-amber-400">{data.totalViews.toLocaleString("fa-IR")}</div>
+              <div className="mt-2 text-3xl font-black text-amber-400">{(data.totalViews ?? 0).toLocaleString("fa-IR")}</div>
             </div>
             <div className="border border-white/10 rounded-2xl bg-white/5 p-5">
               <div className="text-xs text-slate-400 font-bold">صفحات فعال بازدید شده</div>
-              <div className="mt-2 text-3xl font-black text-sky-400">{data.byPath.length.toLocaleString("fa-IR")}</div>
+              <div className="mt-2 text-3xl font-black text-sky-400">{(data.byPath?.length ?? 0).toLocaleString("fa-IR")}</div>
             </div>
           </div>
 
@@ -154,7 +152,7 @@ export default function WebsiteAnalyticsPage() {
                       <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02]">
                         <td className="p-3 text-slate-500">{(idx + 1).toLocaleString("fa-IR")}</td>
                         <td className="p-3 text-left dir-ltr font-mono text-slate-200">{item.path}</td>
-                        <td className="p-3 text-left font-bold text-amber-400">{item._sum.totalViews.toLocaleString("fa-IR")}</td>
+                        <td className="p-3 text-left font-bold text-amber-400">{(item._sum?.totalViews ?? 0).toLocaleString("fa-IR")}</td>
                       </tr>
                     ))}
                   </tbody>
