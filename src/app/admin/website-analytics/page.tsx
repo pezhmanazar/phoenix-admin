@@ -15,6 +15,12 @@ type DailyStat = {
   visitors: number;
 };
 
+type DailyChartItem = {
+  date: string;
+  views: number;
+};
+
+
 type AnalyticsData = {
   daysRange: number;
   totalViews: number;
@@ -53,8 +59,22 @@ export default function WebsiteAnalyticsPage() {
     fetchStats(days);
   }, [days]);
 
-  const maxDayViews = data?.chartData?.length
-    ? Math.max(...data.chartData.map((d) => d.views), 1)
+  const dailyChartData: DailyChartItem[] = React.useMemo(() => {
+    const grouped: Record<string, number> = {};
+
+    (data?.chartData ?? []).forEach((item) => {
+      const dateKey = item.date;
+      grouped[dateKey] = (grouped[dateKey] || 0) + (item.views || 0);
+    });
+
+    return Object.entries(grouped)
+      .map(([date, views]) => ({ date, views }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [data]);
+
+
+  const maxDayViews = dailyChartData.length
+    ? Math.max(...dailyChartData.map((d) => d.views), 1)
     : 1;
 
   function toPersianDate(dateStr?: string | null) {
@@ -118,22 +138,33 @@ export default function WebsiteAnalyticsPage() {
             <div className="border border-white/10 rounded-2xl bg-white/5 p-5">
               <h2 className="text-sm font-bold mb-5 text-slate-300">روند بازدید روزانه</h2>
               
-              <div className="flex items-end justify-between h-44 gap-1 pb-2 border-b border-white/10 dir-ltr">
-                {(data.chartData ?? []).map((d, index) => {
-                  const percentHeight = (d.views / maxDayViews) * 100;
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center h-full justify-end" title={`${d.date}: ${d.views} بازدید`}>
+              {dailyChartData.length === 0 ? (
+                <div className="h-44 flex items-center justify-center text-sm text-slate-500 border border-dashed border-white/10 rounded-xl">
+                  داده‌ای برای نمایش نمودار وجود ندارد
+                </div>
+              ) : (
+                <div className="flex items-end justify-between h-44 gap-2 pb-2 border-b border-white/10 dir-ltr">
+                  {dailyChartData.map((d, index) => {
+                    const percentHeight = (d.views / maxDayViews) * 100;
+
+                    return (
                       <div
-                        className="w-full max-w-[32px] bg-orange-600 rounded-t transition-all duration-300"
-                        style={{ height: `${Math.max(percentHeight, 4)}%` }}
-                      />
-                      <span className="text-[9px] text-slate-500 mt-2 whitespace-nowrap">
-                        {toPersianDate(d.date)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                        key={index}
+                        className="flex-1 flex flex-col items-center h-full justify-end"
+                        title={`${d.date}: ${d.views} بازدید`}
+                      >
+                        <div
+                          className="w-full max-w-[36px] bg-orange-500 hover:bg-orange-400 rounded-t-lg transition-all duration-300"
+                          style={{ height: `${Math.max(percentHeight, 6)}%` }}
+                        />
+                        <span className="text-[10px] text-slate-500 mt-2 whitespace-nowrap">
+                          {toPersianDate(d.date)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* جدول بازدید صفحات */}
