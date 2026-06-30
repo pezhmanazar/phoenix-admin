@@ -9,13 +9,6 @@ type PathStat = {
   uniqueVisitors: number;
 };
 
-type DailyStat = {
-  date: string;
-  path: string;
-  views: number;
-  visitors: number;
-};
-
 type DailyChartItem = {
   date: string;
   views: number;
@@ -24,8 +17,11 @@ type DailyChartItem = {
 type AnalyticsData = {
   daysRange: number;
   totalViews: number;
+  homeToDownloadCount: number;
+  directDownloadClicks: number;
+  conversionRate: number;
   pathStats: PathStat[];
-  chartData: DailyStat[];
+  chartData: DailyChartItem[];
 };
 
 function safeDate(value?: string | null) {
@@ -404,26 +400,23 @@ export default function WebsiteAnalyticsPage() {
     fetchStats(days);
   }, [days]);
 
-  const dailyChartData: DailyChartItem[] = useMemo(() => {
-  return (data?.chartData ?? [])
-    .map((item) => ({
-      date: item.date,
-      views: item.views || 0,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}, [data]);
+  const dailyChartData = useMemo(() => {
+    return [...(data?.chartData ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+  }, [data?.chartData]);
 
-const sortedPathStats = useMemo(() => {
-  return [...(data?.pathStats ?? [])].sort((a, b) => b.totalViews - a.totalViews);
-}, [data]);
-
+  const sortedPathStats = useMemo(() => {
+    return [...(data?.pathStats ?? [])].sort((a, b) => b.totalViews - a.totalViews);
+  }, [data?.pathStats]);
 
   const totalViews = data?.totalViews ?? 0;
+  const homeToDownloadCount = data?.homeToDownloadCount ?? 0;
+  const directDownloadClicks = data?.directDownloadClicks ?? 0;
+  const conversionRate = data?.conversionRate ?? 0;
   const activePaths = data?.pathStats?.length ?? 0;
   const totalUniqueVisitors = (data?.pathStats ?? []).reduce(
-  (sum, item) => sum + (item.uniqueVisitors || 0),
-  0
-);
+    (sum, item) => sum + (item.uniqueVisitors || 0),
+    0
+  );
 
   return (
     <div style={{ ...wrapBase, padding: 20, color: "#e2e8f0", direction: "rtl" }}>
@@ -492,7 +485,7 @@ const sortedPathStats = useMemo(() => {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(6, minmax(0, 1fr))",
               gap: 12,
               marginBottom: 16,
             }}
@@ -514,8 +507,31 @@ const sortedPathStats = useMemo(() => {
               <div style={{ ...statValue, color: "#22c55e" }}>{fmtNum(totalUniqueVisitors)}</div>
               <div style={statHint}>مجموع بازدیدکنندگان یکتای ثبت‌شده</div>
             </div>
-          </div>
 
+            <div style={statCard}>
+              <div style={statLabel}>ورود از خانه به دانلود</div>
+              <div style={{ ...statValue, color: "#a78bfa" }}>
+                {fmtNum(homeToDownloadCount)}
+              </div>
+              <div style={statHint}>تعداد ورود به صفحه دانلود از صفحه اصلی</div>
+            </div>
+
+            <div style={statCard}>
+              <div style={statLabel}>کلیک دانلود مستقیم</div>
+              <div style={{ ...statValue, color: "#fb7185" }}>
+                {fmtNum(directDownloadClicks)}
+              </div>
+              <div style={statHint}>تعداد کلیک روی دکمه دانلود مستقیم</div>
+            </div>
+
+            <div style={statCard}>
+              <div style={statLabel}>نرخ تبدیل دانلود</div>
+              <div style={{ ...statValue, color: "#34d399" }}>
+                {conversionRate.toLocaleString("fa-IR")}%
+              </div>
+              <div style={statHint}>نسبت کلیک دانلود به ورود از خانه</div>
+            </div>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
             <div style={card}>
               <div style={sectionTitle}>روند بازدید روزانه</div>
