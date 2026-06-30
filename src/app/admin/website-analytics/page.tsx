@@ -20,6 +20,7 @@ type AnalyticsData = {
   homeToDownloadCount: number;
   directDownloadClicks: number;
   conversionRate: number;
+  landingUniqueVisitors: number;
   pathStats: PathStat[];
   chartData: DailyChartItem[];
 };
@@ -413,10 +414,7 @@ export default function WebsiteAnalyticsPage() {
   const directDownloadClicks = data?.directDownloadClicks ?? 0;
   const conversionRate = data?.conversionRate ?? 0;
   const activePaths = data?.pathStats?.length ?? 0;
-  const totalUniqueVisitors = (data?.pathStats ?? []).reduce(
-    (sum, item) => sum + (item.uniqueVisitors || 0),
-    0
-  );
+  const landingUniqueVisitors = data?.landingUniqueVisitors ?? 0;
 
   return (
     <div style={{ ...wrapBase, padding: 20, color: "#e2e8f0", direction: "rtl" }}>
@@ -491,7 +489,7 @@ export default function WebsiteAnalyticsPage() {
             }}
           >
             <div style={statCard}>
-              <div style={statLabel}>کل بازدیدهای ثبت شده ({days} روز اخیر)</div>
+              <div style={statLabel}>کل بازدیدها ({days} روز اخیر)</div>
               <div style={{ ...statValue, color: "#f59e0b" }}>{fmtNum(totalViews)}</div>
               <div style={statHint}>جمع کل بازدیدها در بازه انتخابی</div>
             </div>
@@ -503,9 +501,9 @@ export default function WebsiteAnalyticsPage() {
             </div>
 
             <div style={statCard}>
-              <div style={statLabel}>بازدیدکنندگان یکتا</div>
-              <div style={{ ...statValue, color: "#22c55e" }}>{fmtNum(totalUniqueVisitors)}</div>
-              <div style={statHint}>مجموع بازدیدکنندگان یکتای ثبت‌شده</div>
+              <div style={statLabel}>بازدیدکنندگان یکتای لندینگ</div>
+              <div style={{ ...statValue, color: "#22c55e" }}>{fmtNum(landingUniqueVisitors)}</div>
+              <div style={statHint}>تعداد کاربران یکتای صفحه اصلی در بازه انتخابی</div>
             </div>
 
             <div style={statCard}>
