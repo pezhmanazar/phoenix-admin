@@ -137,14 +137,16 @@ export default function NotificationsPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    type: "therapeutic" as CampaignType,
-    targetRule: {
-      plan: "all",
-    },
-  });
-
+  title: "",
+  description: "",
+  pushTitle: "",
+  pushBody: "",
+  type: "therapeutic" as CampaignType,
+  notificationType: "marketing",
+  targetRule: {
+    plan: "all",
+  },
+});
   async function load() {
     setLoading(true);
     setError("");
@@ -191,13 +193,16 @@ export default function NotificationsPage() {
       setCreateOpen(false);
 
       setForm({
-        title: "",
-        description: "",
-        type: "therapeutic",
-        targetRule: {
-          plan: "all",
-        },
-      });
+  title: "",
+  description: "",
+  pushTitle: "",
+  pushBody: "",
+  type: "therapeutic",
+  notificationType: "marketing",
+  targetRule: {
+    plan: "all",
+  },
+});
 
       await load();
 
@@ -356,6 +361,33 @@ export default function NotificationsPage() {
           minHeight:80
         }}
       />
+
+      <input
+  placeholder="عنوان نوتیفیکیشن (Push Title)"
+  value={form.pushTitle}
+  onChange={(e)=>
+    setForm({
+      ...form,
+      pushTitle:e.target.value
+    })
+  }
+  style={inputStyle}
+/>
+
+<textarea
+  placeholder="متن نوتیفیکیشن (Push Body)"
+  value={form.pushBody}
+  onChange={(e)=>
+    setForm({
+      ...form,
+      pushBody:e.target.value
+    })
+  }
+  style={{
+    ...inputStyle,
+    minHeight:80
+  }}
+/>
 
 
       <select
