@@ -146,6 +146,7 @@ export default function NotificationsPage() {
   pushBody: "",
   type: "therapeutic" as CampaignType,
   notificationType: "marketing",
+  scheduledAt: "",
   targetRule: {
     plan: "all",
   },
@@ -202,6 +203,7 @@ export default function NotificationsPage() {
   pushBody: "",
   type: "therapeutic",
   notificationType: "marketing",
+  scheduledAt: "",
   targetRule: {
     plan: "all",
   },
@@ -449,6 +451,27 @@ export default function NotificationsPage() {
     minHeight:80
   }}
 />
+<input
+  type="datetime-local"
+  value={form.scheduledAt}
+  onChange={(e)=>
+    setForm({
+      ...form,
+      scheduledAt: e.target.value
+    })
+  }
+  style={inputStyle}
+/>
+
+<div
+  style={{
+    marginTop: 6,
+    fontSize: 11,
+    color: "rgba(255,255,255,0.55)",
+  }}
+>
+  اگر زمان وارد شود، کمپین زمان‌بندی می‌شود؛ در غیر این صورت به‌صورت دستی ارسال خواهد شد.
+</div>
 
 
       <select
