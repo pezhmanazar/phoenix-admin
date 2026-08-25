@@ -219,8 +219,17 @@ export default function NotificationsPage() {
   }
 
   async function sendCampaign(id: string) {
+  const testUserId = prompt(
+    "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید."
+  );
+  console.log("TEST USER ID:", testUserId);
+
+  if (testUserId === null) return;
+
   const ok = confirm(
-    "آیا مطمئن هستید؟ ارسال کمپین شروع می‌شود."
+    testUserId.trim()
+      ? "ارسال تست برای این کاربر انجام شود؟"
+      : "آیا مطمئن هستید؟ ارسال کمپین برای کاربران شروع می‌شود."
   );
 
   if (!ok) return;
@@ -234,6 +243,13 @@ export default function NotificationsPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify(
+          testUserId.trim()
+            ? {
+                testUserId: testUserId.trim(),
+              }
+            : {}
+        ),
       }
     );
 
