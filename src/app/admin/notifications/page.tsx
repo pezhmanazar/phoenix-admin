@@ -134,6 +134,17 @@ export default function NotificationsPage() {
   const [items, setItems] = useState<NotificationCampaign[]>([]);
   const [error, setError] = useState("");
 
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    type: "therapeutic" as CampaignType,
+    targetRule: {
+      plan: "all",
+    },
+  });
+
   async function load() {
     setLoading(true);
     setError("");
@@ -152,6 +163,50 @@ export default function NotificationsPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+    async function createCampaign() {
+    try {
+      const res = await fetch(
+        "/admin/api/notification-campaigns",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
+        }
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(
+          json.error || "CREATE_FAILED"
+        );
+      }
+
+      setCreateOpen(false);
+
+      setForm({
+        title: "",
+        description: "",
+        type: "therapeutic",
+        targetRule: {
+          plan: "all",
+        },
+      });
+
+      await load();
+
+    } catch (e) {
+      alert(
+        e instanceof Error
+          ? e.message
+          : "خطا در ساخت کمپین"
+      );
     }
   }
 
@@ -208,6 +263,22 @@ export default function NotificationsPage() {
           </div>
 
           <button
+  onClick={() => setCreateOpen(true)}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 999,
+    border: "1px solid #166534",
+    background: "#14532d",
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+  }}
+>
+  + کمپین جدید
+</button>
+
+          <button
             onClick={() => void load()}
             disabled={loading}
             style={{
@@ -224,6 +295,155 @@ export default function NotificationsPage() {
             {loading ? "در حال بارگذاری..." : "بروزرسانی"}
           </button>
         </div>
+
+        {createOpen ? (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+    }}
+  >
+
+    <div
+      style={{
+        width: 420,
+        background: "#050a12",
+        border: "1px solid #1f2937",
+        borderRadius: 18,
+        padding: 20,
+      }}
+    >
+
+      <h2
+        style={{
+          color:"#fff",
+          marginTop:0
+        }}
+      >
+        ساخت کمپین جدید
+      </h2>
+
+
+      <input
+        placeholder="عنوان کمپین"
+        value={form.title}
+        onChange={(e)=>
+          setForm({
+            ...form,
+            title:e.target.value
+          })
+        }
+        style={inputStyle}
+      />
+
+
+      <textarea
+        placeholder="توضیحات"
+        value={form.description}
+        onChange={(e)=>
+          setForm({
+            ...form,
+            description:e.target.value
+          })
+        }
+        style={{
+          ...inputStyle,
+          minHeight:80
+        }}
+      />
+
+
+      <select
+        value={form.type}
+        onChange={(e)=>
+          setForm({
+            ...form,
+            type:e.target.value as CampaignType
+          })
+        }
+        style={inputStyle}
+      >
+        <option value="therapeutic">
+          درمانی
+        </option>
+
+        <option value="sales">
+          فروش
+        </option>
+
+        <option value="system">
+          سیستمی
+        </option>
+
+        <option value="motivational">
+          انگیزشی
+        </option>
+
+      </select>
+
+
+      <select
+        value={form.targetRule.plan}
+        onChange={(e)=>
+          setForm({
+            ...form,
+            targetRule:{
+              plan:e.target.value
+            }
+          })
+        }
+        style={inputStyle}
+      >
+
+        <option value="all">
+          همه کاربران
+        </option>
+
+        <option value="free">
+          Free
+        </option>
+
+        <option value="pro">
+          Pro
+        </option>
+
+      </select>
+
+
+      <div
+        style={{
+          display:"flex",
+          gap:10,
+          marginTop:15
+        }}
+      >
+
+        <button
+          onClick={createCampaign}
+          style={primaryBtn}
+        >
+          ساخت کمپین
+        </button>
+
+
+        <button
+          onClick={()=>setCreateOpen(false)}
+          style={secondaryBtn}
+        >
+          لغو
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+):null}
 
         {error ? (
           <div
@@ -358,6 +578,38 @@ export default function NotificationsPage() {
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width:"100%",
+  marginTop:10,
+  padding:"10px",
+  borderRadius:10,
+  border:"1px solid #374151",
+  background:"#111827",
+  color:"#fff",
+};
+
+
+const primaryBtn: React.CSSProperties = {
+  padding:"10px 14px",
+  borderRadius:10,
+  border:"none",
+  background:"#16a34a",
+  color:"#fff",
+  fontWeight:900,
+  cursor:"pointer",
+};
+
+
+const secondaryBtn: React.CSSProperties = {
+  padding:"10px 14px",
+  borderRadius:10,
+  border:"1px solid #374151",
+  background:"#111827",
+  color:"#fff",
+  fontWeight:900,
+  cursor:"pointer",
+};
 
 const tdStyle: React.CSSProperties = {
   textAlign: "center",
