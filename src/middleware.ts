@@ -17,6 +17,12 @@ export async function middleware(req: NextRequest) {
   // محافظت از مسیرهای /admin/*
   if (pathname.startsWith("/admin")) {
     const token = req.cookies.get("admin_token")?.value;
+
+console.log(
+  "[ADMIN_MIDDLEWARE]",
+  pathname,
+  token ? "HAS_TOKEN" : "NO_TOKEN"
+);
     if (!token) {
       const url = req.nextUrl.clone();
       url.pathname = "/admin/login";
