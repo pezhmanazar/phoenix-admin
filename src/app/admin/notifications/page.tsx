@@ -218,6 +218,48 @@ export default function NotificationsPage() {
     }
   }
 
+  async function sendCampaign(id: string) {
+  const ok = confirm(
+    "آیا مطمئن هستید؟ ارسال کمپین شروع می‌شود."
+  );
+
+  if (!ok) return;
+
+  try {
+    const res = await fetch(
+      `/admin/api/notification-campaigns/${id}/send`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || json.ok === false) {
+      throw new Error(
+        json.error || "SEND_FAILED"
+      );
+    }
+
+    alert(
+      `ارسال انجام شد. موفق: ${json.result.sent} - خطا: ${json.result.failed}`
+    );
+
+    await load();
+
+  } catch (e) {
+    alert(
+      e instanceof Error
+        ? e.message
+        : "خطا در ارسال کمپین"
+    );
+  }
+}
+
   useEffect(() => {
     void load();
   }, []);
@@ -524,6 +566,7 @@ export default function NotificationsPage() {
                   "زمان‌بندی",
                   "ارسال",
                   "ایجاد",
+                  "عملیات",
                 ].map((title) => (
                   <th
                     key={title}
@@ -599,13 +642,35 @@ export default function NotificationsPage() {
                   <td style={tdStyle}>
                     {formatDate(item.createdAt)}
                   </td>
+
+                  <td style={tdStyle}>
+  {item.status === "draft" ? (
+    <button
+      onClick={() => void sendCampaign(item.id)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: 999,
+        border: "1px solid #166534",
+        background: "#14532d",
+        color: "#dcfce7",
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      ارسال
+    </button>
+  ) : (
+    "—"
+  )}
+</td>
                 </tr>
               ))}
 
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     style={{
                       ...tdStyle,
                       padding: 30,
