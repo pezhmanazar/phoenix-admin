@@ -115,93 +115,6 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function jalaliToGregorian(
-  jy: number,
-  jm: number,
-  jd: number,
-) {
-  const jy2 = jy - 979;
-
-  let days =
-    365 * jy2 +
-    Math.floor(jy2 / 33) * 8 +
-    Math.floor(((jy2 % 33) + 3) / 4);
-
-  for (let i = 0; i < jm - 1; i++) {
-    days += i < 6 ? 31 : 30;
-  }
-
-  days += jd - 1;
-
-  let gy =
-    1600 +
-    400 * Math.floor(days / 146097);
-
-  days %= 146097;
-
-  let leap = true;
-
-  if (days >= 36525) {
-    days--;
-    gy +=
-      100 *
-      Math.floor(days / 36524);
-
-    days %= 36524;
-
-    if (days >= 365) {
-      days++;
-    } else {
-      leap = false;
-    }
-  }
-
-  gy +=
-    4 *
-    Math.floor(days / 1461);
-
-  days %= 1461;
-
-  if (days >= 366) {
-    leap = false;
-    days--;
-
-    gy += Math.floor(days / 365);
-
-    days %= 365;
-  }
-
-  let gd = days + 1;
-
-  const monthDays = [
-    31,
-    leap ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ];
-
-  let gm = 0;
-
-  while (gd > monthDays[gm]) {
-    gd -= monthDays[gm];
-    gm++;
-  }
-
-  return {
-    gy,
-    gm: gm + 1,
-    gd,
-  };
-}
-
 function typeLabel(type: CampaignType) {
   if (type === "therapeutic") return "درمانی";
   if (type === "sales") return "فروش";
@@ -221,45 +134,6 @@ function statusLabel(status: CampaignStatus) {
   return status;
 }
 
-function convertJalaliToISO(
-  date: string,
-  time: string,
-) {
-  if (!date || !time) return null;
-
-  const [jy, jm, jd] = date.split("/").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-
-  if (
-    !jy ||
-    !jm ||
-    !jd ||
-    Number.isNaN(hour) ||
-    Number.isNaN(minute)
-  ) {
-    return null;
-  }
-
-  const {
-    gy,
-    gm,
-    gd,
-  } = jalaliToGregorian(jy, jm, jd);
-
-
-  const tehranDate = new Date(
-    Date.UTC(
-      gy,
-      gm - 1,
-      gd,
-      hour - 3,
-      minute - 30,
-    ),
-  );
-
-  return tehranDate.toISOString();
-}
-
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationCampaign[]>([]);
@@ -274,8 +148,7 @@ export default function NotificationsPage() {
   pushBody: "",
   type: "therapeutic" as CampaignType,
   notificationType: "marketing",
-  scheduledDate:"",
-  scheduledTime:"",
+  scheduledAt:"",
   targetRule: {
     plan: "all",
   },
@@ -302,10 +175,6 @@ export default function NotificationsPage() {
   }
 
     async function createCampaign() {
-      const scheduledAt = convertJalaliToISO(
-      form.scheduledDate,
-      form.scheduledTime,
-        );
     try {
       const res = await fetch(
         "/admin/api/notification-campaigns",
@@ -322,7 +191,7 @@ export default function NotificationsPage() {
           pushBody: form.pushBody,
           type: form.type,
           notificationType: form.notificationType,
-          scheduledAt,
+          scheduledAt: form.scheduledAt,
           targetRule: form.targetRule,
          }),
         }
@@ -345,8 +214,7 @@ export default function NotificationsPage() {
   pushBody: "",
   type: "therapeutic",
   notificationType: "marketing",
-  scheduledDate: "",
-  scheduledTime: "",
+  scheduledAt: "",
   targetRule: {
     plan: "all",
   },
@@ -595,37 +463,25 @@ export default function NotificationsPage() {
   }}
 />
 <input
-  placeholder="تاریخ ارسال (مثلا 1405/06/03)"
-  value={form.scheduledDate}
+  type="datetime-local"
+  value={form.scheduledAt}
   onChange={(e)=>
     setForm({
       ...form,
-      scheduledDate:e.target.value
+      scheduledAt:e.target.value
     })
   }
   style={inputStyle}
 />
-
-<input
-  placeholder="ساعت ارسال (مثلا 18:30)"
-  value={form.scheduledTime}
-  onChange={(e)=>
-    setForm({
-      ...form,
-      scheduledTime:e.target.value
-    })
-  }
-  style={inputStyle}
-/>
-
 <div
-  style={{
-    marginTop: 6,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.55)",
-  }}
+ style={{
+   marginTop:6,
+   fontSize:11,
+   color:"rgba(255,255,255,0.55)",
+ }}
 >
-  اگر زمان وارد شود، کمپین زمان‌بندی می‌شود؛ در غیر این صورت به‌صورت دستی ارسال خواهد شد.
+  زمان بر اساس ساعت ایران (Asia/Tehran) ثبت می‌شود.
+  در جدول به‌صورت شمسی نمایش داده خواهد شد.
 </div>
 
 
