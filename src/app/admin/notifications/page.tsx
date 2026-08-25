@@ -19,6 +19,9 @@ type NotificationCampaign = {
   id: string;
   title: string;
   description: string | null;
+  pushTitle: string;
+  pushBody: string;
+  notificationType: string;
   type: CampaignType;
   status: CampaignStatus;
   scheduledAt: string | null;
@@ -512,6 +515,8 @@ export default function NotificationsPage() {
               <tr>
                 {[
                   "عنوان",
+                  "عنوان Push",
+                  "متن Push",
                   "نوع",
                   "وضعیت",
                   "تعداد نوتیفیکیشن",
@@ -560,6 +565,14 @@ export default function NotificationsPage() {
                   </td>
 
                   <td style={tdStyle}>
+                   {item.pushTitle || "—"}
+                  </td>
+
+                 <td style={tdStyle}>
+                 {item.pushBody || "—"}
+                 </td>
+
+                  <td style={tdStyle}>
                     {typeLabel(item.type)}
                   </td>
 
@@ -592,7 +605,7 @@ export default function NotificationsPage() {
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={10}
                     style={{
                       ...tdStyle,
                       padding: 30,
