@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { toGregorian } from "jalaali-js";
 
 type CampaignType =
   | "therapeutic"
@@ -132,6 +133,51 @@ function statusLabel(status: CampaignStatus) {
   return status;
 }
 
+function convertJalaliToISO(
+  date: string,
+  time: string,
+) {
+  if (!date || !time) {
+    return null;
+  }
+
+  const [jy, jm, jd] = date
+    .split("/")
+    .map(Number);
+
+  const [hour, minute] = time
+    .split(":")
+    .map(Number);
+
+  if (
+    !jy ||
+    !jm ||
+    !jd ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return null;
+  }
+
+  const g = toGregorian(
+    jy,
+    jm,
+    jd,
+  );
+
+  const iranDate = new Date(
+    Date.UTC(
+      g.gy,
+      g.gm - 1,
+      g.gd,
+      hour - 3,
+      minute - 30,
+    ),
+  );
+
+  return iranDate.toISOString();
+}
+
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationCampaign[]>([]);
@@ -146,7 +192,8 @@ export default function NotificationsPage() {
   pushBody: "",
   type: "therapeutic" as CampaignType,
   notificationType: "marketing",
-  scheduledAt: "",
+  scheduledDate:"",
+  scheduledTime:"",
   targetRule: {
     plan: "all",
   },
@@ -173,6 +220,10 @@ export default function NotificationsPage() {
   }
 
     async function createCampaign() {
+      const scheduledAt = convertJalaliToISO(
+      form.scheduledDate,
+      form.scheduledTime,
+        );
     try {
       const res = await fetch(
         "/admin/api/notification-campaigns",
@@ -182,7 +233,16 @@ export default function NotificationsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          pushTitle: form.pushTitle,
+          pushBody: form.pushBody,
+          type: form.type,
+          notificationType: form.notificationType,
+          scheduledAt,
+          targetRule: form.targetRule,
+         }),
         }
       );
 
@@ -196,14 +256,15 @@ export default function NotificationsPage() {
 
       setCreateOpen(false);
 
-      setForm({
+  setForm({
   title: "",
   description: "",
   pushTitle: "",
   pushBody: "",
   type: "therapeutic",
   notificationType: "marketing",
-  scheduledAt: "",
+  scheduledDate: "",
+  scheduledTime: "",
   targetRule: {
     plan: "all",
   },
@@ -452,12 +513,24 @@ export default function NotificationsPage() {
   }}
 />
 <input
-  type="datetime-local"
-  value={form.scheduledAt}
+  placeholder="تاریخ ارسال (مثلا 1405/06/03)"
+  value={form.scheduledDate}
   onChange={(e)=>
     setForm({
       ...form,
-      scheduledAt: e.target.value
+      scheduledDate:e.target.value
+    })
+  }
+  style={inputStyle}
+/>
+
+<input
+  placeholder="ساعت ارسال (مثلا 18:30)"
+  value={form.scheduledTime}
+  onChange={(e)=>
+    setForm({
+      ...form,
+      scheduledTime:e.target.value
     })
   }
   style={inputStyle}
