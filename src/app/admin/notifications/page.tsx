@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { toGregorian } from "jalaali-js";
+
 
 type CampaignType =
   | "therapeutic"
@@ -159,23 +159,21 @@ function convertJalaliToISO(
     return null;
   }
 
-  const g = toGregorian(
-    jy,
-    jm,
-    jd,
-  );
+  const gy = jy + 621;
+  const gm = jm;
+  const gd = jd;
 
-  const iranDate = new Date(
+  const dateObj = new Date(
     Date.UTC(
-      g.gy,
-      g.gm - 1,
-      g.gd,
+      gy,
+      gm - 1,
+      gd,
       hour - 3,
       minute - 30,
     ),
   );
 
-  return iranDate.toISOString();
+  return dateObj.toISOString();
 }
 
 export default function NotificationsPage() {
