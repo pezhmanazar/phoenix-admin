@@ -1,3 +1,4 @@
+//\phoenix-admin\src\app\admin\notifications\page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -114,6 +115,93 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
+function jalaliToGregorian(
+  jy: number,
+  jm: number,
+  jd: number,
+) {
+  const jy2 = jy - 979;
+
+  let days =
+    365 * jy2 +
+    Math.floor(jy2 / 33) * 8 +
+    Math.floor(((jy2 % 33) + 3) / 4);
+
+  for (let i = 0; i < jm - 1; i++) {
+    days += i < 6 ? 31 : 30;
+  }
+
+  days += jd - 1;
+
+  let gy =
+    1600 +
+    400 * Math.floor(days / 146097);
+
+  days %= 146097;
+
+  let leap = true;
+
+  if (days >= 36525) {
+    days--;
+    gy +=
+      100 *
+      Math.floor(days / 36524);
+
+    days %= 36524;
+
+    if (days >= 365) {
+      days++;
+    } else {
+      leap = false;
+    }
+  }
+
+  gy +=
+    4 *
+    Math.floor(days / 1461);
+
+  days %= 1461;
+
+  if (days >= 366) {
+    leap = false;
+    days--;
+
+    gy += Math.floor(days / 365);
+
+    days %= 365;
+  }
+
+  let gd = days + 1;
+
+  const monthDays = [
+    31,
+    leap ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+
+  let gm = 0;
+
+  while (gd > monthDays[gm]) {
+    gd -= monthDays[gm];
+    gm++;
+  }
+
+  return {
+    gy,
+    gm: gm + 1,
+    gd,
+  };
+}
+
 function typeLabel(type: CampaignType) {
   if (type === "therapeutic") return "درمانی";
   if (type === "sales") return "فروش";
@@ -137,17 +225,10 @@ function convertJalaliToISO(
   date: string,
   time: string,
 ) {
-  if (!date || !time) {
-    return null;
-  }
+  if (!date || !time) return null;
 
-  const [jy, jm, jd] = date
-    .split("/")
-    .map(Number);
-
-  const [hour, minute] = time
-    .split(":")
-    .map(Number);
+  const [jy, jm, jd] = date.split("/").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
 
   if (
     !jy ||
@@ -159,11 +240,14 @@ function convertJalaliToISO(
     return null;
   }
 
-  const gy = jy + 621;
-  const gm = jm;
-  const gd = jd;
+  const {
+    gy,
+    gm,
+    gd,
+  } = jalaliToGregorian(jy, jm, jd);
 
-  const dateObj = new Date(
+
+  const tehranDate = new Date(
     Date.UTC(
       gy,
       gm - 1,
@@ -173,7 +257,7 @@ function convertJalaliToISO(
     ),
   );
 
-  return dateObj.toISOString();
+  return tehranDate.toISOString();
 }
 
 export default function NotificationsPage() {
