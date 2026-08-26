@@ -170,7 +170,14 @@ export default function NotificationsPage() {
         attemptedUsers: number;
         successfulUsers: number;
         failedUsers: number;
+
+        readUsers: number;
+        openedPushUsers: number;
+
         successRate: number;
+        readRate: number;
+        pushOpenRate: number;
+
         successfulDevices: number;
         failedDevices: number;
       }
@@ -260,13 +267,13 @@ export default function NotificationsPage() {
           pushBody: form.pushBody,
           type: form.type,
           notificationType: form.notificationType,
-data: form.route
-  ? {
-      route: form.route,
-    }
-  : null,
-scheduledAt: form.scheduledAt,
-targetRule: form.targetRule,
+          data: form.route
+            ? {
+                route: form.route,
+              }
+            : null,
+          scheduledAt: form.scheduledAt,
+          targetRule: form.targetRule,
         }),
       });
 
@@ -285,8 +292,8 @@ targetRule: form.targetRule,
         pushBody: "",
         type: "therapeutic",
         notificationType: "marketing",
-route: "",
-scheduledAt: "",
+        route: "",
+        scheduledAt: "",
         targetRule: {
           plan: "all",
           appProvider: "all",
@@ -581,39 +588,27 @@ scheduledAt: "",
               </select>
 
               <select
-  value={form.route}
-  onChange={(e) =>
-    setForm({
-      ...form,
-      route: e.target.value,
-    })
-  }
-  style={inputStyle}
->
-  <option value="">
-    بدون مقصد مشخص
-  </option>
+                value={form.route}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    route: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="">بدون مقصد مشخص</option>
 
-  <option value="/(tabs)/Subscription">
-    صفحه اشتراک
-  </option>
+                <option value="/(tabs)/Subscription">صفحه اشتراک</option>
 
-  <option value="/(tabs)/Pelekan">
-    پلکان
-  </option>
+                <option value="/(tabs)/Pelekan">پلکان</option>
 
-  <option value="/(tabs)/Panah">
-    پناه
-  </option>
+                <option value="/(tabs)/Panah">پناه</option>
 
-  <option value="/(tabs)/Panahgah">
-    پناهگاه
-  </option>
+                <option value="/(tabs)/Panahgah">پناهگاه</option>
 
-  <option value="/(tabs)/Phoenix">
-    ققنوس من
-  </option>
-</select>
+                <option value="/(tabs)/Phoenix">ققنوس من</option>
+              </select>
 
               <select
                 value={form.targetRule.plan}
@@ -835,7 +830,7 @@ scheduledAt: "",
                         <span>هدف: {statsByCampaign[item.id].targetUsers}</span>
 
                         <span>
-                          موفق: {statsByCampaign[item.id].successfulUsers}
+                          ارسال موفق: {statsByCampaign[item.id].successfulUsers}
                         </span>
 
                         <span>
@@ -845,6 +840,42 @@ scheduledAt: "",
                         <span>
                           نرخ موفقیت: {statsByCampaign[item.id].successRate}٪
                         </span>
+
+                        <span
+                          style={{
+                            marginTop: 4,
+                            paddingTop: 4,
+                            borderTop: "1px solid rgba(255,255,255,.08)",
+                          }}
+                        >
+                          خوانده‌شده: {statsByCampaign[item.id].readUsers}
+                        </span>
+
+                        <span>
+                          نرخ خواندن: {statsByCampaign[item.id].readRate}٪
+                        </span>
+
+                        <span>
+                          بازشده از Push:{" "}
+                          {statsByCampaign[item.id].openedPushUsers}
+                        </span>
+
+                        <span>
+                          نرخ بازشدن Push:{" "}
+                          {statsByCampaign[item.id].pushOpenRate}٪
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void loadCampaignStats(item.id)}
+                          style={{
+                            ...secondaryBtn,
+                            marginTop: 6,
+                            padding: "5px 8px",
+                            fontSize: 10,
+                          }}
+                        >
+                          بروزرسانی آمار
+                        </button>
                       </div>
                     ) : (
                       <button
