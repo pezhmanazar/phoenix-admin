@@ -62,6 +62,17 @@ const menuItems: MenuItem[] = [
     },
   },
   {
+  href: "/admin/notifications",
+  label: "مدیریت نوتیفیکیشن‌ها",
+  icon: "🔔",
+  title: "مدیریت کمپین‌ها و نوتیفیکیشن‌های اپ",
+  style: {
+    border: "1px solid #d4af37",
+    backgroundColor: "#3a2d0b",
+    color: "#fde68a",
+  },
+},
+  {
     href: "/admin/tickets",
     label: "مدیریت تیکت‌ها",
     icon: "🎫",
