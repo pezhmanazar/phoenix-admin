@@ -162,28 +162,6 @@ export default function NotificationsPage() {
   const [error, setError] = useState("");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [statsByCampaign, setStatsByCampaign] = useState<
-    Record<
-      string,
-      {
-        targetUsers: number;
-        attemptedUsers: number;
-        successfulUsers: number;
-        failedUsers: number;
-
-        readUsers: number;
-        openedPushUsers: number;
-
-        successRate: number;
-        readRate: number;
-        pushOpenRate: number;
-
-        successfulDevices: number;
-        failedDevices: number;
-      }
-    >
-  >({});
-
   const [createOpen, setCreateOpen] = useState(false);
 
   const [form, setForm] = useState({
@@ -305,30 +283,6 @@ export default function NotificationsPage() {
       alert(e instanceof Error ? e.message : "خطا در ساخت کمپین");
     }
   }
-
-  async function loadCampaignStats(id: string) {
-    try {
-      const res = await fetch(`/admin/api/notification-campaigns/${id}/stats`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || json.ok === false) {
-        throw new Error(json.error || "STATS_FAILED");
-      }
-
-      setStatsByCampaign((prev) => ({
-        ...prev,
-        [id]: json.stats,
-      }));
-    } catch (error) {
-      console.error("[CAMPAIGN_STATS_FAILED]", error);
-    }
-  }
-
   async function sendCampaign(id: string) {
     const testUserId = prompt(
       "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید.",
@@ -817,66 +771,8 @@ export default function NotificationsPage() {
                   <td style={tdStyle}>{item._count?.notifications ?? 0}</td>
 
                   <td style={tdStyle}>
-                    {statsByCampaign[item.id] ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 3,
-                          fontSize: 11,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <span>هدف: {statsByCampaign[item.id].targetUsers}</span>
-
-                        <span>
-                          ارسال موفق: {statsByCampaign[item.id].successfulUsers}
-                        </span>
-
-                        <span>
-                          ناموفق: {statsByCampaign[item.id].failedUsers}
-                        </span>
-
-                        <span>
-                          نرخ موفقیت: {statsByCampaign[item.id].successRate}٪
-                        </span>
-
-                        <span
-                          style={{
-                            marginTop: 4,
-                            paddingTop: 4,
-                            borderTop: "1px solid rgba(255,255,255,.08)",
-                          }}
-                        >
-                          خوانده‌شده: {statsByCampaign[item.id].readUsers}
-                        </span>
-
-                        <span>
-                          نرخ خواندن: {statsByCampaign[item.id].readRate}٪
-                        </span>
-
-                        <span>
-                          بازشده از Push:{" "}
-                          {statsByCampaign[item.id].openedPushUsers}
-                        </span>
-
-                        <span>
-                          نرخ بازشدن Push:{" "}
-                          {statsByCampaign[item.id].pushOpenRate}٪
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void loadCampaignStats(item.id)}
-                          style={{
-                            ...secondaryBtn,
-                            marginTop: 6,
-                            padding: "5px 8px",
-                            fontSize: 10,
-                          }}
-                        >
-                          بروزرسانی آمار
-                        </button>
-                      </div>
+                    {item.status === "draft" ? (
+                      <span style={{ opacity: 0.45 }}>ارسال نشده</span>
                     ) : (
                       <button
                         type="button"
@@ -892,11 +788,10 @@ export default function NotificationsPage() {
                           fontSize: 11,
                         }}
                       >
-                        مشاهده آمار
+                        آمار
                       </button>
                     )}
                   </td>
-
                   <td style={tdStyle}>{item.createdBy?.name || "—"}</td>
 
                   <td style={tdStyle}>{formatDate(item.scheduledAt)}</td>
