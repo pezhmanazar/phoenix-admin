@@ -134,10 +134,52 @@ function statusLabel(status: CampaignStatus) {
   return status;
 }
 
+function getTargetRule(value: unknown): {
+  plan?: string;
+  appProvider?: string;
+} {
+  if (
+    typeof value === "object" &&
+    value !== null
+  ) {
+    return value as {
+      plan?: string;
+      appProvider?: string;
+    };
+  }
+
+  return {};
+}
+
+function planLabel(value: unknown) {
+  const plan = getTargetRule(value).plan || "all";
+
+  if (plan === "all") return "همه";
+  if (plan === "free") return "رایگان";
+  if (plan === "pro") return "پرو فعال";
+  if (plan === "expiring") return "در حال انقضا";
+  if (plan === "expired") return "منقضی‌شده";
+
+  return plan;
+}
+
+function providerLabel(value: unknown) {
+  const provider =
+    getTargetRule(value).appProvider || "all";
+
+  if (provider === "all") return "همه";
+  if (provider === "bazaar") return "کافه‌بازار";
+  if (provider === "direct") return "مستقیم";
+
+  return provider;
+}
+
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationCampaign[]>([]);
   const [error, setError] = useState("");
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -150,8 +192,9 @@ export default function NotificationsPage() {
   notificationType: "marketing",
   scheduledAt:"",
   targetRule: {
-    plan: "all",
-  },
+  plan: "all",
+  appProvider: "all",
+},
 });
   async function load() {
     setLoading(true);
@@ -173,6 +216,44 @@ export default function NotificationsPage() {
       setLoading(false);
     }
   }
+
+  async function loadTargetPreview() {
+  setPreviewLoading(true);
+
+  try {
+    const res = await fetch(
+      "/admin/api/notification-campaigns/preview",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          targetRule: form.targetRule,
+        }),
+      }
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || json.ok === false) {
+      throw new Error(
+        json.error || "PREVIEW_FAILED"
+      );
+    }
+
+    setPreviewCount(
+      typeof json.count === "number"
+        ? json.count
+        : 0
+    );
+  } catch {
+    setPreviewCount(null);
+  } finally {
+    setPreviewLoading(false);
+  }
+}
 
     async function createCampaign() {
     try {
@@ -216,8 +297,9 @@ export default function NotificationsPage() {
   notificationType: "marketing",
   scheduledAt: "",
   targetRule: {
-    plan: "all",
-  },
+  plan: "all",
+  appProvider: "all",
+},
 });
 
       await load();
@@ -515,32 +597,106 @@ export default function NotificationsPage() {
 
 
       <select
-        value={form.targetRule.plan}
-        onChange={(e)=>
-          setForm({
-            ...form,
-            targetRule:{
-              plan:e.target.value
-            }
-          })
-        }
-        style={inputStyle}
-      >
+  value={form.targetRule.plan}
+  onChange={(e) => {
+    setPreviewCount(null);
 
-        <option value="all">
-          همه کاربران
-        </option>
+    setForm({
+      ...form,
+      targetRule: {
+        ...form.targetRule,
+        plan: e.target.value,
+      },
+    });
+  }}
+  style={inputStyle}
+>
+  <option value="all">
+    همه وضعیت‌های اشتراک
+  </option>
 
-        <option value="free">
-          Free
-        </option>
+  <option value="free">
+    رایگان
+  </option>
 
-        <option value="pro">
-          Pro
-        </option>
+  <option value="pro">
+    پرو فعال
+  </option>
 
-      </select>
+  <option value="expiring">
+    در حال انقضا (۷ روز آینده)
+  </option>
 
+  <option value="expired">
+    منقضی‌شده
+  </option>
+</select>
+
+<select
+  value={form.targetRule.appProvider}
+  onChange={(e) => {
+    setPreviewCount(null);
+
+    setForm({
+      ...form,
+      targetRule: {
+        ...form.targetRule,
+        appProvider: e.target.value,
+      },
+    });
+  }}
+  style={inputStyle}
+>
+  <option value="all">
+    همه نسخه‌های اپ
+  </option>
+
+  <option value="bazaar">
+    کافه‌بازار
+  </option>
+
+  <option value="direct">
+    نسخه مستقیم / زرین‌پال
+  </option>
+</select>
+
+<div
+  style={{
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    border: "1px solid #1f2937",
+    background: "#0b1220",
+    color: "#e5e7eb",
+    fontSize: 12,
+  }}
+>
+  <button
+    type="button"
+    onClick={() => void loadTargetPreview()}
+    disabled={previewLoading}
+    style={{
+      ...secondaryBtn,
+      width: "100%",
+    }}
+  >
+    {previewLoading
+      ? "در حال محاسبه..."
+      : "محاسبه تعداد مخاطبان"}
+  </button>
+
+  {previewCount !== null ? (
+    <div
+      style={{
+        marginTop: 8,
+        textAlign: "center",
+        fontWeight: 900,
+      }}
+    >
+      تعداد کاربران هدف دارای دستگاه فعال: {previewCount}
+    </div>
+  ) : null}
+</div>
 
       <div
         style={{
@@ -611,6 +767,8 @@ export default function NotificationsPage() {
                   "متن Push",
                   "نوع",
                   "وضعیت",
+                  "اشتراک مخاطب",
+                  "نسخه اپ",
                   "تعداد نوتیفیکیشن",
                   "سازنده",
                   "زمان‌بندی",
@@ -674,6 +832,14 @@ export default function NotificationsPage() {
                   </td>
 
                   <td style={tdStyle}>
+                 {planLabel(item.targetRule)}
+                </td>
+
+                <td style={tdStyle}>
+                {providerLabel(item.targetRule)}
+                </td>
+
+                  <td style={tdStyle}>
                     {item._count?.notifications ?? 0}
                   </td>
 
@@ -720,7 +886,7 @@ export default function NotificationsPage() {
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={13}
                     style={{
                       ...tdStyle,
                       padding: 30,
