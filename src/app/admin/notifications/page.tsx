@@ -3,19 +3,10 @@
 
 import React, { useEffect, useState } from "react";
 
-
-type CampaignType =
-  | "therapeutic"
-  | "sales"
-  | "system"
-  | "motivational";
+type CampaignType = "therapeutic" | "sales" | "system" | "motivational";
 
 type CampaignStatus =
-  | "draft"
-  | "scheduled"
-  | "sending"
-  | "completed"
-  | "failed";
+  "draft" | "scheduled" | "sending" | "completed" | "failed";
 
 type NotificationCampaign = {
   id: string;
@@ -69,31 +60,26 @@ async function api<T>(path: string): Promise<T> {
 
   let json: unknown;
 
-try {
-  json = JSON.parse(text);
-} catch {
-  throw new Error(
-    `Non-JSON response (${res.status}): ${text.slice(0, 160)}`
-  );
-}
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON response (${res.status}): ${text.slice(0, 160)}`);
+  }
 
-if (
-  typeof json !== "object" ||
-  json === null
-) {
-  throw new Error(`Invalid JSON response (${res.status})`);
-}
+  if (typeof json !== "object" || json === null) {
+    throw new Error(`Invalid JSON response (${res.status})`);
+  }
 
-const parsed = json as {
-  ok?: boolean;
-  error?: string;
-};
+  const parsed = json as {
+    ok?: boolean;
+    error?: string;
+  };
 
-if (!res.ok || parsed.ok === false) {
-  throw new Error(parsed.error || `HTTP_${res.status}`);
-}
+  if (!res.ok || parsed.ok === false) {
+    throw new Error(parsed.error || `HTTP_${res.status}`);
+  }
 
-return json as T;
+  return json as T;
 }
 
 function formatDate(value: string | null) {
@@ -138,10 +124,7 @@ function getTargetRule(value: unknown): {
   plan?: string;
   appProvider?: string;
 } {
-  if (
-    typeof value === "object" &&
-    value !== null
-  ) {
+  if (typeof value === "object" && value !== null) {
     return value as {
       plan?: string;
       appProvider?: string;
@@ -164,8 +147,7 @@ function planLabel(value: unknown) {
 }
 
 function providerLabel(value: unknown) {
-  const provider =
-    getTargetRule(value).appProvider || "all";
+  const provider = getTargetRule(value).appProvider || "all";
 
   if (provider === "all") return "همه";
   if (provider === "bazaar") return "کافه‌بازار";
@@ -180,50 +162,58 @@ export default function NotificationsPage() {
   const [error, setError] = useState("");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [statsByCampaign, setStatsByCampaign] = useState<
+    Record<
+      string,
+      {
+        targetUsers: number;
+        attemptedUsers: number;
+        successfulUsers: number;
+        failedUsers: number;
+        successRate: number;
+        successfulDevices: number;
+        failedDevices: number;
+      }
+    >
+  >({});
 
   const [createOpen, setCreateOpen] = useState(false);
 
   const [form, setForm] = useState({
-  title: "",
-  description: "",
-  pushTitle: "",
-  pushBody: "",
-  type: "therapeutic" as CampaignType,
-  notificationType: "marketing",
-  scheduledAt:"",
-  targetRule: {
-  plan: "all",
-  appProvider: "all",
-},
-});
+    title: "",
+    description: "",
+    pushTitle: "",
+    pushBody: "",
+    type: "therapeutic" as CampaignType,
+    notificationType: "marketing",
+    scheduledAt: "",
+    targetRule: {
+      plan: "all",
+      appProvider: "all",
+    },
+  });
   async function load() {
     setLoading(true);
     setError("");
 
     try {
       const result = await api<CampaignListResponse>(
-        "/admin/api/notification-campaigns?page=1&limit=50"
+        "/admin/api/notification-campaigns?page=1&limit=50",
       );
 
       setItems(result.data.items || []);
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : String(e)
-      );
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function loadTargetPreview() {
-  setPreviewLoading(true);
+    setPreviewLoading(true);
 
-  try {
-    const res = await fetch(
-      "/admin/api/notification-campaigns/preview",
-      {
+    try {
+      const res = await fetch("/admin/api/notification-campaigns/preview", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -232,51 +222,37 @@ export default function NotificationsPage() {
         body: JSON.stringify({
           targetRule: form.targetRule,
         }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "PREVIEW_FAILED");
       }
-    );
 
-    const json = await res.json();
+      setPreviewCount(typeof json.count === "number" ? json.count : 0);
+    } catch (error) {
+      console.error("[NOTIFICATION_PREVIEW_FAILED]", error);
 
-    if (!res.ok || json.ok === false) {
-      throw new Error(
-        json.error || "PREVIEW_FAILED"
+      setPreviewCount(null);
+
+      alert(
+        error instanceof Error ? error.message : "خطا در محاسبه تعداد مخاطبان",
       );
+    } finally {
+      setPreviewLoading(false);
     }
-
-    setPreviewCount(
-      typeof json.count === "number"
-        ? json.count
-        : 0
-    );
-  } catch (error) {
-    console.error(
-      "[NOTIFICATION_PREVIEW_FAILED]",
-      error
-    );
-
-    setPreviewCount(null);
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "خطا در محاسبه تعداد مخاطبان"
-    );
-  } finally {
-    setPreviewLoading(false);
   }
-}
 
-    async function createCampaign() {
+  async function createCampaign() {
     try {
-      const res = await fetch(
-        "/admin/api/notification-campaigns",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+      const res = await fetch("/admin/api/notification-campaigns", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           title: form.title,
           description: form.description,
           pushTitle: form.pushTitle,
@@ -285,65 +261,78 @@ export default function NotificationsPage() {
           notificationType: form.notificationType,
           scheduledAt: form.scheduledAt,
           targetRule: form.targetRule,
-         }),
-        }
-      );
+        }),
+      });
 
       const json = await res.json();
 
       if (!res.ok || json.ok === false) {
-        throw new Error(
-          json.error || "CREATE_FAILED"
-        );
+        throw new Error(json.error || "CREATE_FAILED");
       }
 
       setCreateOpen(false);
 
-  setForm({
-  title: "",
-  description: "",
-  pushTitle: "",
-  pushBody: "",
-  type: "therapeutic",
-  notificationType: "marketing",
-  scheduledAt: "",
-  targetRule: {
-  plan: "all",
-  appProvider: "all",
-},
-});
+      setForm({
+        title: "",
+        description: "",
+        pushTitle: "",
+        pushBody: "",
+        type: "therapeutic",
+        notificationType: "marketing",
+        scheduledAt: "",
+        targetRule: {
+          plan: "all",
+          appProvider: "all",
+        },
+      });
 
       await load();
-
     } catch (e) {
-      alert(
-        e instanceof Error
-          ? e.message
-          : "خطا در ساخت کمپین"
-      );
+      alert(e instanceof Error ? e.message : "خطا در ساخت کمپین");
+    }
+  }
+
+  async function loadCampaignStats(id: string) {
+    try {
+      const res = await fetch(`/admin/api/notification-campaigns/${id}/stats`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "STATS_FAILED");
+      }
+
+      setStatsByCampaign((prev) => ({
+        ...prev,
+        [id]: json.stats,
+      }));
+    } catch (error) {
+      console.error("[CAMPAIGN_STATS_FAILED]", error);
     }
   }
 
   async function sendCampaign(id: string) {
-  const testUserId = prompt(
-    "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید."
-  );
-  console.log("TEST USER ID:", testUserId);
+    const testUserId = prompt(
+      "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید.",
+    );
+    console.log("TEST USER ID:", testUserId);
 
-  if (testUserId === null) return;
+    if (testUserId === null) return;
 
-  const ok = confirm(
-    testUserId.trim()
-      ? "ارسال تست برای این کاربر انجام شود؟"
-      : "آیا مطمئن هستید؟ ارسال کمپین برای کاربران شروع می‌شود."
-  );
+    const ok = confirm(
+      testUserId.trim()
+        ? "ارسال تست برای این کاربر انجام شود؟"
+        : "آیا مطمئن هستید؟ ارسال کمپین برای کاربران شروع می‌شود.",
+    );
 
-  if (!ok) return;
+    if (!ok) return;
 
-  try {
-    const res = await fetch(
-      `/admin/api/notification-campaigns/${id}/send`,
-      {
+    try {
+      const res = await fetch(`/admin/api/notification-campaigns/${id}/send`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -354,33 +343,25 @@ export default function NotificationsPage() {
             ? {
                 testUserId: testUserId.trim(),
               }
-            : {}
+            : {},
         ),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "SEND_FAILED");
       }
-    );
 
-    const json = await res.json();
-
-    if (!res.ok || json.ok === false) {
-      throw new Error(
-        json.error || "SEND_FAILED"
+      alert(
+        `ارسال انجام شد. موفق: ${json.result.sent} - خطا: ${json.result.failed}`,
       );
+
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "خطا در ارسال کمپین");
     }
-
-    alert(
-      `ارسال انجام شد. موفق: ${json.result.sent} - خطا: ${json.result.failed}`
-    );
-
-    await load();
-
-  } catch (e) {
-    alert(
-      e instanceof Error
-        ? e.message
-        : "خطا در ارسال کمپین"
-    );
   }
-}
 
   useEffect(() => {
     void load();
@@ -435,20 +416,20 @@ export default function NotificationsPage() {
           </div>
 
           <button
-  onClick={() => setCreateOpen(true)}
-  style={{
-    padding: "10px 14px",
-    borderRadius: 999,
-    border: "1px solid #166534",
-    background: "#14532d",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 900,
-    cursor: "pointer",
-  }}
->
-  + کمپین جدید
-</button>
+            onClick={() => setCreateOpen(true)}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 999,
+              border: "1px solid #166534",
+              background: "#14532d",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            + کمپین جدید
+          </button>
 
           <button
             onClick={() => void load()}
@@ -469,275 +450,234 @@ export default function NotificationsPage() {
         </div>
 
         {createOpen ? (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.7)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1000,
-    }}
-  >
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              style={{
+                width: 420,
+                background: "#050a12",
+                border: "1px solid #1f2937",
+                borderRadius: 18,
+                padding: 20,
+              }}
+            >
+              <h2
+                style={{
+                  color: "#fff",
+                  marginTop: 0,
+                }}
+              >
+                ساخت کمپین جدید
+              </h2>
 
-    <div
-      style={{
-        width: 420,
-        background: "#050a12",
-        border: "1px solid #1f2937",
-        borderRadius: 18,
-        padding: 20,
-      }}
-    >
+              <input
+                placeholder="عنوان کمپین"
+                value={form.title}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    title: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              />
 
-      <h2
-        style={{
-          color:"#fff",
-          marginTop:0
-        }}
-      >
-        ساخت کمپین جدید
-      </h2>
+              <textarea
+                placeholder="توضیحات"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    description: e.target.value,
+                  })
+                }
+                style={{
+                  ...inputStyle,
+                  minHeight: 80,
+                }}
+              />
 
+              <input
+                placeholder="عنوان نوتیفیکیشن (Push Title)"
+                value={form.pushTitle}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    pushTitle: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              />
 
-      <input
-        placeholder="عنوان کمپین"
-        value={form.title}
-        onChange={(e)=>
-          setForm({
-            ...form,
-            title:e.target.value
-          })
-        }
-        style={inputStyle}
-      />
+              <textarea
+                placeholder="متن نوتیفیکیشن (Push Body)"
+                value={form.pushBody}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    pushBody: e.target.value,
+                  })
+                }
+                style={{
+                  ...inputStyle,
+                  minHeight: 80,
+                }}
+              />
+              <input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    scheduledAt: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              />
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.55)",
+                }}
+              >
+                زمان بر اساس ساعت ایران (Asia/Tehran) ثبت می‌شود. در جدول
+                به‌صورت شمسی نمایش داده خواهد شد.
+              </div>
 
+              <select
+                value={form.type}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    type: e.target.value as CampaignType,
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="therapeutic">درمانی</option>
 
-      <textarea
-        placeholder="توضیحات"
-        value={form.description}
-        onChange={(e)=>
-          setForm({
-            ...form,
-            description:e.target.value
-          })
-        }
-        style={{
-          ...inputStyle,
-          minHeight:80
-        }}
-      />
+                <option value="sales">فروش</option>
 
-      <input
-  placeholder="عنوان نوتیفیکیشن (Push Title)"
-  value={form.pushTitle}
-  onChange={(e)=>
-    setForm({
-      ...form,
-      pushTitle:e.target.value
-    })
-  }
-  style={inputStyle}
-/>
+                <option value="system">سیستمی</option>
 
-<textarea
-  placeholder="متن نوتیفیکیشن (Push Body)"
-  value={form.pushBody}
-  onChange={(e)=>
-    setForm({
-      ...form,
-      pushBody:e.target.value
-    })
-  }
-  style={{
-    ...inputStyle,
-    minHeight:80
-  }}
-/>
-<input
-  type="datetime-local"
-  value={form.scheduledAt}
-  onChange={(e)=>
-    setForm({
-      ...form,
-      scheduledAt:e.target.value
-    })
-  }
-  style={inputStyle}
-/>
-<div
- style={{
-   marginTop:6,
-   fontSize:11,
-   color:"rgba(255,255,255,0.55)",
- }}
->
-  زمان بر اساس ساعت ایران (Asia/Tehran) ثبت می‌شود.
-  در جدول به‌صورت شمسی نمایش داده خواهد شد.
-</div>
+                <option value="motivational">انگیزشی</option>
+              </select>
 
+              <select
+                value={form.targetRule.plan}
+                onChange={(e) => {
+                  setPreviewCount(null);
 
-      <select
-        value={form.type}
-        onChange={(e)=>
-          setForm({
-            ...form,
-            type:e.target.value as CampaignType
-          })
-        }
-        style={inputStyle}
-      >
-        <option value="therapeutic">
-          درمانی
-        </option>
+                  setForm({
+                    ...form,
+                    targetRule: {
+                      ...form.targetRule,
+                      plan: e.target.value,
+                    },
+                  });
+                }}
+                style={inputStyle}
+              >
+                <option value="all">همه وضعیت‌های اشتراک</option>
 
-        <option value="sales">
-          فروش
-        </option>
+                <option value="free">رایگان</option>
 
-        <option value="system">
-          سیستمی
-        </option>
+                <option value="pro">پرو فعال</option>
 
-        <option value="motivational">
-          انگیزشی
-        </option>
+                <option value="expiring">در حال انقضا (۷ روز آینده)</option>
 
-      </select>
+                <option value="expired">منقضی‌شده</option>
+              </select>
 
+              <select
+                value={form.targetRule.appProvider}
+                onChange={(e) => {
+                  setPreviewCount(null);
 
-      <select
-  value={form.targetRule.plan}
-  onChange={(e) => {
-    setPreviewCount(null);
+                  setForm({
+                    ...form,
+                    targetRule: {
+                      ...form.targetRule,
+                      appProvider: e.target.value,
+                    },
+                  });
+                }}
+                style={inputStyle}
+              >
+                <option value="all">همه نسخه‌های اپ</option>
 
-    setForm({
-      ...form,
-      targetRule: {
-        ...form.targetRule,
-        plan: e.target.value,
-      },
-    });
-  }}
-  style={inputStyle}
->
-  <option value="all">
-    همه وضعیت‌های اشتراک
-  </option>
+                <option value="bazaar">کافه‌بازار</option>
 
-  <option value="free">
-    رایگان
-  </option>
+                <option value="direct">نسخه مستقیم / زرین‌پال</option>
+              </select>
 
-  <option value="pro">
-    پرو فعال
-  </option>
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 10,
+                  border: "1px solid #1f2937",
+                  background: "#0b1220",
+                  color: "#e5e7eb",
+                  fontSize: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => void loadTargetPreview()}
+                  disabled={previewLoading}
+                  style={{
+                    ...secondaryBtn,
+                    width: "100%",
+                  }}
+                >
+                  {previewLoading ? "در حال محاسبه..." : "محاسبه تعداد مخاطبان"}
+                </button>
 
-  <option value="expiring">
-    در حال انقضا (۷ روز آینده)
-  </option>
+                {previewCount !== null ? (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      textAlign: "center",
+                      fontWeight: 900,
+                    }}
+                  >
+                    تعداد کاربران هدف دارای دستگاه فعال: {previewCount}
+                  </div>
+                ) : null}
+              </div>
 
-  <option value="expired">
-    منقضی‌شده
-  </option>
-</select>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 15,
+                }}
+              >
+                <button onClick={createCampaign} style={primaryBtn}>
+                  ساخت کمپین
+                </button>
 
-<select
-  value={form.targetRule.appProvider}
-  onChange={(e) => {
-    setPreviewCount(null);
-
-    setForm({
-      ...form,
-      targetRule: {
-        ...form.targetRule,
-        appProvider: e.target.value,
-      },
-    });
-  }}
-  style={inputStyle}
->
-  <option value="all">
-    همه نسخه‌های اپ
-  </option>
-
-  <option value="bazaar">
-    کافه‌بازار
-  </option>
-
-  <option value="direct">
-    نسخه مستقیم / زرین‌پال
-  </option>
-</select>
-
-<div
-  style={{
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 10,
-    border: "1px solid #1f2937",
-    background: "#0b1220",
-    color: "#e5e7eb",
-    fontSize: 12,
-  }}
->
-  <button
-    type="button"
-    onClick={() => void loadTargetPreview()}
-    disabled={previewLoading}
-    style={{
-      ...secondaryBtn,
-      width: "100%",
-    }}
-  >
-    {previewLoading
-      ? "در حال محاسبه..."
-      : "محاسبه تعداد مخاطبان"}
-  </button>
-
-  {previewCount !== null ? (
-    <div
-      style={{
-        marginTop: 8,
-        textAlign: "center",
-        fontWeight: 900,
-      }}
-    >
-      تعداد کاربران هدف دارای دستگاه فعال: {previewCount}
-    </div>
-  ) : null}
-</div>
-
-      <div
-        style={{
-          display:"flex",
-          gap:10,
-          marginTop:15
-        }}
-      >
-
-        <button
-          onClick={createCampaign}
-          style={primaryBtn}
-        >
-          ساخت کمپین
-        </button>
-
-
-        <button
-          onClick={()=>setCreateOpen(false)}
-          style={secondaryBtn}
-        >
-          لغو
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-):null}
+                <button
+                  onClick={() => setCreateOpen(false)}
+                  style={secondaryBtn}
+                >
+                  لغو
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <div
@@ -781,6 +721,7 @@ export default function NotificationsPage() {
                   "اشتراک مخاطب",
                   "نسخه اپ",
                   "تعداد نوتیفیکیشن",
+                  "آمار ارسال",
                   "سازنده",
                   "زمان‌بندی",
                   "ارسال",
@@ -809,9 +750,7 @@ export default function NotificationsPage() {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td style={tdStyle}>
-                    <div style={{ fontWeight: 900 }}>
-                      {item.title}
-                    </div>
+                    <div style={{ fontWeight: 900 }}>{item.title}</div>
 
                     {item.description ? (
                       <div
@@ -826,78 +765,96 @@ export default function NotificationsPage() {
                     ) : null}
                   </td>
 
+                  <td style={tdStyle}>{item.pushTitle || "—"}</td>
+
+                  <td style={tdStyle}>{item.pushBody || "—"}</td>
+
+                  <td style={tdStyle}>{typeLabel(item.type)}</td>
+
+                  <td style={tdStyle}>{statusLabel(item.status)}</td>
+
+                  <td style={tdStyle}>{planLabel(item.targetRule)}</td>
+
+                  <td style={tdStyle}>{providerLabel(item.targetRule)}</td>
+
+                  <td style={tdStyle}>{item._count?.notifications ?? 0}</td>
+
                   <td style={tdStyle}>
-                   {item.pushTitle || "—"}
+                    {statsByCampaign[item.id] ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 3,
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <span>هدف: {statsByCampaign[item.id].targetUsers}</span>
+
+                        <span>
+                          موفق: {statsByCampaign[item.id].successfulUsers}
+                        </span>
+
+                        <span>
+                          ناموفق: {statsByCampaign[item.id].failedUsers}
+                        </span>
+
+                        <span>
+                          نرخ موفقیت: {statsByCampaign[item.id].successRate}٪
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void loadCampaignStats(item.id)}
+                        style={{
+                          ...secondaryBtn,
+                          padding: "6px 10px",
+                          fontSize: 11,
+                        }}
+                      >
+                        مشاهده آمار
+                      </button>
+                    )}
                   </td>
 
-                 <td style={tdStyle}>
-                 {item.pushBody || "—"}
-                 </td>
+                  <td style={tdStyle}>{item.createdBy?.name || "—"}</td>
+
+                  <td style={tdStyle}>{formatDate(item.scheduledAt)}</td>
+
+                  <td style={tdStyle}>{formatDate(item.sentAt)}</td>
+
+                  <td style={tdStyle}>{formatDate(item.createdAt)}</td>
 
                   <td style={tdStyle}>
-                    {typeLabel(item.type)}
+                    {item.status === "draft" ? (
+                      <button
+                        onClick={() => void sendCampaign(item.id)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: 999,
+                          border: "1px solid #166534",
+                          background: "#14532d",
+                          color: "#dcfce7",
+                          fontSize: 12,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ارسال
+                      </button>
+                    ) : (
+                      "—"
+                    )}
                   </td>
-
-                  <td style={tdStyle}>
-                    {statusLabel(item.status)}
-                  </td>
-
-                  <td style={tdStyle}>
-                 {planLabel(item.targetRule)}
-                </td>
-
-                <td style={tdStyle}>
-                {providerLabel(item.targetRule)}
-                </td>
-
-                  <td style={tdStyle}>
-                    {item._count?.notifications ?? 0}
-                  </td>
-
-                  <td style={tdStyle}>
-                    {item.createdBy?.name || "—"}
-                  </td>
-
-                  <td style={tdStyle}>
-                    {formatDate(item.scheduledAt)}
-                  </td>
-
-                  <td style={tdStyle}>
-                    {formatDate(item.sentAt)}
-                  </td>
-
-                  <td style={tdStyle}>
-                    {formatDate(item.createdAt)}
-                  </td>
-
-                  <td style={tdStyle}>
-  {item.status === "draft" ? (
-    <button
-      onClick={() => void sendCampaign(item.id)}
-      style={{
-        padding: "8px 12px",
-        borderRadius: 999,
-        border: "1px solid #166534",
-        background: "#14532d",
-        color: "#dcfce7",
-        fontSize: 12,
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      ارسال
-    </button>
-  ) : (
-    "—"
-  )}
-</td>
                 </tr>
               ))}
 
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={14}
                     style={{
                       ...tdStyle,
                       padding: 30,
@@ -917,35 +874,33 @@ export default function NotificationsPage() {
 }
 
 const inputStyle: React.CSSProperties = {
-  width:"100%",
-  marginTop:10,
-  padding:"10px",
-  borderRadius:10,
-  border:"1px solid #374151",
-  background:"#111827",
-  color:"#fff",
+  width: "100%",
+  marginTop: 10,
+  padding: "10px",
+  borderRadius: 10,
+  border: "1px solid #374151",
+  background: "#111827",
+  color: "#fff",
 };
-
 
 const primaryBtn: React.CSSProperties = {
-  padding:"10px 14px",
-  borderRadius:10,
-  border:"none",
-  background:"#16a34a",
-  color:"#fff",
-  fontWeight:900,
-  cursor:"pointer",
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "none",
+  background: "#16a34a",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
 };
 
-
 const secondaryBtn: React.CSSProperties = {
-  padding:"10px 14px",
-  borderRadius:10,
-  border:"1px solid #374151",
-  background:"#111827",
-  color:"#fff",
-  fontWeight:900,
-  cursor:"pointer",
+  padding: "10px 14px",
+  borderRadius: 10,
+  border: "1px solid #374151",
+  background: "#111827",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
 };
 
 const tdStyle: React.CSSProperties = {
