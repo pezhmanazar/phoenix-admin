@@ -880,7 +880,12 @@ export default function NotificationsPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => void loadCampaignStats(item.id)}
+                        onClick={() => {
+                          window.open(
+                            `/admin/notifications/${item.id}/stats`,
+                            "_blank",
+                          );
+                        }}
                         style={{
                           ...secondaryBtn,
                           padding: "6px 10px",
