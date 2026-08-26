@@ -3,6 +3,7 @@ import Link from "next/link";
 import React from "react";
 import { cookies } from "next/headers";
 import AdminHeaderActions from "./AdminHeaderActions.client";
+import AdminHeaderVisibility from "./AdminHeaderVisibility.client";
 
 export const dynamic = "force-dynamic";
 
@@ -74,20 +75,6 @@ function RoleBadge({ role }: { role?: string }) {
   );
 }
 
-const navBase: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "9px 12px", // ✅ یکدست
-  borderRadius: 12,
-  fontSize: "12px",
-  fontWeight: 900,
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-  lineHeight: 1,
-  flex: "0 0 auto",
-};
-
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const me = await fetchMe();
 
@@ -101,8 +88,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         flexDirection: "column",
       }}
     >
-<header
-  style={{
+      <AdminHeaderVisibility>
+        <header
+          style={{
     padding: "10px 12px",
     borderBottom: "1px solid #111827",
     backgroundColor: "#020617",
@@ -173,10 +161,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div style={{ flex: 1 }} />
 
         {/* چپ: دکمه‌ها / همبرگری موبایل */}
-        {me ? <AdminHeaderActions role={me.role} /> : null}
+                {me ? <AdminHeaderActions role={me.role} /> : null}
       </header>
+      </AdminHeaderVisibility>
 
-      <main style={{ flex: 1, padding: "16px 16px 24px", boxSizing: "border-box" }}>
+      <main
+        style={{
+          flex: 1,
+          padding: "16px 16px 24px",
+          boxSizing: "border-box",
+        }}
+      >
         {children}
       </main>
     </div>
