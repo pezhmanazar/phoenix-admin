@@ -541,7 +541,8 @@ export default function NotificationsPage() {
   return (
     <div
       style={{
-        maxWidth: 1200,
+        width: "calc(100vw - 32px)",
+        maxWidth: 1600,
         margin: "0 auto",
       }}
     >
@@ -586,38 +587,47 @@ export default function NotificationsPage() {
             </div>
           </div>
 
-          <button
-            onClick={() => setCreateOpen(true)}
+          <div
             style={{
-              padding: "10px 14px",
-              borderRadius: 999,
-              border: "1px solid #166534",
-              background: "#14532d",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 900,
-              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            + کمپین جدید
-          </button>
+            <button
+              onClick={() => setCreateOpen(true)}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #166534",
+                background: "#14532d",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
+            >
+              + کمپین جدید
+            </button>
 
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 999,
-              border: "1px solid #374151",
-              background: "#111827",
-              color: "#e5e7eb",
-              fontSize: 12,
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            {loading ? "در حال بارگذاری..." : "بروزرسانی"}
-          </button>
+            <button
+              onClick={() => void load()}
+              disabled={loading}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #374151",
+                background: "#111827",
+                color: "#e5e7eb",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: loading ? 0.65 : 1,
+              }}
+            >
+              {loading ? "در حال بارگذاری..." : "بروزرسانی"}
+            </button>
+          </div>
         </div>
 
         {createOpen ? (
