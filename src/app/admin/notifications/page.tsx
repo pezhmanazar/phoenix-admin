@@ -1364,11 +1364,11 @@ const secondaryBtn: React.CSSProperties = {
 };
 
 const actionsWrapStyle: React.CSSProperties = {
-  display: "flex",
+  display: "grid",
+  gridTemplateColumns: "repeat(2, 62px)",
+  gap: 6,
   alignItems: "center",
   justifyContent: "center",
-  gap: 6,
-  flexWrap: "wrap",
 };
 
 const actionBtnStyle: React.CSSProperties = {
