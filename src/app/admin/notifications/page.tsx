@@ -15,6 +15,7 @@ type NotificationCampaign = {
   pushTitle: string;
   pushBody: string;
   notificationType: string;
+  data: unknown;
   type: CampaignType;
   status: CampaignStatus;
   scheduledAt: string | null;
@@ -134,6 +135,22 @@ function getTargetRule(value: unknown): {
   return {};
 }
 
+function getCampaignRoute(value: unknown): string {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "route" in value
+  ) {
+    const route = (value as { route?: unknown }).route;
+
+    return typeof route === "string"
+      ? route
+      : "";
+  }
+
+  return "";
+}
+
 function planLabel(value: unknown) {
   const plan = getTargetRule(value).plan || "all";
 
@@ -163,6 +180,24 @@ export default function NotificationsPage() {
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+const [editingId, setEditingId] = useState<string | null>(null);
+const [editSaving, setEditSaving] = useState(false);
+
+const [editForm, setEditForm] = useState({
+  title: "",
+  description: "",
+  pushTitle: "",
+  pushBody: "",
+  type: "therapeutic" as CampaignType,
+  notificationType: "marketing",
+  route: "",
+  targetRule: {
+    plan: "all",
+    appProvider: "all",
+  },
+});
 
   const [form, setForm] = useState({
     title: "",
@@ -283,6 +318,103 @@ export default function NotificationsPage() {
       alert(e instanceof Error ? e.message : "خطا در ساخت کمپین");
     }
   }
+
+  function openEditCampaign(item: NotificationCampaign) {
+  if (item.status !== "draft") {
+    alert("فقط کمپین‌های پیش‌نویس قابل ویرایش هستند.");
+    return;
+  }
+
+  const targetRule = getTargetRule(item.targetRule);
+
+  setEditingId(item.id);
+
+  setEditForm({
+    title: item.title || "",
+    description: item.description || "",
+    pushTitle: item.pushTitle || "",
+    pushBody: item.pushBody || "",
+    type: item.type,
+    notificationType:
+      item.notificationType || "marketing",
+    route: getCampaignRoute(item.data),
+    targetRule: {
+      plan: targetRule.plan || "all",
+      appProvider:
+        targetRule.appProvider || "all",
+    },
+  });
+
+  setEditOpen(true);
+}
+
+async function saveEditCampaign() {
+  if (!editingId) return;
+
+  if (!editForm.title.trim()) {
+    alert("عنوان کمپین را وارد کنید.");
+    return;
+  }
+
+  if (
+    !editForm.pushTitle.trim() ||
+    !editForm.pushBody.trim()
+  ) {
+    alert("عنوان و متن Push را وارد کنید.");
+    return;
+  }
+
+  setEditSaving(true);
+
+  try {
+    const res = await fetch(
+      `/admin/api/notification-campaigns/${editingId}`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: editForm.title,
+          description: editForm.description,
+          pushTitle: editForm.pushTitle,
+          pushBody: editForm.pushBody,
+          type: editForm.type,
+          notificationType:
+            editForm.notificationType,
+          data: editForm.route
+            ? {
+                route: editForm.route,
+              }
+            : null,
+          targetRule: editForm.targetRule,
+        }),
+      },
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || json.ok === false) {
+      throw new Error(
+        json.error || "UPDATE_FAILED",
+      );
+    }
+
+    setEditOpen(false);
+    setEditingId(null);
+
+    await load();
+  } catch (e) {
+    alert(
+      e instanceof Error
+        ? e.message
+        : "خطا در ویرایش کمپین",
+    );
+  } finally {
+    setEditSaving(false);
+  }
+}
   async function duplicateCampaign(id: string) {
   const ok = confirm(
     "از این کمپین یک نسخه جدید به‌صورت پیش‌نویس ساخته شود؟",
@@ -705,6 +837,225 @@ export default function NotificationsPage() {
           </div>
         ) : null}
 
+        {editOpen ? (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1100,
+    }}
+  >
+    <div
+      style={{
+        width: 420,
+        maxHeight: "90vh",
+        overflowY: "auto",
+        background: "#050a12",
+        border: "1px solid #1f2937",
+        borderRadius: 18,
+        padding: 20,
+      }}
+    >
+      <h2
+        style={{
+          color: "#fff",
+          marginTop: 0,
+        }}
+      >
+        ویرایش کمپین
+      </h2>
+
+      <input
+        placeholder="عنوان کمپین"
+        value={editForm.title}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            title: e.target.value,
+          })
+        }
+        style={inputStyle}
+      />
+
+      <textarea
+        placeholder="توضیحات"
+        value={editForm.description}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            description: e.target.value,
+          })
+        }
+        style={{
+          ...inputStyle,
+          minHeight: 80,
+        }}
+      />
+
+      <input
+        placeholder="عنوان نوتیفیکیشن (Push Title)"
+        value={editForm.pushTitle}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            pushTitle: e.target.value,
+          })
+        }
+        style={inputStyle}
+      />
+
+      <textarea
+        placeholder="متن نوتیفیکیشن (Push Body)"
+        value={editForm.pushBody}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            pushBody: e.target.value,
+          })
+        }
+        style={{
+          ...inputStyle,
+          minHeight: 80,
+        }}
+      />
+
+      <select
+        value={editForm.type}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            type: e.target.value as CampaignType,
+          })
+        }
+        style={inputStyle}
+      >
+        <option value="therapeutic">درمانی</option>
+        <option value="sales">فروش</option>
+        <option value="system">سیستمی</option>
+        <option value="motivational">انگیزشی</option>
+      </select>
+
+      <select
+        value={editForm.route}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            route: e.target.value,
+          })
+        }
+        style={inputStyle}
+      >
+        <option value="">بدون مقصد مشخص</option>
+        <option value="/(tabs)/Subscription">
+          صفحه اشتراک
+        </option>
+        <option value="/(tabs)/Pelekan">
+          پلکان
+        </option>
+        <option value="/(tabs)/Panah">
+          پناه
+        </option>
+        <option value="/(tabs)/Panahgah">
+          پناهگاه
+        </option>
+        <option value="/(tabs)/Phoenix">
+          ققنوس من
+        </option>
+      </select>
+
+      <select
+        value={editForm.targetRule.plan}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            targetRule: {
+              ...editForm.targetRule,
+              plan: e.target.value,
+            },
+          })
+        }
+        style={inputStyle}
+      >
+        <option value="all">
+          همه وضعیت‌های اشتراک
+        </option>
+        <option value="free">رایگان</option>
+        <option value="pro">پرو فعال</option>
+        <option value="expiring">
+          در حال انقضا (۷ روز آینده)
+        </option>
+        <option value="expired">
+          منقضی‌شده
+        </option>
+      </select>
+
+      <select
+        value={editForm.targetRule.appProvider}
+        onChange={(e) =>
+          setEditForm({
+            ...editForm,
+            targetRule: {
+              ...editForm.targetRule,
+              appProvider: e.target.value,
+            },
+          })
+        }
+        style={inputStyle}
+      >
+        <option value="all">
+          همه نسخه‌های اپ
+        </option>
+        <option value="bazaar">
+          کافه‌بازار
+        </option>
+        <option value="direct">
+          نسخه مستقیم / زرین‌پال
+        </option>
+      </select>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 18,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            void saveEditCampaign()
+          }
+          disabled={editSaving}
+          style={{
+            ...primaryBtn,
+            opacity: editSaving ? 0.6 : 1,
+          }}
+        >
+          {editSaving
+            ? "در حال ذخیره..."
+            : "ذخیره تغییرات"}
+        </button>
+
+        <button
+          type="button"
+          disabled={editSaving}
+          onClick={() => {
+            setEditOpen(false);
+            setEditingId(null);
+          }}
+          style={secondaryBtn}
+        >
+          لغو
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
+
         {error ? (
           <div
             style={{
@@ -858,6 +1209,24 @@ export default function NotificationsPage() {
     >
       کپی
     </button>
+
+    {item.status === "draft" ? (
+  <button
+    type="button"
+    onClick={() =>
+      openEditCampaign(item)
+    }
+    style={{
+      ...secondaryBtn,
+      padding: "7px 10px",
+      fontSize: 11,
+      borderColor: "#92400e",
+      color: "#fbbf24",
+    }}
+  >
+    ویرایش
+  </button>
+) : null}
 
     {item.status === "draft" ? (
       <button
