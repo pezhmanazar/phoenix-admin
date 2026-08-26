@@ -283,6 +283,41 @@ export default function NotificationsPage() {
       alert(e instanceof Error ? e.message : "خطا در ساخت کمپین");
     }
   }
+  async function duplicateCampaign(id: string) {
+  const ok = confirm(
+    "از این کمپین یک نسخه جدید به‌صورت پیش‌نویس ساخته شود؟",
+  );
+
+  if (!ok) return;
+
+  try {
+    const res = await fetch(
+      `/admin/api/notification-campaigns/${id}/duplicate`,
+      {
+        method: "POST",
+        credentials: "include",
+      },
+    );
+
+    const json = await res.json();
+
+    if (!res.ok || json.ok === false) {
+      throw new Error(
+        json.error || "DUPLICATE_FAILED",
+      );
+    }
+
+    alert("نسخه کپی کمپین ساخته شد.");
+
+    await load();
+  } catch (e) {
+    alert(
+      e instanceof Error
+        ? e.message
+        : "خطا در کپی کمپین",
+    );
+  }
+}
   async function sendCampaign(id: string) {
     const testUserId = prompt(
       "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید.",
@@ -801,26 +836,51 @@ export default function NotificationsPage() {
                   <td style={tdStyle}>{formatDate(item.createdAt)}</td>
 
                   <td style={tdStyle}>
-                    {item.status === "draft" ? (
-                      <button
-                        onClick={() => void sendCampaign(item.id)}
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: 999,
-                          border: "1px solid #166534",
-                          background: "#14532d",
-                          color: "#dcfce7",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        ارسال
-                      </button>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      flexWrap: "wrap",
+    }}
+  >
+    <button
+      type="button"
+      onClick={() =>
+        void duplicateCampaign(item.id)
+      }
+      style={{
+        ...secondaryBtn,
+        padding: "7px 10px",
+        fontSize: 11,
+      }}
+    >
+      کپی
+    </button>
+
+    {item.status === "draft" ? (
+      <button
+        type="button"
+        onClick={() =>
+          void sendCampaign(item.id)
+        }
+        style={{
+          padding: "8px 12px",
+          borderRadius: 999,
+          border: "1px solid #166534",
+          background: "#14532d",
+          color: "#dcfce7",
+          fontSize: 12,
+          fontWeight: 900,
+          cursor: "pointer",
+        }}
+      >
+        ارسال
+      </button>
+    ) : null}
+  </div>
+</td>
                 </tr>
               ))}
 
