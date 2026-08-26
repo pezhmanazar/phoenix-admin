@@ -1,7 +1,7 @@
 //\phoenix-admin\src\app\admin\notifications\page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 type CampaignType = "therapeutic" | "sales" | "system" | "motivational";
 
@@ -20,6 +20,7 @@ type NotificationCampaign = {
   status: CampaignStatus;
   scheduledAt: string | null;
   sentAt: string | null;
+  archivedAt: string | null;
   targetRule: unknown;
   createdAt: string;
   updatedAt: string;
@@ -136,16 +137,10 @@ function getTargetRule(value: unknown): {
 }
 
 function getCampaignRoute(value: unknown): string {
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "route" in value
-  ) {
+  if (typeof value === "object" && value !== null && "route" in value) {
     const route = (value as { route?: unknown }).route;
 
-    return typeof route === "string"
-      ? route
-      : "";
+    return typeof route === "string" ? route : "";
   }
 
   return "";
@@ -176,28 +171,31 @@ function providerLabel(value: unknown) {
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationCampaign[]>([]);
+  const [archiveView, setArchiveView] = useState<"active" | "archived">(
+    "active",
+  );
   const [error, setError] = useState("");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-const [editingId, setEditingId] = useState<string | null>(null);
-const [editSaving, setEditSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
-const [editForm, setEditForm] = useState({
-  title: "",
-  description: "",
-  pushTitle: "",
-  pushBody: "",
-  type: "therapeutic" as CampaignType,
-  notificationType: "marketing",
-  route: "",
-  targetRule: {
-    plan: "all",
-    appProvider: "all",
-  },
-});
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    pushTitle: "",
+    pushBody: "",
+    type: "therapeutic" as CampaignType,
+    notificationType: "marketing",
+    route: "",
+    targetRule: {
+      plan: "all",
+      appProvider: "all",
+    },
+  });
 
   const [form, setForm] = useState({
     title: "",
@@ -213,13 +211,13 @@ const [editForm, setEditForm] = useState({
       appProvider: "all",
     },
   });
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
       const result = await api<CampaignListResponse>(
-        "/admin/api/notification-campaigns?page=1&limit=50",
+        `/admin/api/notification-campaigns?page=1&limit=50&archive=${archiveView}`,
       );
 
       setItems(result.data.items || []);
@@ -228,7 +226,7 @@ const [editForm, setEditForm] = useState({
     } finally {
       setLoading(false);
     }
-  }
+  }, [archiveView]);
 
   async function loadTargetPreview() {
     setPreviewLoading(true);
@@ -320,136 +318,174 @@ const [editForm, setEditForm] = useState({
   }
 
   function openEditCampaign(item: NotificationCampaign) {
-  if (item.status !== "draft") {
-    alert("فقط کمپین‌های پیش‌نویس قابل ویرایش هستند.");
-    return;
+    if (item.status !== "draft") {
+      alert("فقط کمپین‌های پیش‌نویس قابل ویرایش هستند.");
+      return;
+    }
+
+    const targetRule = getTargetRule(item.targetRule);
+
+    setEditingId(item.id);
+
+    setEditForm({
+      title: item.title || "",
+      description: item.description || "",
+      pushTitle: item.pushTitle || "",
+      pushBody: item.pushBody || "",
+      type: item.type,
+      notificationType: item.notificationType || "marketing",
+      route: getCampaignRoute(item.data),
+      targetRule: {
+        plan: targetRule.plan || "all",
+        appProvider: targetRule.appProvider || "all",
+      },
+    });
+
+    setEditOpen(true);
   }
 
-  const targetRule = getTargetRule(item.targetRule);
+  async function saveEditCampaign() {
+    if (!editingId) return;
 
-  setEditingId(item.id);
+    if (!editForm.title.trim()) {
+      alert("عنوان کمپین را وارد کنید.");
+      return;
+    }
 
-  setEditForm({
-    title: item.title || "",
-    description: item.description || "",
-    pushTitle: item.pushTitle || "",
-    pushBody: item.pushBody || "",
-    type: item.type,
-    notificationType:
-      item.notificationType || "marketing",
-    route: getCampaignRoute(item.data),
-    targetRule: {
-      plan: targetRule.plan || "all",
-      appProvider:
-        targetRule.appProvider || "all",
-    },
-  });
+    if (!editForm.pushTitle.trim() || !editForm.pushBody.trim()) {
+      alert("عنوان و متن Push را وارد کنید.");
+      return;
+    }
 
-  setEditOpen(true);
-}
+    setEditSaving(true);
 
-async function saveEditCampaign() {
-  if (!editingId) return;
-
-  if (!editForm.title.trim()) {
-    alert("عنوان کمپین را وارد کنید.");
-    return;
-  }
-
-  if (
-    !editForm.pushTitle.trim() ||
-    !editForm.pushBody.trim()
-  ) {
-    alert("عنوان و متن Push را وارد کنید.");
-    return;
-  }
-
-  setEditSaving(true);
-
-  try {
-    const res = await fetch(
-      `/admin/api/notification-campaigns/${editingId}`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+    try {
+      const res = await fetch(
+        `/admin/api/notification-campaigns/${editingId}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: editForm.title,
+            description: editForm.description,
+            pushTitle: editForm.pushTitle,
+            pushBody: editForm.pushBody,
+            type: editForm.type,
+            notificationType: editForm.notificationType,
+            data: editForm.route
+              ? {
+                  route: editForm.route,
+                }
+              : null,
+            targetRule: editForm.targetRule,
+          }),
         },
-        body: JSON.stringify({
-          title: editForm.title,
-          description: editForm.description,
-          pushTitle: editForm.pushTitle,
-          pushBody: editForm.pushBody,
-          type: editForm.type,
-          notificationType:
-            editForm.notificationType,
-          data: editForm.route
-            ? {
-                route: editForm.route,
-              }
-            : null,
-          targetRule: editForm.targetRule,
-        }),
-      },
-    );
-
-    const json = await res.json();
-
-    if (!res.ok || json.ok === false) {
-      throw new Error(
-        json.error || "UPDATE_FAILED",
       );
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "UPDATE_FAILED");
+      }
+
+      setEditOpen(false);
+      setEditingId(null);
+
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "خطا در ویرایش کمپین");
+    } finally {
+      setEditSaving(false);
     }
-
-    setEditOpen(false);
-    setEditingId(null);
-
-    await load();
-  } catch (e) {
-    alert(
-      e instanceof Error
-        ? e.message
-        : "خطا در ویرایش کمپین",
-    );
-  } finally {
-    setEditSaving(false);
   }
-}
   async function duplicateCampaign(id: string) {
-  const ok = confirm(
-    "از این کمپین یک نسخه جدید به‌صورت پیش‌نویس ساخته شود؟",
-  );
+    const ok = confirm("از این کمپین یک نسخه جدید به‌صورت پیش‌نویس ساخته شود؟");
 
-  if (!ok) return;
+    if (!ok) return;
 
-  try {
-    const res = await fetch(
-      `/admin/api/notification-campaigns/${id}/duplicate`,
-      {
-        method: "POST",
-        credentials: "include",
-      },
-    );
-
-    const json = await res.json();
-
-    if (!res.ok || json.ok === false) {
-      throw new Error(
-        json.error || "DUPLICATE_FAILED",
+    try {
+      const res = await fetch(
+        `/admin/api/notification-campaigns/${id}/duplicate`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
       );
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "DUPLICATE_FAILED");
+      }
+
+      alert("نسخه کپی کمپین ساخته شد.");
+
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "خطا در کپی کمپین");
     }
-
-    alert("نسخه کپی کمپین ساخته شد.");
-
-    await load();
-  } catch (e) {
-    alert(
-      e instanceof Error
-        ? e.message
-        : "خطا در کپی کمپین",
-    );
   }
-}
+
+  async function deleteCampaign(id: string) {
+    const ok = confirm(
+      "این پیش‌نویس برای همیشه حذف شود؟\nاین عملیات قابل بازگشت نیست.",
+    );
+
+    if (!ok) return;
+
+    try {
+      const res = await fetch(
+        `/admin/api/notification-campaigns/${id}/delete`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "DELETE_FAILED");
+      }
+
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "خطا در حذف کمپین");
+    }
+  }
+
+  async function archiveCampaign(id: string, currentlyArchived: boolean) {
+    const ok = confirm(
+      currentlyArchived
+        ? "این کمپین از آرشیو خارج شود؟"
+        : "این کمپین آرشیو شود؟",
+    );
+
+    if (!ok) return;
+
+    try {
+      const res = await fetch(
+        `/admin/api/notification-campaigns/${id}/archive`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+
+      const json = await res.json();
+
+      if (!res.ok || json.ok === false) {
+        throw new Error(json.error || "ARCHIVE_FAILED");
+      }
+
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "خطا در تغییر وضعیت آرشیو");
+    }
+  }
   async function sendCampaign(id: string) {
     const testUserId = prompt(
       "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید.",
@@ -500,7 +536,7 @@ async function saveEditCampaign() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   return (
     <div
@@ -838,223 +874,197 @@ async function saveEditCampaign() {
         ) : null}
 
         {editOpen ? (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.7)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1100,
-    }}
-  >
-    <div
-      style={{
-        width: 420,
-        maxHeight: "90vh",
-        overflowY: "auto",
-        background: "#050a12",
-        border: "1px solid #1f2937",
-        borderRadius: 18,
-        padding: 20,
-      }}
-    >
-      <h2
-        style={{
-          color: "#fff",
-          marginTop: 0,
-        }}
-      >
-        ویرایش کمپین
-      </h2>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1100,
+            }}
+          >
+            <div
+              style={{
+                width: 420,
+                maxHeight: "90vh",
+                overflowY: "auto",
+                background: "#050a12",
+                border: "1px solid #1f2937",
+                borderRadius: 18,
+                padding: 20,
+              }}
+            >
+              <h2
+                style={{
+                  color: "#fff",
+                  marginTop: 0,
+                }}
+              >
+                ویرایش کمپین
+              </h2>
 
-      <input
-        placeholder="عنوان کمپین"
-        value={editForm.title}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            title: e.target.value,
-          })
-        }
-        style={inputStyle}
-      />
+              <input
+                placeholder="عنوان کمپین"
+                value={editForm.title}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    title: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              />
 
-      <textarea
-        placeholder="توضیحات"
-        value={editForm.description}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            description: e.target.value,
-          })
-        }
-        style={{
-          ...inputStyle,
-          minHeight: 80,
-        }}
-      />
+              <textarea
+                placeholder="توضیحات"
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    description: e.target.value,
+                  })
+                }
+                style={{
+                  ...inputStyle,
+                  minHeight: 80,
+                }}
+              />
 
-      <input
-        placeholder="عنوان نوتیفیکیشن (Push Title)"
-        value={editForm.pushTitle}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            pushTitle: e.target.value,
-          })
-        }
-        style={inputStyle}
-      />
+              <input
+                placeholder="عنوان نوتیفیکیشن (Push Title)"
+                value={editForm.pushTitle}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    pushTitle: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              />
 
-      <textarea
-        placeholder="متن نوتیفیکیشن (Push Body)"
-        value={editForm.pushBody}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            pushBody: e.target.value,
-          })
-        }
-        style={{
-          ...inputStyle,
-          minHeight: 80,
-        }}
-      />
+              <textarea
+                placeholder="متن نوتیفیکیشن (Push Body)"
+                value={editForm.pushBody}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    pushBody: e.target.value,
+                  })
+                }
+                style={{
+                  ...inputStyle,
+                  minHeight: 80,
+                }}
+              />
 
-      <select
-        value={editForm.type}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            type: e.target.value as CampaignType,
-          })
-        }
-        style={inputStyle}
-      >
-        <option value="therapeutic">درمانی</option>
-        <option value="sales">فروش</option>
-        <option value="system">سیستمی</option>
-        <option value="motivational">انگیزشی</option>
-      </select>
+              <select
+                value={editForm.type}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    type: e.target.value as CampaignType,
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="therapeutic">درمانی</option>
+                <option value="sales">فروش</option>
+                <option value="system">سیستمی</option>
+                <option value="motivational">انگیزشی</option>
+              </select>
 
-      <select
-        value={editForm.route}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            route: e.target.value,
-          })
-        }
-        style={inputStyle}
-      >
-        <option value="">بدون مقصد مشخص</option>
-        <option value="/(tabs)/Subscription">
-          صفحه اشتراک
-        </option>
-        <option value="/(tabs)/Pelekan">
-          پلکان
-        </option>
-        <option value="/(tabs)/Panah">
-          پناه
-        </option>
-        <option value="/(tabs)/Panahgah">
-          پناهگاه
-        </option>
-        <option value="/(tabs)/Phoenix">
-          ققنوس من
-        </option>
-      </select>
+              <select
+                value={editForm.route}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    route: e.target.value,
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="">بدون مقصد مشخص</option>
+                <option value="/(tabs)/Subscription">صفحه اشتراک</option>
+                <option value="/(tabs)/Pelekan">پلکان</option>
+                <option value="/(tabs)/Panah">پناه</option>
+                <option value="/(tabs)/Panahgah">پناهگاه</option>
+                <option value="/(tabs)/Phoenix">ققنوس من</option>
+              </select>
 
-      <select
-        value={editForm.targetRule.plan}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            targetRule: {
-              ...editForm.targetRule,
-              plan: e.target.value,
-            },
-          })
-        }
-        style={inputStyle}
-      >
-        <option value="all">
-          همه وضعیت‌های اشتراک
-        </option>
-        <option value="free">رایگان</option>
-        <option value="pro">پرو فعال</option>
-        <option value="expiring">
-          در حال انقضا (۷ روز آینده)
-        </option>
-        <option value="expired">
-          منقضی‌شده
-        </option>
-      </select>
+              <select
+                value={editForm.targetRule.plan}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    targetRule: {
+                      ...editForm.targetRule,
+                      plan: e.target.value,
+                    },
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="all">همه وضعیت‌های اشتراک</option>
+                <option value="free">رایگان</option>
+                <option value="pro">پرو فعال</option>
+                <option value="expiring">در حال انقضا (۷ روز آینده)</option>
+                <option value="expired">منقضی‌شده</option>
+              </select>
 
-      <select
-        value={editForm.targetRule.appProvider}
-        onChange={(e) =>
-          setEditForm({
-            ...editForm,
-            targetRule: {
-              ...editForm.targetRule,
-              appProvider: e.target.value,
-            },
-          })
-        }
-        style={inputStyle}
-      >
-        <option value="all">
-          همه نسخه‌های اپ
-        </option>
-        <option value="bazaar">
-          کافه‌بازار
-        </option>
-        <option value="direct">
-          نسخه مستقیم / زرین‌پال
-        </option>
-      </select>
+              <select
+                value={editForm.targetRule.appProvider}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    targetRule: {
+                      ...editForm.targetRule,
+                      appProvider: e.target.value,
+                    },
+                  })
+                }
+                style={inputStyle}
+              >
+                <option value="all">همه نسخه‌های اپ</option>
+                <option value="bazaar">کافه‌بازار</option>
+                <option value="direct">نسخه مستقیم / زرین‌پال</option>
+              </select>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginTop: 18,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() =>
-            void saveEditCampaign()
-          }
-          disabled={editSaving}
-          style={{
-            ...primaryBtn,
-            opacity: editSaving ? 0.6 : 1,
-          }}
-        >
-          {editSaving
-            ? "در حال ذخیره..."
-            : "ذخیره تغییرات"}
-        </button>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 18,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => void saveEditCampaign()}
+                  disabled={editSaving}
+                  style={{
+                    ...primaryBtn,
+                    opacity: editSaving ? 0.6 : 1,
+                  }}
+                >
+                  {editSaving ? "در حال ذخیره..." : "ذخیره تغییرات"}
+                </button>
 
-        <button
-          type="button"
-          disabled={editSaving}
-          onClick={() => {
-            setEditOpen(false);
-            setEditingId(null);
-          }}
-          style={secondaryBtn}
-        >
-          لغو
-        </button>
-      </div>
-    </div>
-  </div>
-) : null}
+                <button
+                  type="button"
+                  disabled={editSaving}
+                  onClick={() => {
+                    setEditOpen(false);
+                    setEditingId(null);
+                  }}
+                  style={secondaryBtn}
+                >
+                  لغو
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {error ? (
           <div
@@ -1072,6 +1082,37 @@ async function saveEditCampaign() {
             خطا: {error}
           </div>
         ) : null}
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 14,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setArchiveView("active")}
+            style={{
+              ...viewTabStyle,
+              ...(archiveView === "active" ? activeViewTabStyle : {}),
+            }}
+          >
+            کمپین‌ها
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setArchiveView("archived")}
+            style={{
+              ...viewTabStyle,
+              ...(archiveView === "archived" ? activeViewTabStyle : {}),
+            }}
+          >
+            آرشیو
+          </button>
+        </div>
 
         <div
           style={{
@@ -1169,9 +1210,8 @@ async function saveEditCampaign() {
                           );
                         }}
                         style={{
-                          ...secondaryBtn,
-                          padding: "6px 10px",
-                          fontSize: 11,
+                          ...actionBtnStyle,
+                          ...copyActionBtnStyle,
                         }}
                       >
                         آمار
@@ -1187,69 +1227,75 @@ async function saveEditCampaign() {
                   <td style={tdStyle}>{formatDate(item.createdAt)}</td>
 
                   <td style={tdStyle}>
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      flexWrap: "wrap",
-    }}
-  >
-    <button
-      type="button"
-      onClick={() =>
-        void duplicateCampaign(item.id)
-      }
-      style={{
-        ...secondaryBtn,
-        padding: "7px 10px",
-        fontSize: 11,
-      }}
-    >
-      کپی
-    </button>
+                    <div style={actionsWrapStyle}>
+                      <button
+                        type="button"
+                        onClick={() => void duplicateCampaign(item.id)}
+                        style={{
+                          ...actionBtnStyle,
+                          ...copyActionBtnStyle,
+                        }}
+                      >
+                        کپی
+                      </button>
 
-    {item.status === "draft" ? (
-  <button
-    type="button"
-    onClick={() =>
-      openEditCampaign(item)
-    }
-    style={{
-      ...secondaryBtn,
-      padding: "7px 10px",
-      fontSize: 11,
-      borderColor: "#92400e",
-      color: "#fbbf24",
-    }}
-  >
-    ویرایش
-  </button>
-) : null}
+                      {item.status === "draft" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openEditCampaign(item)}
+                            style={{
+                              ...actionBtnStyle,
+                              ...editActionBtnStyle,
+                            }}
+                          >
+                            ویرایش
+                          </button>
 
-    {item.status === "draft" ? (
-      <button
-        type="button"
-        onClick={() =>
-          void sendCampaign(item.id)
-        }
-        style={{
-          padding: "8px 12px",
-          borderRadius: 999,
-          border: "1px solid #166534",
-          background: "#14532d",
-          color: "#dcfce7",
-          fontSize: 12,
-          fontWeight: 900,
-          cursor: "pointer",
-        }}
-      >
-        ارسال
-      </button>
-    ) : null}
-  </div>
-</td>
+                          <button
+                            type="button"
+                            onClick={() => void sendCampaign(item.id)}
+                            style={{
+                              ...actionBtnStyle,
+                              ...sendActionBtnStyle,
+                            }}
+                          >
+                            ارسال
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void deleteCampaign(item.id)}
+                            style={{
+                              ...actionBtnStyle,
+                              ...deleteActionBtnStyle,
+                            }}
+                          >
+                            حذف
+                          </button>
+                        </>
+                      ) : null}
+
+                      {item.status === "completed" ||
+                      item.status === "failed" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void archiveCampaign(
+                              item.id,
+                              Boolean(item.archivedAt),
+                            )
+                          }
+                          style={{
+                            ...actionBtnStyle,
+                            ...archiveActionBtnStyle,
+                          }}
+                        >
+                          {item.archivedAt ? "بازگردانی" : "آرشیو"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
                 </tr>
               ))}
 
@@ -1263,7 +1309,9 @@ async function saveEditCampaign() {
                       opacity: 0.6,
                     }}
                   >
-                    هنوز کمپینی ساخته نشده.
+                    {archiveView === "archived"
+                      ? "هنوز کمپینی آرشیو نشده است."
+                      : "هنوز کمپینی ساخته نشده است."}
                   </td>
                 </tr>
               ) : null}
@@ -1305,6 +1353,78 @@ const secondaryBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const actionsWrapStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  flexWrap: "wrap",
+};
+
+const actionBtnStyle: React.CSSProperties = {
+  minWidth: 62,
+  height: 32,
+  padding: "0 10px",
+  borderRadius: 8,
+  borderWidth: 1,
+  borderStyle: "solid",
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  whiteSpace: "nowrap",
+};
+
+const copyActionBtnStyle: React.CSSProperties = {
+  borderColor: "#374151",
+  background: "#111827",
+  color: "#e5e7eb",
+};
+
+const editActionBtnStyle: React.CSSProperties = {
+  borderColor: "#92400e",
+  background: "rgba(146,64,14,.18)",
+  color: "#fbbf24",
+};
+
+const sendActionBtnStyle: React.CSSProperties = {
+  borderColor: "#166534",
+  background: "rgba(20,83,45,.75)",
+  color: "#dcfce7",
+};
+
+const deleteActionBtnStyle: React.CSSProperties = {
+  borderColor: "#991b1b",
+  background: "rgba(127,29,29,.22)",
+  color: "#fca5a5",
+};
+
+const archiveActionBtnStyle: React.CSSProperties = {
+  borderColor: "#4c1d95",
+  background: "rgba(76,29,149,.18)",
+  color: "#c4b5fd",
+};
+
+const viewTabStyle: React.CSSProperties = {
+  minWidth: 100,
+  height: 36,
+  padding: "0 14px",
+  borderRadius: 10,
+  border: "1px solid #374151",
+  background: "#0b1220",
+  color: "#9ca3af",
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+const activeViewTabStyle: React.CSSProperties = {
+  borderColor: "#8b6b36",
+  background: "rgba(212,175,55,.12)",
+  color: "#D4AF37",
+};
 const tdStyle: React.CSSProperties = {
   textAlign: "center",
   padding: "10px 12px",
