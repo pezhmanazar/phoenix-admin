@@ -248,8 +248,19 @@ export default function NotificationsPage() {
         ? json.count
         : 0
     );
-  } catch {
+  } catch (error) {
+    console.error(
+      "[NOTIFICATION_PREVIEW_FAILED]",
+      error
+    );
+
     setPreviewCount(null);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "خطا در محاسبه تعداد مخاطبان"
+    );
   } finally {
     setPreviewLoading(false);
   }
