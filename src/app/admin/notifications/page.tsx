@@ -186,6 +186,7 @@ export default function NotificationsPage() {
     pushBody: "",
     type: "therapeutic" as CampaignType,
     notificationType: "marketing",
+    route: "",
     scheduledAt: "",
     targetRule: {
       plan: "all",
@@ -259,8 +260,13 @@ export default function NotificationsPage() {
           pushBody: form.pushBody,
           type: form.type,
           notificationType: form.notificationType,
-          scheduledAt: form.scheduledAt,
-          targetRule: form.targetRule,
+data: form.route
+  ? {
+      route: form.route,
+    }
+  : null,
+scheduledAt: form.scheduledAt,
+targetRule: form.targetRule,
         }),
       });
 
@@ -279,7 +285,8 @@ export default function NotificationsPage() {
         pushBody: "",
         type: "therapeutic",
         notificationType: "marketing",
-        scheduledAt: "",
+route: "",
+scheduledAt: "",
         targetRule: {
           plan: "all",
           appProvider: "all",
@@ -572,6 +579,41 @@ export default function NotificationsPage() {
 
                 <option value="motivational">انگیزشی</option>
               </select>
+
+              <select
+  value={form.route}
+  onChange={(e) =>
+    setForm({
+      ...form,
+      route: e.target.value,
+    })
+  }
+  style={inputStyle}
+>
+  <option value="">
+    بدون مقصد مشخص
+  </option>
+
+  <option value="/(tabs)/Subscription">
+    صفحه اشتراک
+  </option>
+
+  <option value="/(tabs)/Pelekan">
+    پلکان
+  </option>
+
+  <option value="/(tabs)/Panah">
+    پناه
+  </option>
+
+  <option value="/(tabs)/Panahgah">
+    پناهگاه
+  </option>
+
+  <option value="/(tabs)/Phoenix">
+    ققنوس من
+  </option>
+</select>
 
               <select
                 value={form.targetRule.plan}
