@@ -262,6 +262,7 @@ function providerLabel(value: unknown) {
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationCampaign[]>([]);
+  const [totalCampaigns, setTotalCampaigns] = useState(0);
   const [archiveView, setArchiveView] = useState<"active" | "archived">(
     "active",
   );
@@ -314,6 +315,7 @@ export default function NotificationsPage() {
       );
 
       setItems(result.data.items || []);
+      setTotalCampaigns(result.data.total || 0);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -763,6 +765,9 @@ export default function NotificationsPage() {
             <div
               style={{
                 width: 420,
+                maxWidth: "calc(100vw - 32px)",
+                maxHeight: "90vh",
+                overflowY: "auto",
                 background: "#050a12",
                 border: "1px solid #1f2937",
                 borderRadius: 18,
@@ -1393,7 +1398,7 @@ export default function NotificationsPage() {
             <tbody>
               {items.map((item, index) => (
                 <tr key={item.id}>
-                  <td style={tdStyle}>{index + 1}</td>
+                  <td style={tdStyle}>{totalCampaigns - index}</td>
                   <td style={tdStyle}>
                     <div style={{ fontWeight: 900 }}>{item.title}</div>
 
