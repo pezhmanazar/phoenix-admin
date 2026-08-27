@@ -235,6 +235,20 @@ function planLabel(value: unknown) {
   return plan;
 }
 
+function journeyLabel(value: unknown) {
+  const journey = getTargetRule(value).journey || "all";
+
+  if (journey === "all") return "همه";
+
+  if (journey === "baseline_incomplete") return "آزمون نیمه‌کاره";
+
+  if (journey === "pelekan_intro_not_started") return "مقدمه شروع‌نشده";
+
+  if (journey === "treatment_not_started") return "درمان شروع‌نشده";
+
+  return journey;
+}
+
 function providerLabel(value: unknown) {
   const provider = getTargetRule(value).appProvider || "all";
 
@@ -1341,12 +1355,14 @@ export default function NotificationsPage() {
             <thead>
               <tr>
                 {[
+                  "ردیف",
                   "عنوان",
                   "عنوان Push",
                   "متن Push",
                   "نوع",
                   "وضعیت",
                   "اشتراک مخاطب",
+                  "مرحله کاربر",
                   "نسخه اپ",
                   "تعداد نوتیفیکیشن",
                   "آمار ارسال",
@@ -1375,8 +1391,9 @@ export default function NotificationsPage() {
             </thead>
 
             <tbody>
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <tr key={item.id}>
+                  <td style={tdStyle}>{index + 1}</td>
                   <td style={tdStyle}>
                     <div style={{ fontWeight: 900 }}>{item.title}</div>
 
@@ -1402,6 +1419,8 @@ export default function NotificationsPage() {
                   <td style={tdStyle}>{statusLabel(item.status)}</td>
 
                   <td style={tdStyle}>{planLabel(item.targetRule)}</td>
+
+                  <td style={tdStyle}>{journeyLabel(item.targetRule)}</td>
 
                   <td style={tdStyle}>{providerLabel(item.targetRule)}</td>
 
@@ -1512,7 +1531,7 @@ export default function NotificationsPage() {
               {!loading && items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={14}
+                    colSpan={16}
                     style={{
                       ...tdStyle,
                       padding: 30,
