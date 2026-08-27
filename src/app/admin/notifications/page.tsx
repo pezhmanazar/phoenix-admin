@@ -200,11 +200,13 @@ function statusLabel(status: CampaignStatus) {
 function getTargetRule(value: unknown): {
   plan?: string;
   appProvider?: string;
+  journey?: string;
 } {
   if (typeof value === "object" && value !== null) {
     return value as {
       plan?: string;
       appProvider?: string;
+      journey?: string;
     };
   }
 
@@ -269,6 +271,7 @@ export default function NotificationsPage() {
     targetRule: {
       plan: "all",
       appProvider: "all",
+      journey: "all",
     },
   });
 
@@ -284,6 +287,7 @@ export default function NotificationsPage() {
     targetRule: {
       plan: "all",
       appProvider: "all",
+      journey: "all",
     },
   });
   const load = useCallback(async () => {
@@ -402,6 +406,7 @@ export default function NotificationsPage() {
         targetRule: {
           plan: "all",
           appProvider: "all",
+          journey: "all",
         },
       });
 
@@ -436,6 +441,7 @@ export default function NotificationsPage() {
       targetRule: {
         plan: targetRule.plan || "all",
         appProvider: targetRule.appProvider || "all",
+        journey: targetRule.journey || "all",
       },
     });
 
@@ -868,6 +874,12 @@ export default function NotificationsPage() {
 
                 <option value="/(tabs)/Pelekan">پلکان</option>
 
+                <option value="/(tabs)/Pelekan?autoStart=baseline">
+                  ادامه آزمون اولیه
+                </option>
+
+                <option value="/pelekan/bastan/intro">ادامه مقدمه درمان</option>
+
                 <option value="/(tabs)/Panah">پناه</option>
 
                 <option value="/(tabs)/Panahgah">پناهگاه</option>
@@ -877,6 +889,7 @@ export default function NotificationsPage() {
 
               <select
                 value={form.targetRule.plan}
+                disabled={form.targetRule.journey === "treatment_not_started"}
                 onChange={(e) => {
                   setPreviewCount(null);
 
@@ -888,7 +901,13 @@ export default function NotificationsPage() {
                     },
                   });
                 }}
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  opacity:
+                    form.targetRule.journey === "treatment_not_started"
+                      ? 0.55
+                      : 1,
+                }}
               >
                 <option value="all">همه وضعیت‌های اشتراک</option>
 
@@ -899,12 +918,43 @@ export default function NotificationsPage() {
                 <option value="expiring">در حال انقضا (۷ روز آینده)</option>
 
                 <option value="expired">منقضی‌شده</option>
+              </select>
 
-                <option value="/(tabs)/Pelekan?autoStart=baseline">
-                  ادامه آزمون اولیه
+              <select
+                value={form.targetRule.journey}
+                onChange={(e) => {
+                  const journey = e.target.value;
+
+                  setPreviewCount(null);
+
+                  setForm({
+                    ...form,
+                    targetRule: {
+                      ...form.targetRule,
+                      journey,
+
+                      // درمان شروع‌نشده ذاتاً یعنی اشتراک فعال ندارد
+                      // پس اجازه نمی‌دهیم با plan=pro فعال تناقض بسازد.
+                      plan:
+                        journey === "treatment_not_started"
+                          ? "all"
+                          : form.targetRule.plan,
+                    },
+                  });
+                }}
+                style={inputStyle}
+              >
+                <option value="all">همه وضعیت‌های مسیر کاربر</option>
+
+                <option value="baseline_incomplete">
+                  آزمون اولیه نیمه‌کاره
                 </option>
 
-                <option value="/pelekan/bastan/intro">ادامه مقدمه درمان</option>
+                <option value="pelekan_intro_not_started">
+                  مقدمه درمان شروع‌نشده
+                </option>
+
+                <option value="treatment_not_started">درمان شروع‌نشده</option>
               </select>
 
               <select
@@ -1102,6 +1152,11 @@ export default function NotificationsPage() {
                 <option value="">بدون مقصد مشخص</option>
                 <option value="/(tabs)/Subscription">صفحه اشتراک</option>
                 <option value="/(tabs)/Pelekan">پلکان</option>
+                <option value="/(tabs)/Pelekan?autoStart=baseline">
+                  ادامه آزمون اولیه
+                </option>
+
+                <option value="/pelekan/bastan/intro">ادامه مقدمه درمان</option>
                 <option value="/(tabs)/Panah">پناه</option>
                 <option value="/(tabs)/Panahgah">پناهگاه</option>
                 <option value="/(tabs)/Phoenix">ققنوس من</option>
@@ -1109,6 +1164,9 @@ export default function NotificationsPage() {
 
               <select
                 value={editForm.targetRule.plan}
+                disabled={
+                  editForm.targetRule.journey === "treatment_not_started"
+                }
                 onChange={(e) =>
                   setEditForm({
                     ...editForm,
@@ -1118,7 +1176,13 @@ export default function NotificationsPage() {
                     },
                   })
                 }
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  opacity:
+                    editForm.targetRule.journey === "treatment_not_started"
+                      ? 0.55
+                      : 1,
+                }}
               >
                 <option value="all">همه وضعیت‌های اشتراک</option>
                 <option value="free">رایگان</option>
@@ -1143,6 +1207,38 @@ export default function NotificationsPage() {
                 <option value="all">همه نسخه‌های اپ</option>
                 <option value="bazaar">کافه‌بازار</option>
                 <option value="direct">نسخه مستقیم / زرین‌پال</option>
+              </select>
+
+              <select
+                value={editForm.targetRule.journey}
+                onChange={(e) => {
+                  const journey = e.target.value;
+
+                  setEditForm({
+                    ...editForm,
+                    targetRule: {
+                      ...editForm.targetRule,
+                      journey,
+                      plan:
+                        journey === "treatment_not_started"
+                          ? "all"
+                          : editForm.targetRule.plan,
+                    },
+                  });
+                }}
+                style={inputStyle}
+              >
+                <option value="all">همه وضعیت‌های مسیر کاربر</option>
+
+                <option value="baseline_incomplete">
+                  آزمون اولیه نیمه‌کاره
+                </option>
+
+                <option value="pelekan_intro_not_started">
+                  مقدمه درمان شروع‌نشده
+                </option>
+
+                <option value="treatment_not_started">درمان شروع‌نشده</option>
               </select>
 
               <div
