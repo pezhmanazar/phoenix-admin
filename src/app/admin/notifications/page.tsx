@@ -48,6 +48,81 @@ type CampaignListResponse = {
   };
 };
 
+async function readJsonResponse(res: Response) {
+  const text = await res.text();
+
+  if (!text.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error("[ADMIN_NOTIFICATION_INVALID_RESPONSE]", {
+      status: res.status,
+      contentType: res.headers.get("content-type"),
+      bodyPreview: text.slice(0, 300),
+    });
+
+    throw new Error(
+      res.ok
+        ? "پاسخ نامعتبر از سرور دریافت شد."
+        : "ارتباط با سرور مدیریت با خطا مواجه شد.",
+    );
+  }
+}
+
+function getCampaignErrorMessage(error: unknown) {
+  const code = error instanceof Error ? error.message : String(error || "");
+
+  switch (code) {
+    case "title_required":
+      return "عنوان داخلی کمپین رو وارد کن.";
+
+    case "push_content_required":
+      return "عنوان و متن نوتیفیکیشن رو کامل وارد کن.";
+
+    case "invalid_type":
+      return "نوع نوتیفیکیشن معتبر نیست.";
+
+    case "targetRule_required":
+      return "گروه مخاطبان کمپین مشخص نشده .";
+
+    case "invalid_scheduledAt":
+      return "تاریخ یا ساعت ارسال معتبر نیست.";
+
+    case "CREATE_FAILED":
+      return "ساخت کمپین انجام نشد.";
+
+    case "PREVIEW_FAILED":
+      return "محاسبه تعداد مخاطبان انجام نشد.";
+
+    case "UPDATE_FAILED":
+      return "ویرایش کمپین انجام نشد.";
+
+    case "DUPLICATE_FAILED":
+      return "کپی کمپین انجام نشد.";
+
+    case "DELETE_FAILED":
+      return "حذف کمپین انجام نشد.";
+
+    case "ARCHIVE_FAILED":
+      return "تغییر وضعیت آرشیو انجام نشد.";
+
+    case "SEND_FAILED":
+      return "ارسال کمپین انجام نشد.";
+
+    case "campaign_not_found":
+      return "کمپین موردنظر پیدا نشد.";
+
+    case "campaign_already_processed":
+      return "این کمپین قبلاً پردازش شده و امکان ارسال دوباره آن وجود ندارد.";
+
+    default:
+      return code || "خطای ناشناخته‌ای رخ داد.";
+  }
+}
+
 async function api<T>(path: string): Promise<T> {
   const res = await fetch(path, {
     method: "GET",
@@ -243,7 +318,7 @@ export default function NotificationsPage() {
         }),
       });
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "PREVIEW_FAILED");
@@ -255,15 +330,32 @@ export default function NotificationsPage() {
 
       setPreviewCount(null);
 
-      alert(
-        error instanceof Error ? error.message : "خطا در محاسبه تعداد مخاطبان",
-      );
+      alert(getCampaignErrorMessage(error));
     } finally {
       setPreviewLoading(false);
     }
   }
 
   async function createCampaign() {
+    const title = form.title.trim();
+    const pushTitle = form.pushTitle.trim();
+    const pushBody = form.pushBody.trim();
+
+    if (!title) {
+      alert("عنوان داخلی کمپین رو وارد کن.");
+      return;
+    }
+
+    if (!pushTitle) {
+      alert("عنوان نوتیفیکیشن رو وارد کن.");
+      return;
+    }
+
+    if (!pushBody) {
+      alert("متن نوتیفیکیشن رو وارد کن.");
+      return;
+    }
+
     try {
       const res = await fetch("/admin/api/notification-campaigns", {
         method: "POST",
@@ -272,23 +364,25 @@ export default function NotificationsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: form.title,
-          description: form.description,
-          pushTitle: form.pushTitle,
-          pushBody: form.pushBody,
+          title,
+          description: form.description.trim(),
+          pushTitle,
+          pushBody,
           type: form.type,
           notificationType: form.notificationType,
+
           data: form.route
             ? {
                 route: form.route,
               }
             : null,
+
           scheduledAt: form.scheduledAt,
           targetRule: form.targetRule,
         }),
       });
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "CREATE_FAILED");
@@ -311,9 +405,13 @@ export default function NotificationsPage() {
         },
       });
 
+      setPreviewCount(null);
+
       await load();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "خطا در ساخت کمپین");
+    } catch (error) {
+      console.error("[NOTIFICATION_CAMPAIGN_CREATE_FAILED]", error);
+
+      alert(getCampaignErrorMessage(error));
     }
   }
 
@@ -385,7 +483,7 @@ export default function NotificationsPage() {
         },
       );
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "UPDATE_FAILED");
@@ -396,7 +494,7 @@ export default function NotificationsPage() {
 
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "خطا در ویرایش کمپین");
+      alert(getCampaignErrorMessage(e));
     } finally {
       setEditSaving(false);
     }
@@ -415,7 +513,7 @@ export default function NotificationsPage() {
         },
       );
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "DUPLICATE_FAILED");
@@ -445,7 +543,7 @@ export default function NotificationsPage() {
         },
       );
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "DELETE_FAILED");
@@ -475,7 +573,7 @@ export default function NotificationsPage() {
         },
       );
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "ARCHIVE_FAILED");
@@ -518,7 +616,7 @@ export default function NotificationsPage() {
         ),
       });
 
-      const json = await res.json();
+      const json = await readJsonResponse(res);
 
       if (!res.ok || json.ok === false) {
         throw new Error(json.error || "SEND_FAILED");
@@ -801,6 +899,12 @@ export default function NotificationsPage() {
                 <option value="expiring">در حال انقضا (۷ روز آینده)</option>
 
                 <option value="expired">منقضی‌شده</option>
+
+                <option value="/(tabs)/Pelekan?autoStart=baseline">
+                  ادامه آزمون اولیه
+                </option>
+
+                <option value="/pelekan/bastan/intro">ادامه مقدمه درمان</option>
               </select>
 
               <select
