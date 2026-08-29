@@ -179,7 +179,9 @@ function DailyBarChart({
    */
   const barSlotWidth = mobile ? 38 : 44;
 
-  const chartMinWidth = Math.max(680, items.length * barSlotWidth + 54);
+  const chartWidth: number | string = isShortRange
+    ? "100%"
+    : Math.max(680, items.length * barSlotWidth + 54);
 
   useEffect(() => {
     if (days <= 7) return;
@@ -247,8 +249,8 @@ function DailyBarChart({
     >
       <div
         style={{
-          width: chartMinWidth,
-          minWidth: chartMinWidth,
+          width: chartWidth,
+          minWidth: chartWidth,
           height,
           display: "flex",
           flexDirection: "column",
@@ -325,9 +327,9 @@ function DailyBarChart({
               flex: 1,
               display: "flex",
               alignItems: "end",
-              gap: isShortRange ? 12 : mobile ? 6 : 8,
+              gap: isShortRange ? 0 : mobile ? 6 : 8,
               paddingLeft: 38,
-              paddingRight: isShortRange ? 12 : 0,
+              paddingRight: isShortRange ? 18 : 0,
               width: "100%",
             }}
           >
