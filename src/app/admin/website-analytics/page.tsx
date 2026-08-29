@@ -1,7 +1,7 @@
 // phoenix-admin/src/app/admin/website-analytics/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type PathStat = {
   path: string;
@@ -157,14 +157,20 @@ function useViewport() {
 function DailyBarChart({
   items,
   mobile,
+  days,
 }: {
   items: DailyChartItem[];
   mobile: boolean;
+  days: number;
 }) {
   const maxViews = Math.max(...items.map((i) => i.views), 0);
 
   const height = mobile ? 240 : 300;
   const plotHeight = height - 44;
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const isShortRange = days <= 7;
 
   /*
    * برای بازه‌های طولانی مثل ۳۰ و ۹۰ روز
@@ -174,6 +180,19 @@ function DailyBarChart({
   const barSlotWidth = mobile ? 38 : 44;
 
   const chartMinWidth = Math.max(680, items.length * barSlotWidth + 54);
+
+  useEffect(() => {
+    if (days <= 7) return;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const frame = requestAnimationFrame(() => {
+      el.scrollLeft = el.scrollWidth - el.clientWidth;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [days, items]);
 
   if (!items.length) {
     return (
@@ -208,6 +227,7 @@ function DailyBarChart({
 
   return (
     <div
+      ref={scrollRef}
       style={{
         width: "100%",
         maxWidth: "100%",
@@ -305,8 +325,10 @@ function DailyBarChart({
               flex: 1,
               display: "flex",
               alignItems: "end",
-              gap: mobile ? 6 : 8,
+              gap: isShortRange ? 12 : mobile ? 6 : 8,
               paddingLeft: 38,
+              paddingRight: isShortRange ? 12 : 0,
+              width: "100%",
             }}
           >
             {items.map((item, index) => {
@@ -320,12 +342,9 @@ function DailyBarChart({
                 <div
                   key={`${item.date}-${index}`}
                   style={{
-                    /*
-                     * دیگر flex: 1 نداریم.
-                     * هر روز عرض واقعی خودش را دارد.
-                     */
-                    flex: "0 0 auto",
-                    width: mobile ? 30 : 34,
+                    flex: isShortRange ? "1 1 0" : "0 0 auto",
+                    width: isShortRange ? "auto" : mobile ? 30 : 34,
+                    minWidth: 0,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -336,7 +355,13 @@ function DailyBarChart({
                 >
                   <div
                     style={{
-                      width: mobile ? 14 : 22,
+                      width: isShortRange
+                        ? mobile
+                          ? 18
+                          : 28
+                        : mobile
+                          ? 14
+                          : 22,
                       height: `${h}%`,
                       minHeight: 8,
                       borderRadius: "8px 8px 0 0",
@@ -612,7 +637,11 @@ export default function WebsiteAnalyticsPage() {
             <div style={card}>
               <div style={sectionTitle}>روند بازدید روزانه</div>
               <div style={sectionBody}>
-                <DailyBarChart items={dailyChartData} mobile={isMobile} />
+                <DailyBarChart
+                  items={dailyChartData}
+                  mobile={isMobile}
+                  days={days}
+                />
               </div>
             </div>
 
