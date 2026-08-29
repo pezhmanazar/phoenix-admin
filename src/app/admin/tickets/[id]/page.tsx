@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import ReplyBar from "./ReplyBar.client";
 import MessagesList from "./MessagesList.client";
-import TicketAutoRefresh from "./TicketAutoRefresh.client";
 import TicketHeader from "./TicketHeader";
 
 export const dynamic = "force-dynamic";
@@ -221,8 +220,6 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     showSubscription ||
     showTreatmentStart;
 
-  const adminToken = (await cookies()).get("admin_token")?.value || "";
-
   return (
     <div
       style={{
@@ -260,7 +257,6 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             height: "calc(100vh - 80px)",
           }}
         >
-          <TicketAutoRefresh intervalMs={10000} />
 
           <div style={{ marginBottom: 10 }}>
             <TicketHeader
@@ -474,10 +470,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1, minHeight: 0, marginBottom: 8 }}>
               <MessagesList
+  ticketId={ticket.id}
   messages={ticket.messages}
   userName={userName}
   backendBase={backendMediaBase}
-  adminToken={adminToken}
 />
             </div>
 

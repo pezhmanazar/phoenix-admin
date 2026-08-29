@@ -15,6 +15,7 @@ type Ticket = {
   user?: {
     id: string;
     fullName?: string | null;
+    full_name?: string | null;
     phone?: string | null;
   } | null;
   assignedAdmin?: {
@@ -24,13 +25,17 @@ type Ticket = {
     role?: string | null;
   } | null;
   userName?: string | null;
-displayName?: string | null;
-openedByName?: string | null;
+  displayName?: string | null;
+  openedByName?: string | null;
   contact?: string | { name?: string };
   email?: string;
   phone?: string;
   updatedAt?: string;
-  messages?: Array<{ id: string; createdAt: string; sender?: "user" | "admin" }>;
+  messages?: Array<{
+    id: string;
+    createdAt: string;
+    sender?: "user" | "admin";
+  }>;
   lastAt?: string;
   _lastSender?: "user" | "admin" | null;
 };
@@ -57,37 +62,46 @@ function relativeDate(iso: string) {
   return d.toLocaleString("fa-IR");
 }
 
-function extractLastAt(t: any): string {
+function extractLastAt(t: Ticket): string {
   const fromUpdated =
-    t?.updatedAt && !isNaN(Date.parse(t.updatedAt)) ? t.updatedAt : null;
+    t.updatedAt && !Number.isNaN(Date.parse(t.updatedAt)) ? t.updatedAt : null;
+
   const lastMsgAt =
-    Array.isArray(t?.messages) && t.messages.length
+    Array.isArray(t.messages) && t.messages.length
       ? t.messages[t.messages.length - 1]?.createdAt
       : null;
-  const fromCreated = t?.createdAt;
-  const iso =
-    (lastMsgAt && !isNaN(Date.parse(lastMsgAt)) && lastMsgAt) ||
-    (fromUpdated && fromUpdated) ||
-    fromCreated;
-  return iso;
+
+  const fromCreated = t.createdAt;
+
+  return (
+    (lastMsgAt && !Number.isNaN(Date.parse(lastMsgAt)) && lastMsgAt) ||
+    fromUpdated ||
+    fromCreated
+  );
 }
 
-function extractLastSender(t: any): "user" | "admin" | null {
-  if (Array.isArray(t?.messages) && t.messages.length) {
-    const s = t.messages[t.messages.length - 1]?.sender;
-    if (s === "user" || s === "admin") return s as "user" | "admin";
+function extractLastSender(t: Ticket): "user" | "admin" | null {
+  if (Array.isArray(t.messages) && t.messages.length) {
+    const sender = t.messages[t.messages.length - 1]?.sender;
+
+    if (sender === "user" || sender === "admin") {
+      return sender;
+    }
   }
+
   return null;
 }
 
-function cleanName(v: any) {
+function cleanName(v: unknown): string {
   const s = typeof v === "string" ? v.trim() : "";
+
   if (!s) return "";
   if (s === "کاربر" || s === "—") return "";
+
   return s;
 }
 
-function normalizeText(v: any) {
+function normalizeText(v: unknown): string {
   return String(v ?? "")
     .trim()
     .toLowerCase()
@@ -156,12 +170,12 @@ function TypeChip({ type }: { type: Ticket["type"] }) {
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
- const [status, setStatus] = useState<"" | "open" | "unread">("");
-const [type, setType] = useState<"" | "tech" | "therapy">("");
-const [q, setQ] = useState("");
-const [debouncedQ, setDebouncedQ] = useState("");
-const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
-const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<"" | "open" | "unread">("");
+  const [type, setType] = useState<"" | "tech" | "therapy">("");
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
+  const [page, setPage] = useState(1);
 
   const pageSize = 15;
   const totalPages = Math.max(1, Math.ceil(tickets.length / pageSize));
@@ -172,38 +186,34 @@ const [page, setPage] = useState(1);
   }, [tickets, page]);
 
   const assignedAdmins = useMemo(() => {
-  const map = new Map<string, string>();
+    const map = new Map<string, string>();
 
-  tickets.forEach((t) => {
-    if (!t.assignedAdmin?.id) return;
+    tickets.forEach((t) => {
+      if (!t.assignedAdmin?.id) return;
 
-    const label =
-      t.assignedAdmin.name?.trim() ||
-      t.assignedAdmin.email?.trim() ||
-      "ادمین بدون نام";
+      const label =
+        t.assignedAdmin.name?.trim() ||
+        t.assignedAdmin.email?.trim() ||
+        "ادمین بدون نام";
 
-    map.set(t.assignedAdmin.id, label);
-  });
+      map.set(t.assignedAdmin.id, label);
+    });
 
-  return Array.from(map.entries()).map(([id, label]) => ({
-    id,
-    label,
-  }));
-}, [tickets]);
+    return Array.from(map.entries()).map(([id, label]) => ({
+      id,
+      label,
+    }));
+  }, [tickets]);
 
-  const query = useMemo(
-  () => buildQuery({ status, type }),
-  [status, type]
-);
+  const query = useMemo(() => buildQuery({ status, type }), [status, type]);
 
-useEffect(() => {
-  const timer = setTimeout(() => {
-    setDebouncedQ(q);
-  }, 400);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQ(q);
+    }, 400);
 
-  return () => clearTimeout(timer);
-}, [q]);
-
+    return () => clearTimeout(timer);
+  }, [q]);
 
   async function fetchTickets() {
     try {
@@ -213,65 +223,71 @@ useEffect(() => {
       });
       const data = await res.json();
       if (data.ok) {
-        const withDisplay: Ticket[] = (data.tickets as Ticket[]).map((t: any) => {
-  const lastAt = extractLastAt(t);
-  const _lastSender = extractLastSender(t);
+        const rawTickets: Ticket[] = Array.isArray(data.tickets)
+          ? (data.tickets as Ticket[])
+          : [];
 
-  return {
-    ...(t as Ticket),
-    lastAt,
-    _lastSender,
-  };
-});
+        const withDisplay: Ticket[] = rawTickets.map((t) => {
+          const lastAt = extractLastAt(t);
+          const _lastSender = extractLastSender(t);
+
+          return {
+            ...t,
+            lastAt,
+            _lastSender,
+          };
+        });
         const unreadFiltered =
-  status === "unread"
-    ? withDisplay.filter((t) => t.unread)
-    : withDisplay;
+          status === "unread"
+            ? withDisplay.filter((t) => t.unread)
+            : withDisplay;
 
-const filtered = unreadFiltered.filter((t) => {
-  const matchesAdmin = (() => {
-    if (!assignedAdminFilter) return true;
+        const filtered = unreadFiltered.filter((t) => {
+          const matchesAdmin = (() => {
+            if (!assignedAdminFilter) return true;
 
-    if (assignedAdminFilter === "__unassigned__") {
-      return !t.assignedAdmin?.id;
-    }
+            if (assignedAdminFilter === "__unassigned__") {
+              return !t.assignedAdmin?.id;
+            }
 
-    return t.assignedAdmin?.id === assignedAdminFilter;
-  })();
+            return t.assignedAdmin?.id === assignedAdminFilter;
+          })();
 
-  if (!matchesAdmin) return false;
+          if (!matchesAdmin) return false;
 
-  const search = normalizeText(debouncedQ);
-  if (!search) return true;
+          const search = normalizeText(debouncedQ);
+          if (!search) return true;
 
-  const userName =
-    cleanName(t.user?.fullName) ||
-    cleanName((t.user as any)?.full_name) ||
-    cleanName(t.displayName) ||
-    cleanName(t.userName) ||
-    cleanName(t.openedByName) ||
-    cleanName(
-      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
-    ) ||
-    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
-    cleanName(t.phone) ||
-    cleanName(t.email) ||
-    cleanName(t.title);
+          const userName =
+            cleanName(t.user?.fullName) ||
+            cleanName(t.user?.full_name) ||
+            cleanName(t.displayName) ||
+            cleanName(t.userName) ||
+            cleanName(t.openedByName) ||
+            cleanName(
+              typeof t.contact === "object" && t.contact
+                ? t.contact.name
+                : undefined,
+            ) ||
+            cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
+            cleanName(t.phone) ||
+            cleanName(t.email) ||
+            cleanName(t.title);
 
-  const haystack = [
-    userName,
-    t.title,
-    t.description,
-    t.phone,
-    t.email,
-    typeof t.contact === "string" ? t.contact : "",
-    typeof t.contact === "object" && t.contact ? t.contact.name : "",
-  ]
-    .map((item) => normalizeText(item))
-    .join(" ");
+          const haystack = [
+            userName,
+            t.title,
+            t.description,
+            t.phone,
+            t.email,
+            typeof t.contact === "string" ? t.contact : "",
+            typeof t.contact === "object" && t.contact ? t.contact.name : "",
+          ]
+            .map((item) => normalizeText(item))
+            .join(" ");
 
-  return haystack.includes(search);
-});
+          return haystack.includes(search);
+        });
         const sorted = filtered.slice().sort((a, b) => {
           const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
           if (pinOrder !== 0) return pinOrder;
@@ -292,15 +308,15 @@ const filtered = unreadFiltered.filter((t) => {
   }
 
   useEffect(() => {
-  fetchTickets();
-  const t = setInterval(fetchTickets, 50000);
-  return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [query, assignedAdminFilter, debouncedQ]);
+    fetchTickets();
+    const t = setInterval(fetchTickets, 50000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, assignedAdminFilter, debouncedQ]);
 
   async function markReadOptimistic(ticketId: string) {
     setTickets((prev) =>
-      prev.map((t) => (t.id === ticketId ? { ...t, unread: false } : t))
+      prev.map((t) => (t.id === ticketId ? { ...t, unread: false } : t)),
     );
     try {
       await fetch(`/api/admin/tickets/${ticketId}`, {
@@ -358,7 +374,8 @@ const filtered = unreadFiltered.filter((t) => {
                 color: "#9ca3af",
               }}
             >
-              اینجا تمام تیکت‌های کاربران را می‌بینی و می‌توانی آن‌ها را مدیریت کنی.
+              اینجا تمام تیکت‌های کاربران را می‌بینی و می‌توانی آن‌ها را مدیریت
+              کنی.
             </p>
           </div>
           <span
@@ -415,8 +432,8 @@ const filtered = unreadFiltered.filter((t) => {
               <select
                 value={status}
                 onChange={(e) =>
-  setStatus(e.target.value as "" | "open" | "unread")
-}
+                  setStatus(e.target.value as "" | "open" | "unread")
+                }
                 style={{
                   width: "100%",
                   padding: "8px 10px",
@@ -449,7 +466,9 @@ const filtered = unreadFiltered.filter((t) => {
               </label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value as "" | "tech" | "therapy")}
+                onChange={(e) =>
+                  setType(e.target.value as "" | "tech" | "therapy")
+                }
                 style={{
                   width: "100%",
                   padding: "8px 10px",
@@ -498,45 +517,45 @@ const filtered = unreadFiltered.filter((t) => {
               />
             </div>
             {/* ادمین مسئول */}
-<div style={{ flex: "1 1 180px" }}>
-  <label
-    style={{
-      display: "block",
-      fontSize: "12px",
-      marginBottom: "4px",
-      opacity: 0.85,
-    }}
-  >
-    ادمین مسئول
-  </label>
+            <div style={{ flex: "1 1 180px" }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  marginBottom: "4px",
+                  opacity: 0.85,
+                }}
+              >
+                ادمین مسئول
+              </label>
 
-  <select
-  value={assignedAdminFilter}
-  onChange={(e) => {
-    setPage(1);
-    setAssignedAdminFilter(e.target.value);
-  }}
-  style={{
-    width: "100%",
-    padding: "8px 10px",
-    borderRadius: "8px",
-    border: "1px solid #333",
-    backgroundColor: "#000",
-    color: "#fff",
-    fontSize: "12px",
-    boxSizing: "border-box",
-    outline: "none",
-  }}
->
-  <option value="">همه ادمین‌ها</option>
-  <option value="__unassigned__">تخصیص‌نشده</option>
-  {assignedAdmins.map((admin) => (
-    <option key={admin.id} value={admin.id}>
-      {admin.label}
-    </option>
-  ))}
-</select>
-</div>
+              <select
+                value={assignedAdminFilter}
+                onChange={(e) => {
+                  setPage(1);
+                  setAssignedAdminFilter(e.target.value);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid #333",
+                  backgroundColor: "#000",
+                  color: "#fff",
+                  fontSize: "12px",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
+              >
+                <option value="">همه ادمین‌ها</option>
+                <option value="__unassigned__">تخصیص‌نشده</option>
+                {assignedAdmins.map((admin) => (
+                  <option key={admin.id} value={admin.id}>
+                    {admin.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* ردیف زیر فیلتر: توضیح + دکمه‌ها */}
@@ -663,30 +682,33 @@ const filtered = unreadFiltered.filter((t) => {
 
               {/* ردیف‌ها */}
               {pagedTickets.map((t) => {
-  const u = t.user || null;
+                const u = t.user || null;
 
-  const nameToShow =
-    cleanName(u?.fullName) ||
-    cleanName((u as any)?.full_name) ||
-    cleanName(t.displayName) ||
-    cleanName(t.userName) ||
-    cleanName(t.openedByName) ||
-    cleanName(
-      typeof t.contact === "object" && t.contact ? t.contact.name : undefined
-    ) ||
-    cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
-    cleanName(t.phone) ||
-    cleanName(t.email) ||
-    cleanName(t.title) ||
-    "کاربر";
+                const nameToShow =
+                  cleanName(u?.fullName) ||
+                  cleanName(t.user?.full_name) ||
+                  cleanName(t.displayName) ||
+                  cleanName(t.userName) ||
+                  cleanName(t.openedByName) ||
+                  cleanName(
+                    typeof t.contact === "object" && t.contact
+                      ? t.contact.name
+                      : undefined,
+                  ) ||
+                  cleanName(
+                    typeof t.contact === "string" ? t.contact : undefined,
+                  ) ||
+                  cleanName(t.phone) ||
+                  cleanName(t.email) ||
+                  cleanName(t.title) ||
+                  "کاربر";
 
-  const lastAt = t.lastAt || t.createdAt;
-  const isUnread = !!t.unread;
-  const assignedAdminName =
-  t.assignedAdmin?.name?.trim() ||
-  t.assignedAdmin?.email?.trim() ||
-  "تخصیص نشده";
-
+                const lastAt = t.lastAt || t.createdAt;
+                const isUnread = !!t.unread;
+                const assignedAdminName =
+                  t.assignedAdmin?.name?.trim() ||
+                  t.assignedAdmin?.email?.trim() ||
+                  "تخصیص نشده";
 
                 return (
                   <div
@@ -703,66 +725,65 @@ const filtered = unreadFiltered.filter((t) => {
                     }}
                   >
                     {/* کاربر */}
-<div style={{ textAlign: "center" }}>
-  <Link
-    href={`/admin/tickets/${t.id}`}
-    onClick={() => markReadOptimistic(t.id)}
-    style={{
-      color: "#fb923c",
-      textDecoration: "none",
-      display: "inline-flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
-      fontWeight: isUnread ? 700 : 500,
-    }}
-  >
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-      }}
-    >
-      {t.pinned ? (
-        <span
-          title="سنجاق‌شده"
-          style={{ color: "#facc15", fontSize: "11px" }}
-        >
-          ★
-        </span>
-      ) : null}
+                    <div style={{ textAlign: "center" }}>
+                      <Link
+                        href={`/admin/tickets/${t.id}`}
+                        onClick={() => markReadOptimistic(t.id)}
+                        style={{
+                          color: "#fb923c",
+                          textDecoration: "none",
+                          display: "inline-flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 4,
+                          fontWeight: isUnread ? 700 : 500,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                          }}
+                        >
+                          {t.pinned ? (
+                            <span
+                              title="سنجاق‌شده"
+                              style={{ color: "#facc15", fontSize: "11px" }}
+                            >
+                              ★
+                            </span>
+                          ) : null}
 
-      <span>{nameToShow}</span>
+                          <span>{nameToShow}</span>
 
-      {isUnread && (
-        <span
-          title="خوانده‌نشده"
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "999px",
-            backgroundColor: "#ef4444",
-            display: "inline-block",
-          }}
-        />
-      )}
-    </div>
+                          {isUnread && (
+                            <span
+                              title="خوانده‌نشده"
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "999px",
+                                backgroundColor: "#ef4444",
+                                display: "inline-block",
+                              }}
+                            />
+                          )}
+                        </div>
 
-    <span
-      style={{
-        fontSize: "11px",
-        color: t.assignedAdmin ? "#93c5fd" : "#6b7280",
-        fontWeight: 400,
-      }}
-    >
-      مسئول: {assignedAdminName}
-    </span>
-  </Link>
-</div>
-
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: t.assignedAdmin ? "#93c5fd" : "#6b7280",
+                            fontWeight: 400,
+                          }}
+                        >
+                          مسئول: {assignedAdminName}
+                        </span>
+                      </Link>
+                    </div>
 
                     {/* نوع */}
                     <div style={{ textAlign: "center" }}>
@@ -840,8 +861,7 @@ const filtered = unreadFiltered.filter((t) => {
                 padding: "6px 10px",
                 borderRadius: "8px",
                 border: "1px solid #333",
-                backgroundColor:
-                  page === totalPages ? "#111827" : "#1f2937",
+                backgroundColor: page === totalPages ? "#111827" : "#1f2937",
                 color: "#e5e7eb",
                 cursor: page === totalPages ? "default" : "pointer",
                 opacity: page === totalPages ? 0.4 : 1,

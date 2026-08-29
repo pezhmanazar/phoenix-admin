@@ -3,6 +3,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 const menuItemStyle: React.CSSProperties = {
   width: "100%",
   textAlign: "right",
@@ -48,13 +57,13 @@ export default function TicketActionsMenu({
         body: JSON.stringify({ pinned: !pinned }),
       });
 
-      const json = await res.json().catch(() => ({} as any));
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!res.ok || !json?.ok) throw new Error(json?.error || "pin_failed");
 
       setOpen(false);
       router.refresh();
-    } catch (e: any) {
-      alert(e?.message || "خطا در پین/آنپین");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در پین/آنپین"));
     } finally {
       setBusy(null);
     }
@@ -72,12 +81,12 @@ export default function TicketActionsMenu({
         headers: { Accept: "application/json" },
       });
 
-      const json = await res.json().catch(() => ({} as any));
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!res.ok || !json?.ok) throw new Error(json?.error || "delete_failed");
 
       window.location.href = "/admin/tickets";
-    } catch (e: any) {
-      alert(e?.message || "خطا در حذف تیکت");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در حذف تیکت"));
     } finally {
       setBusy(null);
       setOpen(false);
@@ -122,7 +131,12 @@ export default function TicketActionsMenu({
             zIndex: 50,
           }}
         >
-          <button type="button" onClick={togglePin} disabled={!!busy} style={menuItemStyle}>
+          <button
+            type="button"
+            onClick={togglePin}
+            disabled={!!busy}
+            style={menuItemStyle}
+          >
             {busy === "pin" ? "..." : pinned ? "برداشتن پین" : "پین کردن تیکت"}
           </button>
 

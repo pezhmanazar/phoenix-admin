@@ -51,11 +51,12 @@ export default function VoicePlayer({ src }: { src: string }) {
         try {
           await audio.play();
         } catch {
+          // پخش ممکن است توسط autoplay policy مرورگر متوقف شود
         } finally {
           setIsLoading(false);
         }
       }, 50);
-    } catch (err) {
+    } catch {
       setIsLoading(false);
     }
   };
@@ -70,8 +71,9 @@ export default function VoicePlayer({ src }: { src: string }) {
         borderRadius: 12,
         padding: "6px 8px",
         width: "100%",
-        minWidth: 360,
-       boxSizing: "border-box",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <button
@@ -132,12 +134,13 @@ export default function VoicePlayer({ src }: { src: string }) {
           setIsLoading(false);
         }}
         style={{
-         display: activated ? "block" : "none",
-         flex: 1,
-         outline: "none",
-         width: 300,
-         minWidth: 300,
-         height: 40,
+          display: activated ? "block" : "none",
+          flex: 1,
+          outline: "none",
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
+          height: 40,
         }}
       />
     </div>

@@ -3,6 +3,15 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function TicketFlags({
   id,
   pinned,
@@ -24,11 +33,11 @@ export default function TicketFlags({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pinned: !pinned }),
       });
-      const json = await res.json();
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!json?.ok) alert(json?.error || "خطا در بروزرسانی سنجاق");
       else router.refresh();
-    } catch (e: any) {
-      alert(e?.message || "خطا در ارتباط با سرور");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در ارتباط با سرور"));
     } finally {
       setBusy(null);
     }
@@ -43,11 +52,11 @@ export default function TicketFlags({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unread: false }),
       });
-      const json = await res.json();
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!json?.ok) alert(json?.error || "خطا در بروزرسانی خوانده‌شدن");
       else router.refresh();
-    } catch (e: any) {
-      alert(e?.message || "خطا در ارتباط با سرور");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در ارتباط با سرور"));
     } finally {
       setBusy(null);
     }

@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 
 type S = "open" | "pending" | "closed";
 
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function StatusChanger({
   id,
   current,
@@ -24,11 +33,11 @@ export default function StatusChanger({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const json = await res.json();
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
       if (!json?.ok) alert(json?.error || "بروزرسانی وضعیت ناموفق بود");
       else router.refresh();
-    } catch (e: any) {
-      alert(e?.message || "خطا در تغییر وضعیت");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در تغییر وضعیت"));
     } finally {
       setBusy(false);
     }

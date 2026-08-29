@@ -2,10 +2,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export default function ReplyBar({ ticketId }: { ticketId: string }) {
-  const router = useRouter();
   const id = ticketId; // ✅ قطعی، بدون حدس
 
   const [text, setText] = useState("");
@@ -37,7 +44,9 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
   }, [text]);
 
   useEffect(() => {
-    setRecordingSupported(typeof window !== "undefined" && typeof MediaRecorder !== "undefined");
+    setRecordingSupported(
+      typeof window !== "undefined" && typeof MediaRecorder !== "undefined",
+    );
     return () => {
       try {
         stopTimer();
@@ -60,7 +69,6 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
         recordBlobUrlRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startTimer = () => {
@@ -159,12 +167,19 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
       mediaStreamRef.current = stream;
 
       let mimeType = "";
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
-      else if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
-      else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) mimeType = "audio/ogg;codecs=opus";
-      else if (MediaRecorder.isTypeSupported("audio/ogg")) mimeType = "audio/ogg";
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
+        mimeType = "audio/webm;codecs=opus";
+      else if (MediaRecorder.isTypeSupported("audio/webm"))
+        mimeType = "audio/webm";
+      else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus"))
+        mimeType = "audio/ogg;codecs=opus";
+      else if (MediaRecorder.isTypeSupported("audio/ogg"))
+        mimeType = "audio/ogg";
 
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const rec = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
       recorderRef.current = rec;
 
       setRecordMime(mimeType || rec.mimeType || "audio/webm");
@@ -178,7 +193,9 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
         stopTimer();
         setIsRecording(false);
 
-        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        const blob = new Blob(chunksRef.current, {
+          type: rec.mimeType || "audio/webm",
+        });
         const url = URL.createObjectURL(blob);
         recordBlobUrlRef.current = url;
         setRecordBlobUrl(url);
@@ -187,8 +204,11 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
       rec.start(200);
       setIsRecording(true);
       startTimer();
-    } catch (e: any) {
-      alert("دسترسی به میکروفون ممکن نیست. " + (e?.message || ""));
+    } catch (e: unknown) {
+      const message = getErrorMessage(e, "");
+
+      alert("دسترسی به میکروفون ممکن نیست." + (message ? ` ${message}` : ""));
+
       cleanupRecording();
     }
   };
@@ -219,7 +239,9 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
 
   const onMicClick = () => {
     if (!recordingSupported) {
-      alert("مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی را به‌صورت فایل آپلود کنید.");
+      alert(
+        "مرورگر از ضبط صدا پشتیبانی نمی‌کند. لطفاً فایل صوتی را به‌صورت فایل آپلود کنید.",
+      );
       return;
     }
     if (isRecording) stopRecording();
@@ -259,11 +281,13 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
           headers: { Accept: "application/json" },
         });
 
-        const json = await res.json().catch(() => ({} as any));
+        const json = (await res.json().catch(() => null)) as ApiResponse | null;
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
-              (res.status === 413 ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید." : "ارسال ویس ناموفق بود")
+              (res.status === 413
+                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
+                : "ارسال ویس ناموفق بود"),
           );
         }
       } else if (hasFile) {
@@ -278,36 +302,52 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
           headers: { Accept: "application/json" },
         });
 
-        const json = await res.json().catch(() => ({} as any));
+        const json = (await res.json().catch(() => null)) as ApiResponse | null;
         if (!res.ok || !json?.ok) {
           throw new Error(
             json?.error ||
-              (res.status === 413 ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید." : "ارسال فایل ناموفق بود")
+              (res.status === 413
+                ? "حجم فایل زیاد است. لطفاً نسخهٔ کم‌حجم‌تری بفرستید."
+                : "ارسال فایل ناموفق بود"),
           );
         }
       } else {
         const res = await fetch(`/api/admin/tickets/${id}/reply`, {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
           body: JSON.stringify({ text: text.trim() }),
         });
-        const json = await res.json().catch(() => ({} as any));
+        const json = (await res.json().catch(() => null)) as ApiResponse | null;
         if (!res.ok || !json?.ok) {
           throw new Error(json?.error || "ارسال پیام ناموفق بود");
         }
       }
 
       clearForm();
-      router.refresh();
+
+      document.dispatchEvent(
+        new CustomEvent("ticket-updated", {
+          detail: { ticketId: id },
+        }),
+      );
 
       setTimeout(() => {
-        const scroller = document.querySelector('[data-ticket-scroll="1"]') as HTMLElement | null;
+        const scroller = document.querySelector(
+          '[data-ticket-scroll="1"]',
+        ) as HTMLElement | null;
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
-        else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        else
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth",
+          });
       }, 80);
-    } catch (e: any) {
-      alert(e?.message || "خطا در ارسال پیام");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "خطا در ارسال پیام"));
     } finally {
       setSending(false);
     }
@@ -341,15 +381,15 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
   };
 
   const sendBtn: React.CSSProperties = {
-  ...iconBtn,
-  background: sending
-    ? "linear-gradient(135deg, rgba(75,85,99,0.95), rgba(55,65,81,1))"
-    : "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
-  border: "none",
-  fontSize: 16,
-  cursor: sending ? "wait" : "pointer",
-  opacity: sending ? 0.85 : 1,
-};
+    ...iconBtn,
+    background: sending
+      ? "linear-gradient(135deg, rgba(75,85,99,0.95), rgba(55,65,81,1))"
+      : "linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,1))",
+    border: "none",
+    fontSize: 16,
+    cursor: sending ? "wait" : "pointer",
+    opacity: sending ? 0.85 : 1,
+  };
 
   const textareaStyle: React.CSSProperties = {
     flex: 1,
@@ -381,9 +421,20 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
   return (
     <div style={container}>
       <div style={mainRow}>
-        <input ref={fileInputRef} type="file" onChange={onFileChange} style={{ display: "none" }} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={onFileChange}
+          style={{ display: "none" }}
+        />
 
-        <button type="button" onClick={onPickFile} style={iconBtn} title="ضمیمه فایل / تصویر / ویس" disabled={sending || isRecording}>
+        <button
+          type="button"
+          onClick={onPickFile}
+          style={iconBtn}
+          title="ضمیمه فایل / تصویر / ویس"
+          disabled={sending || isRecording}
+        >
           📎
         </button>
 
@@ -405,24 +456,36 @@ export default function ReplyBar({ ticketId }: { ticketId: string }) {
             backgroundColor: isRecording ? "#b91c1c" : "#09090b",
             borderColor: isRecording ? "#f87171" : "#3f3f46",
           }}
-          title={!recordingSupported ? "مرورگر از ضبط صدا پشتیبانی نمی‌کند" : isRecording ? "پایان ضبط" : "شروع ضبط ویس"}
+          title={
+            !recordingSupported
+              ? "مرورگر از ضبط صدا پشتیبانی نمی‌کند"
+              : isRecording
+                ? "پایان ضبط"
+                : "شروع ضبط ویس"
+          }
           disabled={sending || !!file}
         >
           🎤
         </button>
-<button
-  type="button"
-  onClick={onSend}
-  style={sendBtn}
-  disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
-  title={sending ? "در حال ارسال..." : "ارسال"}
->
-  {sending ? "⏳" : "◀"}
-</button>
+        <button
+          type="button"
+          onClick={onSend}
+          style={sendBtn}
+          disabled={sending || (!text.trim() && !file && !recordBlobUrl)}
+          title={sending ? "در حال ارسال..." : "ارسال"}
+        >
+          {sending ? "⏳" : "◀"}
+        </button>
       </div>
 
       <div style={infoRow}>
-        {isRecording ? <span style={{ color: "#f97373" }}>در حال ضبط… {formatTime(seconds)}</span> : recordBlobUrl ? <span>ویس آماده ارسال – {formatTime(seconds)}</span> : null}
+        {isRecording ? (
+          <span style={{ color: "#f97373" }}>
+            در حال ضبط… {formatTime(seconds)}
+          </span>
+        ) : recordBlobUrl ? (
+          <span>ویس آماده ارسال – {formatTime(seconds)}</span>
+        ) : null}
 
         {file ? (
           <span>

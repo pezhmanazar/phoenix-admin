@@ -1,7 +1,14 @@
 // src/app/admin/tickets/[id]/MessagesList.client.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Image from "next/image";
 import VoicePlayer from "./VoicePlayer.client";
 
 export type Message = {
@@ -20,10 +27,10 @@ export type Message = {
 };
 
 type Props = {
+  ticketId: string;
   messages: Message[];
   userName: string;
   backendBase: string;
-  adminToken: string;
 };
 
 function safePersianDate(when?: string) {
@@ -44,7 +51,13 @@ function safePersianDate(when?: string) {
   }
 }
 
-export default function MessagesList({ messages, userName, backendBase, adminToken }: Props) {
+export default function MessagesList({
+  ticketId,
+  messages: initialMessages,
+  userName,
+  backendBase,
+}: Props) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const stableVoiceUrlsRef = useRef<Record<string, string>>({});
@@ -56,59 +69,217 @@ export default function MessagesList({ messages, userName, backendBase, adminTok
   // فقط پیام‌هایی که مدیا دارند
   const mediaCount = useMemo(() => {
     if (!messages?.length) return 0;
-    return messages.filter((m) => !!m.fileUrl && (m.type === "image" || m.type === "voice" || m.type === "file")).length;
+    return messages.filter(
+      (m) =>
+        !!m.fileUrl &&
+        (m.type === "image" || m.type === "voice" || m.type === "file"),
+    ).length;
   }, [messages]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
-    // روش قابل اعتماد: ته لیست را scrollIntoView کن
-    bottomRef.current?.scrollIntoView({ behavior, block: "end" });
+    bottomRef.current?.scrollIntoView({
+      behavior,
+      block: "end",
+    });
   };
 
   const isNearBottom = () => {
-  const el = scrollRef.current;
-  if (!el) return true;
+    const el = scrollRef.current;
 
-  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (!el) return true;
 
-  return distanceFromBottom < 120;
-};
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
 
-// فقط ورود اولیه را ببر آخر پیام‌ها
-// بعد از آن فقط اگر کاربر نزدیک پایین بود، auto-scroll کن
-useEffect(() => {
-  if (!didInitialScrollRef.current) {
-    didInitialScrollRef.current = true;
+    return distanceFromBottom < 120;
+  };
 
-    scrollToBottom("auto");
-    const t = setTimeout(() => scrollToBottom("auto"), 50);
+  const sameMessages = useCallback((a: Message[], b: Message[]) => {
+    if (a.length !== b.length) return false;
 
-    return () => clearTimeout(t);
-  }
+    for (let i = 0; i < a.length; i++) {
+      if (a[i]?.id !== b[i]?.id) return false;
+      if (a[i]?.sender !== b[i]?.sender) return false;
+      if ((a[i]?.text ?? null) !== (b[i]?.text ?? null)) return false;
+      if ((a[i]?.fileUrl ?? null) !== (b[i]?.fileUrl ?? null)) return false;
+      if ((a[i]?.signedUrl ?? null) !== (b[i]?.signedUrl ?? null)) return false;
+      if ((a[i]?.fileSignedUrl ?? null) !== (b[i]?.fileSignedUrl ?? null)) {
+        return false;
+      }
+      if ((a[i]?.type ?? null) !== (b[i]?.type ?? null)) return false;
+      if ((a[i]?.mime ?? null) !== (b[i]?.mime ?? null)) return false;
+      if ((a[i]?.durationSec ?? null) !== (b[i]?.durationSec ?? null)) {
+        return false;
+      }
+      if ((a[i]?.createdAt ?? null) !== (b[i]?.createdAt ?? null)) {
+        return false;
+      }
+      if ((a[i]?.ts ?? null) !== (b[i]?.ts ?? null)) return false;
+    }
 
-  if (isNearBottom()) {
-    scrollToBottom("auto");
-  }
+    return true;
+  }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [messages?.length]);
+  /*
+   * اگر خود Server Component به هر دلیلی
+   * props جدید داد، state محلی هم sync شود.
+   */
+  useEffect(() => {
+    setMessages((prev) =>
+      sameMessages(prev, initialMessages) ? prev : initialMessages,
+    );
+  }, [initialMessages, sameMessages]);
 
-// وقتی مدیا لود شد، فقط اگر کاربر نزدیک پایین است اسکرول کن
-useEffect(() => {
-  if (!mediaCount) return;
-  if (!isNearBottom()) return;
+  /*
+   * Polling سبک و مستقیم فقط برای همین تیکت.
+   *
+   * دیگر router.refresh نداریم؛
+   * در نتیجه layout و middleware و verifyهای ادمین
+   * هر ۱۰ ثانیه دوباره اجرا نمی‌شوند.
+   */
+  useEffect(() => {
+    if (!ticketId) return;
 
-  scrollToBottom("auto");
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let requestInFlight = false;
 
-  const t = setTimeout(() => {
+    const loadLatestMessages = async () => {
+      if (cancelled) return;
+      if (requestInFlight) return;
+
+      // وقتی تب مرورگر دیده نمی‌شود درخواست نزن
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      requestInFlight = true;
+
+      try {
+        const res = await fetch(
+          `/api/admin/tickets/${encodeURIComponent(ticketId)}`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            headers: {
+              Accept: "application/json",
+            },
+          },
+        );
+
+        if (!res.ok) {
+          return;
+        }
+
+        const json = await res.json().catch(() => null);
+
+        const nextMessages: Message[] | null =
+          json?.ok && Array.isArray(json?.ticket?.messages)
+            ? json.ticket.messages
+            : null;
+
+        if (!nextMessages || cancelled) {
+          return;
+        }
+
+        setMessages((prev) =>
+          sameMessages(prev, nextMessages) ? prev : nextMessages,
+        );
+      } catch {
+        // polling failure نباید صفحه چت را خراب کند
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const startPolling = () => {
+      stopPolling();
+
+      intervalId = setInterval(() => {
+        void loadLatestMessages();
+      }, 10000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // بعد از برگشتن به پنل فوراً یک بار sync کن
+        void loadLatestMessages();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    const handleTicketUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ ticketId?: string }>;
+
+      if (
+        customEvent.detail?.ticketId &&
+        customEvent.detail.ticketId !== ticketId
+      ) {
+        return;
+      }
+
+      void loadLatestMessages();
+    };
+
+    document.addEventListener("ticket-updated", handleTicketUpdated);
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+
+      document.removeEventListener("ticket-updated", handleTicketUpdated);
+
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [ticketId, sameMessages]);
+
+  // فقط ورود اولیه را ببر آخر پیام‌ها
+  // بعد از آن فقط اگر کاربر نزدیک پایین بود، auto-scroll کن
+  useEffect(() => {
+    if (!didInitialScrollRef.current) {
+      didInitialScrollRef.current = true;
+
+      scrollToBottom("auto");
+      const t = setTimeout(() => scrollToBottom("auto"), 50);
+
+      return () => clearTimeout(t);
+    }
+
     if (isNearBottom()) {
       scrollToBottom("auto");
     }
-  }, 80);
+  }, [messages.length]);
 
-  return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [mediaTick]);
+  // وقتی مدیا لود شد، فقط اگر کاربر نزدیک پایین است اسکرول کن
+  useEffect(() => {
+    if (!mediaCount) return;
+    if (!isNearBottom()) return;
 
+    scrollToBottom("auto");
+
+    const t = setTimeout(() => {
+      if (isNearBottom()) {
+        scrollToBottom("auto");
+      }
+    }, 80);
+
+    return () => clearTimeout(t);
+  }, [mediaTick, mediaCount]);
 
   // اسکرول وقتی ارتفاع کانتینر تغییر کرد (مثلا بعد از لود تصاویر)
   useEffect(() => {
@@ -119,53 +290,52 @@ useEffect(() => {
     if (typeof ResizeObserver === "undefined") return;
 
     const ro = new ResizeObserver(() => {
-  if (isNearBottom()) {
-    scrollToBottom("auto");
-  }
-});
+      if (isNearBottom()) {
+        scrollToBottom("auto");
+      }
+    });
 
     ro.observe(el);
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // helper: url ساختن
-    const buildFullUrl = (fileUrl?: string | null) => {
-  const rel = (fileUrl || "").trim();
-  if (!rel) return null;
+  const buildFullUrl = (fileUrl?: string | null) => {
+    const rel = (fileUrl || "").trim();
+    if (!rel) return null;
 
-  if (rel.startsWith("http://") || rel.startsWith("https://")) {
-    return rel;
-  }
-
-  const base = backendBase?.trim().replace(/\/+$/, "") || "";
-
-  if (!base) return null;
-
-  return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
-};
-
-const getStableMediaUrl = (m: Message) => {
-  const rawUrl = m.signedUrl || m.fileSignedUrl || buildFullUrl(m.fileUrl) || "";
-
-  if (!rawUrl) return "";
-
-  // فقط برای ویس URL را ثابت نگه می‌داریم
-  // چون audio با تغییر src وسط لود، request را cancel می‌کند
-  if (m.type === "voice") {
-    const existing = stableVoiceUrlsRef.current[m.id];
-
-    if (existing) {
-      return existing;
+    if (rel.startsWith("http://") || rel.startsWith("https://")) {
+      return rel;
     }
 
-    stableVoiceUrlsRef.current[m.id] = rawUrl;
+    const base = backendBase?.trim().replace(/\/+$/, "") || "";
+
+    if (!base) return null;
+
+    return rel.startsWith("/") ? `${base}${rel}` : `${base}/${rel}`;
+  };
+
+  const getStableMediaUrl = (m: Message) => {
+    const rawUrl =
+      m.signedUrl || m.fileSignedUrl || buildFullUrl(m.fileUrl) || "";
+
+    if (!rawUrl) return "";
+
+    // فقط برای ویس URL را ثابت نگه می‌داریم
+    // چون audio با تغییر src وسط لود، request را cancel می‌کند
+    if (m.type === "voice") {
+      const existing = stableVoiceUrlsRef.current[m.id];
+
+      if (existing) {
+        return existing;
+      }
+
+      stableVoiceUrlsRef.current[m.id] = rawUrl;
+      return rawUrl;
+    }
+
     return rawUrl;
-  }
-
-  return rawUrl;
-};
-
+  };
 
   const bumpMediaTick = () => {
     // اگر چند مدیا پشت هم لود شد، tick را افزایش بده
@@ -198,6 +368,7 @@ const getStableMediaUrl = (m: Message) => {
 
           const bubbleStyle: React.CSSProperties = {
             maxWidth: "85%",
+            minWidth: 0,
             padding: "10px 12px",
             borderRadius: "14px",
             border: "1px solid",
@@ -205,14 +376,14 @@ const getStableMediaUrl = (m: Message) => {
             backgroundColor: mine ? "#ea580c" : "#000",
             alignSelf: mine ? "flex-start" : "flex-end",
             fontSize: "13px",
+            boxSizing: "border-box",
+            overflow: "hidden",
           };
 
           const metaStyle: React.CSSProperties = {
             fontSize: "11px",
             marginBottom: 4,
-            color: mine
-              ? "rgba(255,255,255,0.85)"
-              : "rgba(249,250,251,0.7)",
+            color: mine ? "rgba(255,255,255,0.85)" : "rgba(249,250,251,0.7)",
           };
 
           const dateText = safePersianDate(when);
@@ -240,54 +411,66 @@ const getStableMediaUrl = (m: Message) => {
               ) : null}
 
               {type === "image" ? (
-  fullUrl ? (
-    <img
-      src={fullUrl}
-      alt="image"
-      loading="lazy"
-      onLoad={bumpMediaTick}
-      onError={() => {
-        bumpMediaTick();
-      }}
-
-      style={{
-        maxHeight: "280px",
-        borderRadius: "10px",
-        border: "1px solid #374151",
-        marginTop: m.text ? 6 : 0,
-        display: "block",
-      }}
-    />
-  ) : (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال بارگذاری تصویر...</div>
-  )
-) : type === "voice" ? (
-  fullUrl ? (
-    <div style={{ marginTop: 4 }} onLoadCapture={bumpMediaTick}>
-      <VoicePlayer src={fullUrl} />
-    </div>
-  ) : (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال بارگذاری ویس...</div>
-  )
-) : type === "file" ? (
-  fullUrl ? (
-    <a
-      href={fullUrl}
-      download
-      style={{
-        display: "inline-block",
-        marginTop: 4,
-        fontSize: "12px",
-        color: "rgba(255,255,255,0.9)",
-        textDecoration: "underline",
-      }}
-    >
-      دانلود فایل
-    </a>
-  ) : (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>در حال آماده‌سازی فایل...</div>
-  )
-) : null}
+                fullUrl ? (
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "min(100%, 420px)",
+                      height: "280px",
+                      marginTop: m.text ? 6 : 0,
+                    }}
+                  >
+                    <Image
+                      src={fullUrl}
+                      alt="تصویر پیوست"
+                      fill
+                      unoptimized
+                      sizes="(max-width: 768px) 85vw, 420px"
+                      onLoad={bumpMediaTick}
+                      onError={bumpMediaTick}
+                      style={{
+                        objectFit: "contain",
+                        borderRadius: "10px",
+                        border: "1px solid #374151",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+                    در حال بارگذاری تصویر...
+                  </div>
+                )
+              ) : type === "voice" ? (
+                fullUrl ? (
+                  <div style={{ marginTop: 4 }} onLoadCapture={bumpMediaTick}>
+                    <VoicePlayer src={fullUrl} />
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+                    در حال بارگذاری ویس...
+                  </div>
+                )
+              ) : type === "file" ? (
+                fullUrl ? (
+                  <a
+                    href={fullUrl}
+                    download
+                    style={{
+                      display: "inline-block",
+                      marginTop: 4,
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.9)",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    دانلود فایل
+                  </a>
+                ) : (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
+                    در حال آماده‌سازی فایل...
+                  </div>
+                )
+              ) : null}
             </div>
           );
         })

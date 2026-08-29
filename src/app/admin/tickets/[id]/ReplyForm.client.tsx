@@ -2,6 +2,15 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function ReplyForm({ id }: { id: string }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -16,8 +25,7 @@ export default function ReplyForm({ id }: { id: string }) {
     setRecSupported(
       typeof window !== "undefined" &&
         !!navigator.mediaDevices &&
-        // @ts-ignore
-        !!window.MediaRecorder
+        typeof MediaRecorder !== "undefined",
     );
   }, []);
 
@@ -38,7 +46,7 @@ export default function ReplyForm({ id }: { id: string }) {
       };
       mr.start();
       setRecording(true);
-    } catch (e) {
+    } catch {
       alert("دسترسی میکروفن رد شد یا پشتیبانی نمی‌شود.");
     }
   }
@@ -61,7 +69,7 @@ export default function ReplyForm({ id }: { id: string }) {
           method: "POST",
           body: form,
         });
-        const j = await r.json().catch(() => ({}));
+        const j = (await r.json().catch(() => null)) as ApiResponse | null;
         if (!r.ok || !j?.ok) throw new Error(j?.error || "upload_failed");
 
         setText("");
@@ -73,13 +81,13 @@ export default function ReplyForm({ id }: { id: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: text.trim() }),
         });
-        const j = await r.json().catch(() => ({}));
+        const j = (await r.json().catch(() => null)) as ApiResponse | null;
         if (!r.ok || !j?.ok) throw new Error(j?.error || "send_failed");
         setText("");
         document.dispatchEvent(new CustomEvent("ticket-updated"));
       }
-    } catch (e: any) {
-      alert(e?.message || "ارسال ناموفق بود");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "ارسال ناموفق بود"));
     } finally {
       setSending(false);
     }
