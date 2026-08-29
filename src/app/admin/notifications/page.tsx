@@ -223,6 +223,16 @@ function getCampaignRoute(value: unknown): string {
   return "";
 }
 
+function getCampaignExternalUrl(value: unknown): string {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  const data = value as Record<string, unknown>;
+
+  return typeof data.externalUrl === "string" ? data.externalUrl : "";
+}
+
 function planLabel(value: unknown) {
   const plan = getTargetRule(value).plan || "all";
 
@@ -283,6 +293,7 @@ export default function NotificationsPage() {
     type: "therapeutic" as CampaignType,
     notificationType: "marketing",
     route: "",
+    externalUrl: "",
     targetRule: {
       plan: "all",
       appProvider: "all",
@@ -298,6 +309,7 @@ export default function NotificationsPage() {
     type: "therapeutic" as CampaignType,
     notificationType: "marketing",
     route: "",
+    externalUrl: "",
     scheduledAt: "",
     targetRule: {
       plan: "all",
@@ -360,6 +372,7 @@ export default function NotificationsPage() {
     const title = form.title.trim();
     const pushTitle = form.pushTitle.trim();
     const pushBody = form.pushBody.trim();
+    const externalUrl = form.externalUrl.trim();
 
     if (!title) {
       alert("عنوان داخلی کمپین رو وارد کن.");
@@ -374,6 +387,21 @@ export default function NotificationsPage() {
     if (!pushBody) {
       alert("متن نوتیفیکیشن رو وارد کن.");
       return;
+    }
+
+    if (form.route === "__external__") {
+      if (!externalUrl) {
+        alert("آدرس لینک خارجی رو وارد کن.");
+        return;
+      }
+
+      if (
+        !externalUrl.startsWith("https://") &&
+        !externalUrl.startsWith("http://")
+      ) {
+        alert("لینک باید با https:// یا http:// شروع بشه.");
+        return;
+      }
     }
 
     try {
@@ -391,11 +419,16 @@ export default function NotificationsPage() {
           type: form.type,
           notificationType: form.notificationType,
 
-          data: form.route
-            ? {
-                route: form.route,
-              }
-            : null,
+          data:
+            form.route === "__external__"
+              ? {
+                  externalUrl,
+                }
+              : form.route
+                ? {
+                    route: form.route,
+                  }
+                : null,
 
           scheduledAt: form.scheduledAt,
           targetRule: form.targetRule,
@@ -418,6 +451,7 @@ export default function NotificationsPage() {
         type: "therapeutic",
         notificationType: "marketing",
         route: "",
+        externalUrl: "",
         scheduledAt: "",
         targetRule: {
           plan: "all",
@@ -453,7 +487,11 @@ export default function NotificationsPage() {
       pushBody: item.pushBody || "",
       type: item.type,
       notificationType: item.notificationType || "marketing",
-      route: getCampaignRoute(item.data),
+      route: getCampaignExternalUrl(item.data)
+        ? "__external__"
+        : getCampaignRoute(item.data),
+
+      externalUrl: getCampaignExternalUrl(item.data),
       targetRule: {
         plan: targetRule.plan || "all",
         appProvider: targetRule.appProvider || "all",
@@ -477,6 +515,23 @@ export default function NotificationsPage() {
       return;
     }
 
+    const externalUrl = editForm.externalUrl.trim();
+
+    if (editForm.route === "__external__") {
+      if (!externalUrl) {
+        alert("آدرس لینک خارجی رو وارد کن.");
+        return;
+      }
+
+      if (
+        !externalUrl.startsWith("https://") &&
+        !externalUrl.startsWith("http://")
+      ) {
+        alert("لینک باید با https:// یا http:// شروع بشه.");
+        return;
+      }
+    }
+
     setEditSaving(true);
 
     try {
@@ -495,11 +550,16 @@ export default function NotificationsPage() {
             pushBody: editForm.pushBody,
             type: editForm.type,
             notificationType: editForm.notificationType,
-            data: editForm.route
-              ? {
-                  route: editForm.route,
-                }
-              : null,
+            data:
+              editForm.route === "__external__"
+                ? {
+                    externalUrl,
+                  }
+                : editForm.route
+                  ? {
+                      route: editForm.route,
+                    }
+                  : null,
             targetRule: editForm.targetRule,
           }),
         },
@@ -883,6 +943,8 @@ export default function NotificationsPage() {
                   setForm({
                     ...form,
                     route: e.target.value,
+                    externalUrl:
+                      e.target.value === "__external__" ? form.externalUrl : "",
                   })
                 }
                 style={inputStyle}
@@ -904,7 +966,26 @@ export default function NotificationsPage() {
                 <option value="/(tabs)/Panahgah">پناهگاه</option>
 
                 <option value="/(tabs)/Phoenix">ققنوس من</option>
+
+                <option value="/(tabs)/Mashaal">مشعل</option>
+
+                <option value="__external__">لینک خارجی / سایت دلخواه</option>
               </select>
+
+              {form.route === "__external__" ? (
+                <input
+                  type="url"
+                  placeholder="https://qoqnoos.app یا هر لینک دلخواه"
+                  value={form.externalUrl}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      externalUrl: e.target.value,
+                    })
+                  }
+                  style={inputStyle}
+                />
+              ) : null}
 
               <select
                 value={form.targetRule.plan}
@@ -1164,6 +1245,10 @@ export default function NotificationsPage() {
                   setEditForm({
                     ...editForm,
                     route: e.target.value,
+                    externalUrl:
+                      e.target.value === "__external__"
+                        ? editForm.externalUrl
+                        : "",
                   })
                 }
                 style={inputStyle}
@@ -1179,7 +1264,24 @@ export default function NotificationsPage() {
                 <option value="/(tabs)/Panah">پناه</option>
                 <option value="/(tabs)/Panahgah">پناهگاه</option>
                 <option value="/(tabs)/Phoenix">ققنوس من</option>
+                <option value="/(tabs)/Mashaal">مشعل</option>
+                <option value="__external__">لینک خارجی / سایت دلخواه</option>
               </select>
+
+              {editForm.route === "__external__" ? (
+                <input
+                  type="url"
+                  placeholder="https://qoqnoos.app یا هر لینک دلخواه"
+                  value={editForm.externalUrl}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      externalUrl: e.target.value,
+                    })
+                  }
+                  style={inputStyle}
+                />
+              ) : null}
 
               <select
                 value={editForm.targetRule.plan}
