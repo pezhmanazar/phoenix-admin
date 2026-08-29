@@ -336,7 +336,8 @@ function BarRow({
                 whiteSpace: "nowrap",
               }}
             >
-              {value} <span style={{ opacity: 0.7 }}>({pct(value, total)})</span>
+              {value}{" "}
+              <span style={{ opacity: 0.7 }}>({pct(value, total)})</span>
             </div>
           </div>
 
@@ -468,8 +469,8 @@ export default function AdminAnalyticsPage() {
 
       setRows(all);
       setTotal(totalFromApi || all.length);
-    } catch (e: any) {
-      setErr(String(e?.message || "internal_error"));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "internal_error");
       setRows([]);
       setTotal(0);
     } finally {
@@ -488,7 +489,8 @@ export default function AdminAnalyticsPage() {
       });
 
       const ct = r.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) throw new Error("bad_ticket_response");
+      if (!ct.includes("application/json"))
+        throw new Error("bad_ticket_response");
 
       const j = await r.json();
       if (!j?.ok || !Array.isArray(j.tickets)) {
@@ -508,38 +510,82 @@ export default function AdminAnalyticsPage() {
   }
 
   async function loadPelekanStats(): Promise<void> {
-    setPelekanLoading(true);
-    setPelekanErr(null);
+  setPelekanLoading(true);
+  setPelekanErr(null);
 
-    try {
-      const r = await fetch(`/api/admin/analytics/pelekan?ts=${Date.now()}`, {
+  try {
+    const r = await fetch(
+      `/api/admin/analytics/pelekan?ts=${Date.now()}`,
+      {
         cache: "no-store",
         credentials: "include",
-        headers: { Accept: "application/json" },
-      });
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
 
-      const ct = r.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) throw new Error("bad_pelekan_response");
+    const ct = r.headers.get("content-type") || "";
 
-      const j = (await r.json()) as PelekanAnalyticsResponse;
-      if (!j?.ok || !j.data) throw new Error("pelekan_request_failed");
+    console.log("[PELEKAN_ANALYTICS_RESPONSE]", {
+      status: r.status,
+      statusText: r.statusText,
+      contentType: ct,
+      url: r.url,
+      redirected: r.redirected,
+    });
 
-      setPelekan(j.data);
-    } catch (e: any) {
-      console.error("loadPelekanStats failed", e);
-      setPelekan(null);
-      setPelekanErr(String(e?.message || "pelekan_internal_error"));
-    } finally {
-      setPelekanLoading(false);
+    if (!ct.includes("application/json")) {
+      const raw = await r.text();
+
+      console.error(
+        "[PELEKAN_ANALYTICS_NON_JSON]",
+        raw.slice(0, 1000),
+      );
+
+      throw new Error(
+        `bad_pelekan_response (${r.status})`,
+      );
     }
+
+    const j = (await r.json()) as PelekanAnalyticsResponse;
+
+    console.log("[PELEKAN_ANALYTICS_JSON]", j);
+
+    if (!r.ok) {
+      throw new Error(`pelekan_http_${r.status}`);
+    }
+
+    if (!j?.ok || !j.data) {
+      throw new Error("pelekan_request_failed");
+    }
+
+    setPelekan(j.data);
+  } catch (e: unknown) {
+    console.error("loadPelekanStats failed", e);
+
+    setPelekan(null);
+
+    setPelekanErr(
+      e instanceof Error
+        ? e.message
+        : "pelekan_internal_error",
+    );
+  } finally {
+    setPelekanLoading(false);
   }
+}
 
   async function handleRefresh() {
     if (refreshLockRef.current) return;
 
     refreshLockRef.current = true;
     try {
-      await Promise.all([loadAllUsers(), loadTicketStats(), loadPelekanStats()]);
+      await Promise.all([
+        loadAllUsers(),
+        loadTicketStats(),
+        loadPelekanStats(),
+      ]);
       setLastUpdatedAt(new Date().toISOString());
     } finally {
       refreshLockRef.current = false;
@@ -588,18 +634,17 @@ export default function AdminAnalyticsPage() {
     for (const u of rows) {
       const ps = planState(u);
 
-      if (ps === "pro") {
-        const dl = daysLeft(u.planExpiresAt || null);
-        if (dl !== null && dl > 0) {
-          if (dl <= 3) {
-            pro0to3 += 1;
-          } else if (dl <= 7) {
-            pro4to7 += 1;
-          } else if (dl <= 30) {
-            pro8to30 += 1;
-          } else {
-            pro30plus += 1;
-          }
+      const dl = daysLeft(u.planExpiresAt || null);
+
+      if (u.plan === "pro" && dl !== null && dl > 0) {
+        if (dl <= 3) {
+          pro0to3 += 1;
+        } else if (dl <= 7) {
+          pro4to7 += 1;
+        } else if (dl <= 30) {
+          pro8to30 += 1;
+        } else {
+          pro30plus += 1;
         }
       }
 
@@ -631,7 +676,9 @@ export default function AdminAnalyticsPage() {
     }
 
     const completionRate = n ? Math.round((completed / n) * 100) : 0;
-    const proRate = n ? Math.round((byPlan.pro / n) * 100) : 0;
+    const activeProCount = byPlan.pro + byPlan.expiring;
+
+    const proRate = n ? Math.round((activeProCount / n) * 100) : 0;
     const expiringRate = n ? Math.round((byPlan.expiring / n) * 100) : 0;
     const expiredRate = n ? Math.round((byPlan.expired / n) * 100) : 0;
 
@@ -658,6 +705,7 @@ export default function AdminAnalyticsPage() {
       byGender,
       new7,
       new30,
+      activeProCount,
     };
   }, [rows]);
 
@@ -670,16 +718,16 @@ export default function AdminAnalyticsPage() {
         gap: 12,
       }
     : isTablet
-    ? {
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 12,
-      }
-    : {
-        display: "grid",
-        gridTemplateColumns: "1fr",
-        gap: 12,
-      };
+      ? {
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 12,
+        }
+      : {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 12,
+        };
 
   const pelekanStatsGridStyle: React.CSSProperties = isDesktop
     ? {
@@ -688,16 +736,16 @@ export default function AdminAnalyticsPage() {
         gap: 12,
       }
     : isTablet
-    ? {
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 12,
-      }
-    : {
-        display: "grid",
-        gridTemplateColumns: "1fr",
-        gap: 12,
-      };
+      ? {
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 12,
+        }
+      : {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 12,
+        };
 
   const bottomInfoGridStyle: React.CSSProperties = isDesktop
     ? {
@@ -706,16 +754,16 @@ export default function AdminAnalyticsPage() {
         gap: 12,
       }
     : isTablet
-    ? {
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 12,
-      }
-    : {
-        display: "grid",
-        gridTemplateColumns: "1fr",
-        gap: 12,
-      };
+      ? {
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 12,
+        }
+      : {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 12,
+        };
 
   return (
     <div
@@ -755,10 +803,10 @@ export default function AdminAnalyticsPage() {
             {isRefreshing
               ? "در حال دریافت و بروزرسانی داده‌ها…"
               : err
-              ? `خطا: ${err}`
-              : `کل کاربران: ${stats.n}  •  آخرین بروزرسانی: ${
-                  lastUpdatedAt ? fmtFa(lastUpdatedAt) : "—"
-                }`}
+                ? `خطا: ${err}`
+                : `کل کاربران: ${stats.n}  •  آخرین بروزرسانی: ${
+                    lastUpdatedAt ? fmtFa(lastUpdatedAt) : "—"
+                  }`}
           </div>
         </div>
 
@@ -774,7 +822,11 @@ export default function AdminAnalyticsPage() {
             onClick={handleRefresh}
             disabled={isRefreshing}
             aria-busy={isRefreshing}
-            title={isRefreshing ? "در حال بروزرسانی داده‌ها" : "دریافت مجدد آخرین آمار"}
+            title={
+              isRefreshing
+                ? "در حال بروزرسانی داده‌ها"
+                : "دریافت مجدد آخرین آمار"
+            }
             style={{
               ...btnPrimary,
               opacity: isRefreshing ? 0.6 : 1,
@@ -798,7 +850,8 @@ export default function AdminAnalyticsPage() {
               textAlign: "center",
             }}
           >
-            total(API): <b style={{ marginInlineStart: 6 }}>{total || stats.n}</b>
+            total(API):{" "}
+            <b style={{ marginInlineStart: 6 }}>{total || stats.n}</b>
           </div>
         </div>
       </div>
@@ -807,13 +860,17 @@ export default function AdminAnalyticsPage() {
         <div style={topCardsGridStyle}>
           <div style={statCard}>
             <div style={statLabel}>کل کاربران</div>
-            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{stats.n}</div>
+            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
+              {stats.n}
+            </div>
             <div style={statHint}>نمایش بر اساس لیست کاربران (paginate)</div>
           </div>
 
           <div style={statCard}>
             <div style={statLabel}>کاربران جدید</div>
-            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{stats.new7}</div>
+            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
+              {stats.new7}
+            </div>
             <div style={statHint}>۷ روز اخیر • ۳۰ روز اخیر: {stats.new30}</div>
           </div>
 
@@ -827,14 +884,15 @@ export default function AdminAnalyticsPage() {
                   stats.new30ProRate >= 20
                     ? "#22c55e"
                     : stats.new30ProRate >= 10
-                    ? "#f59e0b"
-                    : "#ef4444",
+                      ? "#f59e0b"
+                      : "#ef4444",
               }}
             >
               {stats.new30ProRate}%
             </div>
             <div style={statHint}>
-              از {stats.new30Users} کاربر ۳۰ روز اخیر، {stats.new30Pro} نفر الان PRO هستند
+              از {stats.new30Users} کاربر ۳۰ روز اخیر، {stats.new30Pro} نفر الان
+              PRO هستند
             </div>
             <div
               style={{
@@ -848,8 +906,8 @@ export default function AdminAnalyticsPage() {
               {stats.new30ProRate >= 20
                 ? "وضعیت خوب"
                 : stats.new30ProRate >= 10
-                ? "نیاز به بهبود"
-                : "هشدار: جذب PRO پایین است"}
+                  ? "نیاز به بهبود"
+                  : "هشدار: جذب PRO پایین است"}
             </div>
           </div>
 
@@ -859,15 +917,20 @@ export default function AdminAnalyticsPage() {
               {stats.completionRate}%
             </div>
             <div style={statHint}>
-              کامل: {stats.completed} • ناقص: {Math.max(0, stats.n - stats.completed)}
+              کامل: {stats.completed} • ناقص:{" "}
+              {Math.max(0, stats.n - stats.completed)}
             </div>
           </div>
 
           <div style={statCard}>
             <div style={statLabel}>کاربران PRO (فعال)</div>
-            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{stats.byPlan.pro}</div>
+
+            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
+              {stats.activeProCount}
+            </div>
             <div style={statHint}>
-              نزدیک انقضا: {stats.byPlan.expiring} • منقضی: {stats.byPlan.expired}
+              نزدیک انقضا: {stats.byPlan.expiring} • منقضی:{" "}
+              {stats.byPlan.expired}
             </div>
           </div>
 
@@ -882,12 +945,16 @@ export default function AdminAnalyticsPage() {
             >
               {stats.proExpiringSoon}
             </div>
-            <div style={statHint}>کاربران PRO فعالی که تا ۷ روز آینده منقضی می‌شوند</div>
+            <div style={statHint}>
+              کاربران PRO فعالی که تا ۷ روز آینده منقضی می‌شوند
+            </div>
           </div>
 
           <div style={statCard}>
             <div style={statLabel}>درصد کاربران PRO</div>
-            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{stats.proRate}%</div>
+            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
+              {stats.proRate}%
+            </div>
             <div style={statHint}>از کل {stats.n} کاربر</div>
           </div>
 
@@ -921,18 +988,29 @@ export default function AdminAnalyticsPage() {
 
           <div style={statCard}>
             <div style={statLabel}>توزیع PRO فعال</div>
-            <div style={{ marginTop: 8, fontSize: 13, fontWeight: 900, lineHeight: 2 }}>
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 13,
+                fontWeight: 900,
+                lineHeight: 2,
+              }}
+            >
               <div>
-                ۰ تا ۳ روز: <span style={{ color: "#f97316" }}>{stats.pro0to3}</span>
+                ۰ تا ۳ روز:{" "}
+                <span style={{ color: "#f97316" }}>{stats.pro0to3}</span>
               </div>
               <div>
-                ۴ تا ۷ روز: <span style={{ color: "#f59e0b" }}>{stats.pro4to7}</span>
+                ۴ تا ۷ روز:{" "}
+                <span style={{ color: "#f59e0b" }}>{stats.pro4to7}</span>
               </div>
               <div>
-                ۸ تا ۳۰ روز: <span style={{ color: "#22c55e" }}>{stats.pro8to30}</span>
+                ۸ تا ۳۰ روز:{" "}
+                <span style={{ color: "#22c55e" }}>{stats.pro8to30}</span>
               </div>
               <div>
-                ۳۰+ روز: <span style={{ color: "#38bdf8" }}>{stats.pro30plus}</span>
+                ۳۰+ روز:{" "}
+                <span style={{ color: "#38bdf8" }}>{stats.pro30plus}</span>
               </div>
             </div>
             <div style={statHint}>فقط کاربران PRO فعال</div>
@@ -940,8 +1018,12 @@ export default function AdminAnalyticsPage() {
 
           <div style={statCard}>
             <div style={statLabel}>کل تیکت‌ها</div>
-            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>{ticketsTotal}</div>
-            <div style={statHint}>تعداد کل پیام‌ها/درخواست‌های پشتیبانی ثبت‌شده</div>
+            <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
+              {ticketsTotal}
+            </div>
+            <div style={statHint}>
+              تعداد کل پیام‌ها/درخواست‌های پشتیبانی ثبت‌شده
+            </div>
           </div>
 
           <div style={statCard}>
@@ -971,16 +1053,26 @@ export default function AdminAnalyticsPage() {
             gridTemplateColumns: isDesktop
               ? "repeat(3, minmax(0, 1fr))"
               : isTablet
-              ? "repeat(2, minmax(0, 1fr))"
-              : "1fr",
+                ? "repeat(2, minmax(0, 1fr))"
+                : "1fr",
             gap: 12,
           }}
         >
           <div style={card}>
             <div style={sectionTitle}>تفکیک پلن</div>
             <div style={sectionBody}>
-              <BarRow label="FREE" value={stats.byPlan.free} total={stats.n} mobile={isMobile} />
-              <BarRow label="PRO" value={stats.byPlan.pro} total={stats.n} mobile={isMobile} />
+              <BarRow
+                label="FREE"
+                value={stats.byPlan.free}
+                total={stats.n}
+                mobile={isMobile}
+              />
+              <BarRow
+                label="PRO"
+                value={stats.byPlan.pro}
+                total={stats.n}
+                mobile={isMobile}
+              />
               <BarRow
                 label="نزدیک انقضا"
                 value={stats.byPlan.expiring}
@@ -1003,7 +1095,9 @@ export default function AdminAnalyticsPage() {
                   lineHeight: 1.8,
                 }}
               >
-                {"تعریف‌ها: expiring = ۳ روز آخر • expired = ≤ 0 روز • pro = فعال"}
+                {
+                  "تعریف‌ها: expiring = ۳ روز آخر • expired = ≤ 0 روز • pro = فعال"
+                }
               </div>
             </div>
           </div>
@@ -1011,7 +1105,12 @@ export default function AdminAnalyticsPage() {
           <div style={card}>
             <div style={sectionTitle}>تفکیک جنسیت</div>
             <div style={sectionBody}>
-              <BarRow label="مرد" value={stats.byGender.male} total={stats.n} mobile={isMobile} />
+              <BarRow
+                label="مرد"
+                value={stats.byGender.male}
+                total={stats.n}
+                mobile={isMobile}
+              />
               <BarRow
                 label="زن"
                 value={stats.byGender.female}
@@ -1082,7 +1181,8 @@ export default function AdminAnalyticsPage() {
                   lineHeight: 1.8,
                 }}
               >
-                از بین کاربران ثبت‌نام‌کرده ۳۰ روز اخیر، وضعیت فعلی پلن نمایش داده می‌شود.
+                از بین کاربران ثبت‌نام‌کرده ۳۰ روز اخیر، وضعیت فعلی پلن نمایش
+                داده می‌شود.
               </div>
             </div>
           </div>
@@ -1090,30 +1190,32 @@ export default function AdminAnalyticsPage() {
       </div>
 
       <div style={{ marginTop: 14, ...card }}>
-        <div style={sectionTitle}>توزیع کاربران PRO فعال بر اساس روز باقی‌مانده</div>
+        <div style={sectionTitle}>
+          توزیع کاربران PRO فعال بر اساس روز باقی‌مانده
+        </div>
         <div style={sectionBody}>
           <BarRow
             label="۰ تا ۳ روز"
             value={stats.pro0to3}
-            total={stats.byPlan.pro}
+            total={stats.activeProCount}
             mobile={isMobile}
           />
           <BarRow
             label="۴ تا ۷ روز"
             value={stats.pro4to7}
-            total={stats.byPlan.pro}
+            total={stats.activeProCount}
             mobile={isMobile}
           />
           <BarRow
             label="۸ تا ۳۰ روز"
             value={stats.pro8to30}
-            total={stats.byPlan.pro}
+            total={stats.activeProCount}
             mobile={isMobile}
           />
           <BarRow
             label="۳۰+ روز"
             value={stats.pro30plus}
-            total={stats.byPlan.pro}
+            total={stats.activeProCount}
             mobile={isMobile}
           />
 
@@ -1135,15 +1237,26 @@ export default function AdminAnalyticsPage() {
         <div style={sectionTitle}>آمار پلکان درمان</div>
         <div style={sectionBody}>
           {pelekanLoading ? (
-            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+            <div
+              style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}
+            >
               در حال دریافت آمار پلکان…
             </div>
           ) : pelekanErr ? (
-            <div style={{ fontSize: 12, color: "#ef4444", textAlign: "center", lineHeight: 1.8 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "#ef4444",
+                textAlign: "center",
+                lineHeight: 1.8,
+              }}
+            >
               خطا در دریافت آمار پلکان: {pelekanErr}
             </div>
           ) : !pelekan ? (
-            <div style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}>
+            <div
+              style={{ fontSize: 12, color: "#94a3b8", textAlign: "center" }}
+            >
               داده‌ای برای آمار پلکان موجود نیست.
             </div>
           ) : (
@@ -1154,7 +1267,9 @@ export default function AdminAnalyticsPage() {
                   <div style={{ ...statValue, fontSize: isMobile ? 22 : 24 }}>
                     {pelekan.funnel.treatingUsers}
                   </div>
-                  <div style={statHint}>کاربران یکتایی که وارد درمان پلکان شده‌اند</div>
+                  <div style={statHint}>
+                    کاربران یکتایی که وارد درمان پلکان شده‌اند
+                  </div>
                 </div>
 
                 <div style={statCard}>
@@ -1173,8 +1288,8 @@ export default function AdminAnalyticsPage() {
                     {pelekan.baseline.completedCount}
                   </div>
                   <div style={statHint}>
-                    تعداد baselineهای تکمیل‌شده • سطح‌بندی: ۰–۹ قابل‌مدیریت، ۱۰–۱۹ متوسط،
-                    ۲۰–۳۱ شدید
+                    تعداد baselineهای تکمیل‌شده • سطح‌بندی: ۰–۹ قابل‌مدیریت،
+                    ۱۰–۱۹ متوسط، ۲۰–۳۱ شدید
                   </div>
                 </div>
 
@@ -1202,7 +1317,8 @@ export default function AdminAnalyticsPage() {
                     {pelekan.funnel.waitingForProUsers}
                   </div>
                   <div style={statHint}>
-                    کاربران FREE که ویس شروع پلکان را کامل کرده‌اند اما هنوز PRO نشده‌اند
+                    کاربران FREE که ویس شروع پلکان را کامل کرده‌اند اما هنوز PRO
+                    نشده‌اند
                   </div>
                 </div>
 
@@ -1222,7 +1338,8 @@ export default function AdminAnalyticsPage() {
                     {pelekan.funnel.introCompletedProUsers}
                   </div>
                   <div style={statHint}>
-                    از بین کاربران تکمیل‌کننده ویس شروع، تعداد کاربرانی که اکنون PRO هستند
+                    از بین کاربران تکمیل‌کننده ویس شروع، تعداد کاربرانی که اکنون
+                    PRO هستند
                   </div>
                 </div>
 
@@ -1335,7 +1452,8 @@ export default function AdminAnalyticsPage() {
                         lineHeight: 1.8,
                       }}
                     >
-                      این بخش مکمل است؛ معیار اصلی تصمیم‌گیری همچنان سه سطح baseline است
+                      این بخش مکمل است؛ معیار اصلی تصمیم‌گیری همچنان سه سطح
+                      baseline است
                     </div>
 
                     <BarRow
@@ -1378,7 +1496,13 @@ export default function AdminAnalyticsPage() {
                       height: "100%",
                     }}
                   >
-                    <div style={{ fontSize: 11, color: "#fdba74", fontWeight: 900 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#fdba74",
+                        fontWeight: 900,
+                      }}
+                    >
                       کاربران گیرکرده در درمان
                     </div>
                     <div
@@ -1399,7 +1523,8 @@ export default function AdminAnalyticsPage() {
                         lineHeight: 1.7,
                       }}
                     >
-                      تعداد کاربران فعالی که بیش از ۷ روز در مرحله فعلی درمان مانده‌اند.
+                      تعداد کاربران فعالی که بیش از ۷ روز در مرحله فعلی درمان
+                      مانده‌اند.
                     </div>
 
                     <div
@@ -1412,9 +1537,9 @@ export default function AdminAnalyticsPage() {
                         lineHeight: 1.9,
                       }}
                     >
-                      توزیع مراحل فقط کاربران فعال درمان را نشان می‌دهد. شاخص «منتظر خرید
-                      اشتراک» بر اساس کاربران FREE محاسبه می‌شود که ویس شروع پلکان را کامل
-                      کرده‌اند اما هنوز PRO نشده‌اند.
+                      توزیع مراحل فقط کاربران فعال درمان را نشان می‌دهد. شاخص
+                      «منتظر خرید اشتراک» بر اساس کاربران FREE محاسبه می‌شود که
+                      ویس شروع پلکان را کامل کرده‌اند اما هنوز PRO نشده‌اند.
                     </div>
                   </div>
                 </div>
@@ -1463,98 +1588,125 @@ export default function AdminAnalyticsPage() {
                         <div style={{ textAlign: "center" }}>شدت</div>
                       </div>
 
-                      {(pelekan.treatment.stageDistribution || []).map((s, index) => {
-                        const sp = stagePercent(s.count, pelekan.treatment.activeUsers);
-                        const tone = avgDaysTone(s.avgDays);
+                      {(pelekan.treatment.stageDistribution || []).map(
+                        (s, index) => {
+                          const sp = stagePercent(
+                            s.count,
+                            pelekan.treatment.activeUsers,
+                          );
+                          const tone = avgDaysTone(s.avgDays);
 
-                        return (
-                          <div
-                            key={s.code}
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1.2fr 0.7fr 0.7fr 1fr",
-                              padding: "10px 12px",
-                              borderBottom:
-                                index === (pelekan.treatment.stageDistribution || []).length - 1
-                                  ? "none"
-                                  : "1px solid rgba(255,255,255,0.06)",
-                              fontSize: 12,
-                              color: "#e2e8f0",
-                              alignItems: "center",
-                            }}
-                          >
-                            <div style={{ textAlign: "right", fontWeight: 900 }}>{s.title}</div>
-
-                            <div style={{ textAlign: "center" }}>{s.count}</div>
-
-                            <div style={{ display: "flex", justifyContent: "center" }}>
+                          return (
+                            <div
+                              key={s.code}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1.2fr 0.7fr 0.7fr 1fr",
+                                padding: "10px 12px",
+                                borderBottom:
+                                  index ===
+                                  (pelekan.treatment.stageDistribution || [])
+                                    .length -
+                                    1
+                                    ? "none"
+                                    : "1px solid rgba(255,255,255,0.06)",
+                                fontSize: 12,
+                                color: "#e2e8f0",
+                                alignItems: "center",
+                              }}
+                            >
                               <div
-                                style={{
-                                  minWidth: 72,
-                                  padding: "4px 8px",
-                                  borderRadius: 999,
-                                  textAlign: "center",
-                                  fontWeight: 900,
-                                  color: tone.color,
-                                  backgroundColor: tone.bg,
-                                  border: `1px solid ${
-                                    tone.bg === "transparent"
-                                      ? "rgba(255,255,255,0.08)"
-                                      : tone.bg
-                                  }`,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: 6,
-                                  whiteSpace: "nowrap",
-                                }}
+                                style={{ textAlign: "right", fontWeight: 900 }}
                               >
-                                <span>{fmtAvgDays(s.avgDays)}</span>
-                                <span style={{ fontSize: 10, opacity: 0.9 }}>{tone.label}</span>
+                                {s.title}
                               </div>
-                            </div>
 
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ textAlign: "center" }}>
+                                {s.count}
+                              </div>
+
                               <div
                                 style={{
-                                  flex: 1,
-                                  height: 8,
-                                  borderRadius: 999,
-                                  backgroundColor: "rgba(255,255,255,0.06)",
-                                  overflow: "hidden",
-                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  display: "flex",
+                                  justifyContent: "center",
                                 }}
                               >
                                 <div
                                   style={{
-                                    height: "100%",
-                                    width: `${sp}%`,
+                                    minWidth: 72,
+                                    padding: "4px 8px",
                                     borderRadius: 999,
-                                    background:
-                                      sp >= 60
-                                        ? "linear-gradient(90deg, #ef4444, #f97316)"
-                                        : sp >= 30
-                                        ? "linear-gradient(90deg, #f59e0b, #facc15)"
-                                        : "linear-gradient(90deg, #22c55e, #38bdf8)",
+                                    textAlign: "center",
+                                    fontWeight: 900,
+                                    color: tone.color,
+                                    backgroundColor: tone.bg,
+                                    border: `1px solid ${
+                                      tone.bg === "transparent"
+                                        ? "rgba(255,255,255,0.08)"
+                                        : tone.bg
+                                    }`,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 6,
+                                    whiteSpace: "nowrap",
                                   }}
-                                />
+                                >
+                                  <span>{fmtAvgDays(s.avgDays)}</span>
+                                  <span style={{ fontSize: 10, opacity: 0.9 }}>
+                                    {tone.label}
+                                  </span>
+                                </div>
                               </div>
 
                               <div
                                 style={{
-                                  minWidth: 38,
-                                  fontSize: 11,
-                                  fontWeight: 900,
-                                  color: "#cbd5e1",
-                                  textAlign: "left",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
                                 }}
                               >
-                                {sp}%
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    height: 8,
+                                    borderRadius: 999,
+                                    backgroundColor: "rgba(255,255,255,0.06)",
+                                    overflow: "hidden",
+                                    border: "1px solid rgba(255,255,255,0.08)",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      height: "100%",
+                                      width: `${sp}%`,
+                                      borderRadius: 999,
+                                      background:
+                                        sp >= 60
+                                          ? "linear-gradient(90deg, #ef4444, #f97316)"
+                                          : sp >= 30
+                                            ? "linear-gradient(90deg, #f59e0b, #facc15)"
+                                            : "linear-gradient(90deg, #22c55e, #38bdf8)",
+                                    }}
+                                  />
+                                </div>
+
+                                <div
+                                  style={{
+                                    minWidth: 38,
+                                    fontSize: 11,
+                                    fontWeight: 900,
+                                    color: "#cbd5e1",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  {sp}%
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        },
+                      )}
                     </div>
                   </div>
                 )}
