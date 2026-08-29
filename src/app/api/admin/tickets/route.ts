@@ -41,10 +41,27 @@ type AdminTicket = {
   [key: string]: unknown;
 };
 
+type AdminOption = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
+
 type TicketsProxyResponse = {
   ok?: boolean;
   error?: string;
   tickets?: AdminTicket[];
+
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+
+  adminOptions?: AdminOption[];
+
   [key: string]: unknown;
 };
 

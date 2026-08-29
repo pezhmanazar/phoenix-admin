@@ -1,6 +1,6 @@
 // src/app/admin/tickets/page.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Ticket = {
@@ -38,6 +38,29 @@ type Ticket = {
   }>;
   lastAt?: string;
   _lastSender?: "user" | "admin" | null;
+};
+
+type AdminOption = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
+
+type TicketsResponse = {
+  ok?: boolean;
+  error?: string;
+
+  tickets?: Ticket[];
+
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+
+  adminOptions?: AdminOption[];
 };
 
 function buildQuery(params: Record<string, string | undefined>) {
@@ -100,15 +123,6 @@ function cleanName(v: unknown): string {
 
   return s;
 }
-
-function normalizeText(v: unknown): string {
-  return String(v ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/ي/g, "ی")
-    .replace(/ك/g, "ک");
-}
-
 // ---------- چیپ‌ها با استایل inline مثل لاگین ----------
 function StatusChip({ status }: { status: Ticket["status"] }) {
   let bg = "#1e293b";
@@ -175,144 +189,135 @@ export default function TicketsPage() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [assignedAdminFilter, setAssignedAdminFilter] = useState("");
+
   const [page, setPage] = useState(1);
 
+  const [totalItems, setTotalItems] = useState(0);
+
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [adminOptions, setAdminOptions] = useState<AdminOption[]>([]);
+
   const pageSize = 15;
-  const totalPages = Math.max(1, Math.ceil(tickets.length / pageSize));
 
-  const pagedTickets = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return tickets.slice(start, start + pageSize);
-  }, [tickets, page]);
+  const assignedAdmins = useMemo(
+    () =>
+      adminOptions.map((admin) => ({
+        id: admin.id,
 
-  const assignedAdmins = useMemo(() => {
-    const map = new Map<string, string>();
+        label: admin.name?.trim() || admin.email?.trim() || "ادمین بدون نام",
+      })),
+    [adminOptions],
+  );
 
-    tickets.forEach((t) => {
-      if (!t.assignedAdmin?.id) return;
+  const query = useMemo(
+    () =>
+      buildQuery({
+        status,
+        type,
 
-      const label =
-        t.assignedAdmin.name?.trim() ||
-        t.assignedAdmin.email?.trim() ||
-        "ادمین بدون نام";
+        q: debouncedQ || undefined,
 
-      map.set(t.assignedAdmin.id, label);
-    });
+        assignedAdminId: assignedAdminFilter || undefined,
 
-    return Array.from(map.entries()).map(([id, label]) => ({
-      id,
-      label,
-    }));
-  }, [tickets]);
+        page: String(page),
 
-  const query = useMemo(() => buildQuery({ status, type }), [status, type]);
-
+        pageSize: String(pageSize),
+      }),
+    [status, type, debouncedQ, assignedAdminFilter, page],
+  );
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQ(q);
+      setPage(1);
+      setDebouncedQ(q.trim());
     }, 400);
 
     return () => clearTimeout(timer);
   }, [q]);
 
-  async function fetchTickets() {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/admin/tickets${query}`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (data.ok) {
-        const rawTickets: Ticket[] = Array.isArray(data.tickets)
-          ? (data.tickets as Ticket[])
-          : [];
+  const fetchTickets = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+        }
 
-        const withDisplay: Ticket[] = rawTickets.map((t) => {
-          const lastAt = extractLastAt(t);
-          const _lastSender = extractLastSender(t);
-
-          return {
-            ...t,
-            lastAt,
-            _lastSender,
-          };
+        const res = await fetch(`/api/admin/tickets${query}`, {
+          cache: "no-store",
         });
-        const unreadFiltered =
-          status === "unread"
-            ? withDisplay.filter((t) => t.unread)
-            : withDisplay;
 
-        const filtered = unreadFiltered.filter((t) => {
-          const matchesAdmin = (() => {
-            if (!assignedAdminFilter) return true;
+        const data = (await res
+          .json()
+          .catch(() => null)) as TicketsResponse | null;
 
-            if (assignedAdminFilter === "__unassigned__") {
-              return !t.assignedAdmin?.id;
-            }
+        if (!res.ok || !data?.ok) {
+          console.error("API Error:", data?.error || "request_failed");
 
-            return t.assignedAdmin?.id === assignedAdminFilter;
-          })();
+          return;
+        }
 
-          if (!matchesAdmin) return false;
+        const rawTickets = Array.isArray(data.tickets) ? data.tickets : [];
 
-          const search = normalizeText(debouncedQ);
-          if (!search) return true;
+        /*
+         * backend فقط آخرین message را می‌دهد،
+         * بنابراین دیگر client-side filter/sort نداریم.
+         */
+        const withDisplay = rawTickets.map((ticket) => ({
+          ...ticket,
 
-          const userName =
-            cleanName(t.user?.fullName) ||
-            cleanName(t.user?.full_name) ||
-            cleanName(t.displayName) ||
-            cleanName(t.userName) ||
-            cleanName(t.openedByName) ||
-            cleanName(
-              typeof t.contact === "object" && t.contact
-                ? t.contact.name
-                : undefined,
-            ) ||
-            cleanName(typeof t.contact === "string" ? t.contact : undefined) ||
-            cleanName(t.phone) ||
-            cleanName(t.email) ||
-            cleanName(t.title);
+          lastAt: extractLastAt(ticket),
 
-          const haystack = [
-            userName,
-            t.title,
-            t.description,
-            t.phone,
-            t.email,
-            typeof t.contact === "string" ? t.contact : "",
-            typeof t.contact === "object" && t.contact ? t.contact.name : "",
-          ]
-            .map((item) => normalizeText(item))
-            .join(" ");
+          _lastSender: extractLastSender(ticket),
+        }));
 
-          return haystack.includes(search);
-        });
-        const sorted = filtered.slice().sort((a, b) => {
-          const pinOrder = Number(!!b.pinned) - Number(!!a.pinned);
-          if (pinOrder !== 0) return pinOrder;
-          const aTime = new Date(a.lastAt || a.createdAt).getTime();
-          const bTime = new Date(b.lastAt || b.createdAt).getTime();
-          return bTime - aTime;
-        });
-        setTickets(sorted);
-        setPage(1);
-      } else {
-        console.error("API Error:", data.error);
+        setTickets(withDisplay);
+
+        setTotalItems(Number(data.pagination?.totalItems ?? 0));
+
+        setTotalPages(Math.max(1, Number(data.pagination?.totalPages ?? 1)));
+
+        if (Array.isArray(data.adminOptions)) {
+          setAdminOptions(data.adminOptions);
+        }
+
+        /*
+         * اگر مثلاً آخرین آیتم صفحه حذف شد و
+         * page فعلی دیگر وجود نداشت.
+         */
+        const serverPage = Math.max(1, Number(data.pagination?.page ?? page));
+
+        const serverTotalPages = Math.max(
+          1,
+          Number(data.pagination?.totalPages ?? 1),
+        );
+
+        if (serverPage > serverTotalPages) {
+          setPage(serverTotalPages);
+        }
+      } catch (e: unknown) {
+        console.error("Fetch failed:", e instanceof Error ? e.message : e);
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
       }
-    } catch (e) {
-      console.error("Fetch failed:", e);
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [query, page],
+  );
 
   useEffect(() => {
-    fetchTickets();
-    const t = setInterval(fetchTickets, 50000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, assignedAdminFilter, debouncedQ]);
+    void fetchTickets(false);
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchTickets(true);
+      }
+    }, 50000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchTickets]);
 
   async function markReadOptimistic(ticketId: string) {
     setTickets((prev) =>
@@ -391,7 +396,7 @@ export default function TicketsPage() {
           >
             مجموع تیکت‌ها:{" "}
             <span style={{ color: "#fb923c", fontWeight: 700 }}>
-              {tickets.length}
+              {totalItems}
             </span>
           </span>
         </div>
@@ -431,9 +436,11 @@ export default function TicketsPage() {
               </label>
               <select
                 value={status}
-                onChange={(e) =>
-                  setStatus(e.target.value as "" | "open" | "unread")
-                }
+                onChange={(e) => {
+                  setPage(1);
+
+                  setStatus(e.target.value as "" | "open" | "unread");
+                }}
                 style={{
                   width: "100%",
                   padding: "8px 10px",
@@ -466,9 +473,11 @@ export default function TicketsPage() {
               </label>
               <select
                 value={type}
-                onChange={(e) =>
-                  setType(e.target.value as "" | "tech" | "therapy")
-                }
+                onChange={(e) => {
+                  setPage(1);
+
+                  setType(e.target.value as "" | "tech" | "therapy");
+                }}
                 style={{
                   width: "100%",
                   padding: "8px 10px",
@@ -579,7 +588,9 @@ export default function TicketsPage() {
             </span>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
-                onClick={fetchTickets}
+                onClick={() => {
+                  void fetchTickets(false);
+                }}
                 style={{
                   padding: "8px 14px",
                   borderRadius: "9px",
@@ -599,6 +610,7 @@ export default function TicketsPage() {
                   setType("");
                   setQ("");
                   setAssignedAdminFilter("");
+                  setPage(1);
                 }}
                 style={{
                   padding: "8px 14px",
@@ -681,7 +693,7 @@ export default function TicketsPage() {
               </div>
 
               {/* ردیف‌ها */}
-              {pagedTickets.map((t) => {
+              {tickets.map((t) => {
                 const u = t.user || null;
 
                 const nameToShow =
@@ -825,7 +837,7 @@ export default function TicketsPage() {
         </div>
 
         {/* صفحه‌بندی */}
-        {tickets.length > 0 && (
+        {totalItems > 0 && (
           <div
             style={{
               marginTop: "10px",
