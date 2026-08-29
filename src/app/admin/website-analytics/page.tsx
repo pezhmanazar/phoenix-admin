@@ -17,10 +17,18 @@ type DailyChartItem = {
 type AnalyticsData = {
   daysRange: number;
   totalViews: number;
+
   homeToDownloadCount: number;
+  uniqueHomeToDownloadVisitors: number;
+
   directDownloadClicks: number;
+  bazaarDownloadClicks: number;
+  totalDownloadClicks: number;
+  uniqueDownloadVisitors: number;
+
   conversionRate: number;
   landingUniqueVisitors: number;
+
   pathStats: PathStat[];
   chartData: DailyChartItem[];
 };
@@ -490,11 +498,31 @@ export default function WebsiteAnalyticsPage() {
   }, [data?.pathStats]);
 
   const totalViews = data?.totalViews ?? 0;
+
   const homeToDownloadCount = data?.homeToDownloadCount ?? 0;
+
+  const uniqueHomeToDownloadVisitors = data?.uniqueHomeToDownloadVisitors ?? 0;
+
   const directDownloadClicks = data?.directDownloadClicks ?? 0;
+
+  const bazaarDownloadClicks = data?.bazaarDownloadClicks ?? 0;
+
+  const totalDownloadClicks = data?.totalDownloadClicks ?? 0;
+
+  const uniqueDownloadVisitors = data?.uniqueDownloadVisitors ?? 0;
+
   const conversionRate = data?.conversionRate ?? 0;
+
   const activePaths = data?.pathStats?.length ?? 0;
+
   const landingUniqueVisitors = data?.landingUniqueVisitors ?? 0;
+
+  const landingToDownloadRate =
+    landingUniqueVisitors > 0
+      ? Number(
+          ((uniqueDownloadVisitors / landingUniqueVisitors) * 100).toFixed(1),
+        )
+      : 0;
 
   return (
     <div
@@ -612,11 +640,18 @@ export default function WebsiteAnalyticsPage() {
             </div>
 
             <div style={statCard}>
-              <div style={statLabel}>ورود از خانه به دانلود</div>
+              <div style={statLabel}>کاربران خانه ← دانلود</div>
+
               <div style={{ ...statValue, color: "#a78bfa" }}>
-                {fmtNum(homeToDownloadCount)}
+                {fmtNum(uniqueHomeToDownloadVisitors)}
               </div>
-              <div style={statHint}>تعداد ورود به صفحه دانلود از صفحه اصلی</div>
+
+              <div style={statHint}>
+                کاربران یکتایی که از صفحه اصلی وارد صفحه دانلود شده‌اند
+                {homeToDownloadCount > uniqueHomeToDownloadVisitors
+                  ? ` (${fmtNum(homeToDownloadCount)} ورود)`
+                  : ""}
+              </div>
             </div>
 
             <div style={statCard}>
@@ -628,11 +663,54 @@ export default function WebsiteAnalyticsPage() {
             </div>
 
             <div style={statCard}>
-              <div style={statLabel}>نرخ تبدیل دانلود</div>
+              <div style={statLabel}>کلیک کافه‌بازار</div>
+
+              <div style={{ ...statValue, color: "#fbbf24" }}>
+                {fmtNum(bazaarDownloadClicks)}
+              </div>
+
+              <div style={statHint}>
+                تعداد کلیک روی دکمه دریافت از کافه‌بازار
+              </div>
+            </div>
+
+            <div style={statCard}>
+              <div style={statLabel}>کل کلیک‌های دانلود</div>
+
+              <div style={{ ...statValue, color: "#38bdf8" }}>
+                {fmtNum(totalDownloadClicks)}
+              </div>
+
+              <div style={statHint}>مجموع دانلود مستقیم و کافه‌بازار</div>
+            </div>
+
+            <div style={statCard}>
+              <div style={statLabel}>نرخ تبدیل صفحه دانلود</div>
+
               <div style={{ ...statValue, color: "#34d399" }}>
                 {conversionRate.toLocaleString("fa-IR")}%
               </div>
-              <div style={statHint}>نسبت کلیک دانلود به ورود از خانه</div>
+
+              <div style={statHint}>
+                درصد کاربران یکتای ورودی از خانه که حداقل یک روش دانلود را
+                انتخاب کرده‌اند
+                {uniqueDownloadVisitors > 0
+                  ? ` (${fmtNum(uniqueDownloadVisitors)} کاربر)`
+                  : ""}
+              </div>
+            </div>
+
+            <div style={statCard}>
+              <div style={statLabel}>تبدیل لندینگ به دانلود</div>
+
+              <div style={{ ...statValue, color: "#22c55e" }}>
+                {landingToDownloadRate.toLocaleString("fa-IR")}%
+              </div>
+
+              <div style={statHint}>
+                درصد بازدیدکنندگان یکتای صفحه اصلی که به انتخاب یکی از روش‌های
+                دانلود رسیده‌اند
+              </div>
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
