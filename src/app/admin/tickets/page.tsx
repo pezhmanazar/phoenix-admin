@@ -740,6 +740,7 @@ export default function TicketsPage() {
                     <div style={{ textAlign: "center" }}>
                       <Link
                         href={`/admin/tickets/${t.id}`}
+                        prefetch={false}
                         onClick={() => markReadOptimistic(t.id)}
                         style={{
                           color: "#fb923c",
