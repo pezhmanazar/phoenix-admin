@@ -527,14 +527,6 @@ export default function AdminAnalyticsPage() {
 
     const ct = r.headers.get("content-type") || "";
 
-    console.log("[PELEKAN_ANALYTICS_RESPONSE]", {
-      status: r.status,
-      statusText: r.statusText,
-      contentType: ct,
-      url: r.url,
-      redirected: r.redirected,
-    });
-
     if (!ct.includes("application/json")) {
       const raw = await r.text();
 
@@ -549,8 +541,6 @@ export default function AdminAnalyticsPage() {
     }
 
     const j = (await r.json()) as PelekanAnalyticsResponse;
-
-    console.log("[PELEKAN_ANALYTICS_JSON]", j);
 
     if (!r.ok) {
       throw new Error(`pelekan_http_${r.status}`);

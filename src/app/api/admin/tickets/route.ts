@@ -5,11 +5,57 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { backendBase } from "../_proxy";
 
+type AdminTicket = {
+  title?: string | null;
+  contact?: string | { name?: string | null } | null;
+  email?: string | null;
+  phone?: string | null;
+  userName?: string | null;
+
+  user?: {
+    fullName?: string | null;
+    full_name?: string | null;
+    name?: string | null;
+  } | null;
+
+  createdBy?: {
+    fullName?: string | null;
+    name?: string | null;
+  } | null;
+
+  owner?: {
+    fullName?: string | null;
+    name?: string | null;
+  } | null;
+
+  profile?: {
+    fullName?: string | null;
+    name?: string | null;
+  } | null;
+
+  customer?: {
+    fullName?: string | null;
+    name?: string | null;
+  } | null;
+
+  [key: string]: unknown;
+};
+
+type TicketsProxyResponse = {
+  ok?: boolean;
+  error?: string;
+  tickets?: AdminTicket[];
+  [key: string]: unknown;
+};
+
 export async function GET(req: Request) {
   try {
     const token = (await cookies()).get("admin_token")?.value || "";
     if (!token) {
-      return NextResponse.json({ ok: false, error: "no_session" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "no_session" },
+        { status: 401 },
+      );
     }
 
     const base = backendBase();
@@ -36,41 +82,47 @@ export async function GET(req: Request) {
     } catch (err) {
       clearTimeout(t);
       console.error("proxy /api/admin/tickets fetch error:", err);
-      return NextResponse.json({ ok: false, error: "fetch_failed" }, { status: 502 });
+      return NextResponse.json(
+        { ok: false, error: "fetch_failed" },
+        { status: 502 },
+      );
     }
     clearTimeout(t);
 
-    let data: any = null;
+    let data: TicketsProxyResponse;
     try {
-      data = await res.json();
+      data = (await res.json()) as TicketsProxyResponse;
     } catch {
       data = { ok: false, error: "invalid_json" };
     }
 
     // غنی‌سازی خروجی فقط وقتی ok و آرایه‌ی tickets داریم
     if (data?.ok && Array.isArray(data.tickets)) {
-      data.tickets = data.tickets.map((t: any) => {
+      data.tickets = data.tickets.map((t: AdminTicket) => {
         const userNameRaw =
-  t?.user?.fullName ||
-  t?.user?.full_name ||
-  t?.user?.name ||
-  t?.createdBy?.fullName ||
-  t?.createdBy?.name ||
-  t?.owner?.fullName ||
-  t?.owner?.name ||
-  t?.profile?.fullName ||
-  t?.profile?.name ||
-  t?.userName ||
-  t?.customer?.fullName ||
-  t?.customer?.name ||
-  null;
+          t?.user?.fullName ||
+          t?.user?.full_name ||
+          t?.user?.name ||
+          t?.createdBy?.fullName ||
+          t?.createdBy?.name ||
+          t?.owner?.fullName ||
+          t?.owner?.name ||
+          t?.profile?.fullName ||
+          t?.profile?.name ||
+          t?.userName ||
+          t?.customer?.fullName ||
+          t?.customer?.name ||
+          null;
+
+        const contactName =
+          typeof t.contact === "object" && t.contact !== null
+            ? t.contact.name || null
+            : null;
+
+        const contactValue = typeof t.contact === "string" ? t.contact : null;
 
         const fallbackFromContact =
-          t?.contact?.name ||
-          t?.contact ||
-          t?.email ||
-          t?.phone ||
-          null;
+          contactName || contactValue || t.email || t.phone || null;
 
         const userName = userNameRaw || fallbackFromContact || null;
         const displayName = userName || t?.title || "—";
@@ -78,17 +130,12 @@ export async function GET(req: Request) {
       });
     }
 
-    console.log(
-  "admin tickets sample:",
-  JSON.stringify(data?.tickets?.[0] || null, null, 2)
-);
-
     return NextResponse.json(data, { status: res.status || 200 });
-  } catch (e: any) {
-    console.error("proxy /api/admin/tickets fatal:", e?.message || e);
-    return NextResponse.json(
-      { ok: false, error: e?.message || "proxy_error" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "proxy_error";
+
+    console.error("proxy /api/admin/tickets fatal:", message);
+
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

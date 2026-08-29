@@ -670,7 +670,6 @@ export default function NotificationsPage() {
     const testUserId = prompt(
       "برای ارسال تست، User ID را وارد کنید.\nبرای ارسال عمومی خالی بگذارید.",
     );
-    console.log("TEST USER ID:", testUserId);
 
     if (testUserId === null) return;
 

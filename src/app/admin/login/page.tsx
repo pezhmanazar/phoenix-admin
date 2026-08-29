@@ -22,9 +22,16 @@ function mapErrorMessage(code: string): string {
   }
 }
 
+type AdminUser = {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
+
 type LoginOk = {
   ok: true;
-  admin: any;
+  admin: AdminUser;
   redirect?: boolean;
 };
 
@@ -53,7 +60,10 @@ export default function AdminLoginPage() {
 
     setErr(null);
 
-    const body = { email: email.trim().toLowerCase(), password: password.trim() };
+    const body = {
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
+    };
     if (!body.email || !body.password) {
       setErr("missing_login_fields");
       return;
@@ -65,7 +75,10 @@ export default function AdminLoginPage() {
       // ✅ لاگین باید از /api/auth/login روی خود Next انجام شود تا cookie ست شود
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         credentials: "include",
         body: JSON.stringify(body),
       });
@@ -73,8 +86,6 @@ export default function AdminLoginPage() {
       // ✅ اگر به جای JSON، HTML برگشت (مثل صفحه خطا/ریدایرکت)، کرش نکن
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("application/json")) {
-        const text = await res.text().catch(() => "");
-        console.log("[admin login] non-json response:", text.slice(0, 400));
         setErr(`bad_response_${res.status}`);
         return;
       }
@@ -100,8 +111,8 @@ export default function AdminLoginPage() {
       if (typeof window !== "undefined") {
         window.location.href = to;
       }
-    } catch (e: any) {
-      const msg = String(e?.message || "");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
       if (msg.toLowerCase().includes("failed to fetch")) {
         setErr("failed_to_fetch");
       } else {
