@@ -368,7 +368,6 @@ export default function MessagesList({
 
           const bubbleStyle: React.CSSProperties = {
             maxWidth: "85%",
-            minWidth: 0,
             padding: "10px 12px",
             borderRadius: "14px",
             border: "1px solid",
@@ -376,10 +375,12 @@ export default function MessagesList({
             backgroundColor: mine ? "#ea580c" : "#000",
             alignSelf: mine ? "flex-start" : "flex-end",
             fontSize: "13px",
-            boxSizing: "border-box",
-            overflow: "hidden",
+            ...(type === "voice"
+              ? {
+                  width: "min(420px, 85%)",
+                }
+              : {}),
           };
-
           const metaStyle: React.CSSProperties = {
             fontSize: "11px",
             marginBottom: 4,

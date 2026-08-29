@@ -64,7 +64,8 @@ export default function VoicePlayer({ src }: { src: string }) {
   return (
     <div
       style={{
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: "auto minmax(0, 1fr)",
         alignItems: "center",
         gap: 8,
         backgroundColor: "rgba(255,255,255,0.08)",
@@ -73,7 +74,6 @@ export default function VoicePlayer({ src }: { src: string }) {
         width: "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
-        overflow: "hidden",
       }}
     >
       <button
@@ -90,6 +90,7 @@ export default function VoicePlayer({ src }: { src: string }) {
           color: "#fff",
           cursor: "pointer",
           whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
       >
         ×{rate}
@@ -135,12 +136,11 @@ export default function VoicePlayer({ src }: { src: string }) {
         }}
         style={{
           display: activated ? "block" : "none",
-          flex: 1,
-          outline: "none",
           width: "100%",
           minWidth: 0,
           maxWidth: "100%",
           height: 40,
+          outline: "none",
         }}
       />
     </div>
